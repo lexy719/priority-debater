@@ -1,12 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, ArrowUp, ArrowDown, Swords, Loader2, RotateCcw } from "lucide-react";
+import { Plus, Trash2, ArrowUp, ArrowDown, Swords, Loader2, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 
 interface Feature {
   id: string;
   name: string;
+  description: string;
+  userImpact: string;
+  effort: "low" | "medium" | "high" | "";
+  confidence: "low" | "medium" | "high" | "";
   reasoning: string;
+}
+
+interface ProductContext {
+  productName: string;
+  productDescription: string;
+  targetUsers: string;
+  currentGoal: string;
+  constraints: string;
+  timeline: string;
 }
 
 interface DebateResponse {
@@ -21,30 +34,60 @@ interface DebateResponse {
     feature: string;
     reason: string;
   }[];
+  overallAssessment: string;
 }
 
+const emptyFeature = (): Feature => ({
+  id: Date.now().toString(),
+  name: "",
+  description: "",
+  userImpact: "",
+  effort: "",
+  confidence: "",
+  reasoning: "",
+});
+
 export default function Home() {
-  const [features, setFeatures] = useState<Feature[]>([
-    { id: "1", name: "", reasoning: "" },
-  ]);
+  const [context, setContext] = useState<ProductContext>({
+    productName: "",
+    productDescription: "",
+    targetUsers: "",
+    currentGoal: "",
+    constraints: "",
+    timeline: "",
+  });
+  const [features, setFeatures] = useState<Feature[]>([emptyFeature()]);
   const [isLoading, setIsLoading] = useState(false);
   const [debate, setDebate] = useState<DebateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(new Set([features[0].id]));
+
+  const toggleFeatureExpanded = (id: string) => {
+    const newExpanded = new Set(expandedFeatures);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedFeatures(newExpanded);
+  };
 
   const addFeature = () => {
-    setFeatures([
-      ...features,
-      { id: Date.now().toString(), name: "", reasoning: "" },
-    ]);
+    const newFeature = emptyFeature();
+    setFeatures([...features, newFeature]);
+    setExpandedFeatures(new Set([...expandedFeatures, newFeature.id]));
   };
 
   const removeFeature = (id: string) => {
     if (features.length > 1) {
       setFeatures(features.filter((f) => f.id !== id));
+      const newExpanded = new Set(expandedFeatures);
+      newExpanded.delete(id);
+      setExpandedFeatures(newExpanded);
     }
   };
 
-  const updateFeature = (id: string, field: "name" | "reasoning", value: string) => {
+  const updateFeature = (id: string, field: keyof Feature, value: string) => {
     setFeatures(
       features.map((f) => (f.id === id ? { ...f, [field]: value } : f))
     );
@@ -73,6 +116,11 @@ export default function Home() {
       return;
     }
 
+    if (!context.productName.trim() || !context.currentGoal.trim()) {
+      setError("Please fill in at least the product name and current goal");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setDebate(null);
@@ -81,7 +129,7 @@ export default function Home() {
       const response = await fetch("/api/debate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ features: validFeatures }),
+        body: JSON.stringify({ features: validFeatures, context }),
       });
 
       if (!response.ok) {
@@ -90,7 +138,7 @@ export default function Home() {
 
       const data = await response.json();
       setDebate(data);
-    } catch (err) {
+    } catch {
       setError("Something went wrong. Check your API key or try again.");
     } finally {
       setIsLoading(false);
@@ -98,14 +146,33 @@ export default function Home() {
   };
 
   const reset = () => {
-    setFeatures([{ id: "1", name: "", reasoning: "" }]);
+    setFeatures([emptyFeature()]);
     setDebate(null);
     setError(null);
+    setExpandedFeatures(new Set([features[0].id]));
+  };
+
+  const getEffortColor = (effort: string) => {
+    switch (effort) {
+      case "low": return "bg-green-500/10 text-green-600 border-green-500/20";
+      case "medium": return "bg-yellow-500/10 text-yellow-600 border-yellow-500/20";
+      case "high": return "bg-red-500/10 text-red-600 border-red-500/20";
+      default: return "bg-foreground/5 text-muted border-border";
+    }
+  };
+
+  const getConfidenceColor = (confidence: string) => {
+    switch (confidence) {
+      case "high": return "bg-green-500/10 text-green-600 border-green-500/20";
+      case "medium": return "bg-yellow-500/10 text-yellow-600 border-yellow-500/20";
+      case "low": return "bg-red-500/10 text-red-600 border-red-500/20";
+      default: return "bg-foreground/5 text-muted border-border";
+    }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto px-4 py-12">
+      <div className="max-w-4xl mx-auto px-4 py-12">
         {/* Header */}
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-3">
@@ -115,62 +182,260 @@ export default function Home() {
             <h1 className="text-2xl font-semibold">Priority Debater</h1>
           </div>
           <p className="text-muted text-base">
-            Add your features in priority order. AI will challenge your ranking
-            and force you to defend your decisions.
+            Give context about your product and features. AI will rigorously challenge your prioritization decisions.
           </p>
         </div>
 
-        {/* Features Input */}
+        {/* Product Context Section */}
+        <div className="mb-8 p-6 rounded-xl border border-border bg-foreground/[0.01]">
+          <h2 className="text-lg font-medium mb-4">Product Context</h2>
+          <p className="text-sm text-muted mb-4">
+            The more context you provide, the more relevant the debate will be.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1.5">
+                Product Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., Slack, Notion, your product"
+                value={context.productName}
+                onChange={(e) => setContext({ ...context, productName: e.target.value })}
+                className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5">
+                Timeline
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., Q1 2025, next 3 months"
+                value={context.timeline}
+                onChange={(e) => setContext({ ...context, timeline: e.target.value })}
+                className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1.5">
+                Product Description
+              </label>
+              <textarea
+                placeholder="What does your product do? Who is it for?"
+                value={context.productDescription}
+                onChange={(e) => setContext({ ...context, productDescription: e.target.value })}
+                rows={2}
+                className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 text-sm resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5">
+                Target Users
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., SMB teams, enterprise, developers"
+                value={context.targetUsers}
+                onChange={(e) => setContext({ ...context, targetUsers: e.target.value })}
+                className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5">
+                Current Goal <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., increase retention, grow revenue, reduce churn"
+                value={context.currentGoal}
+                onChange={(e) => setContext({ ...context, currentGoal: e.target.value })}
+                className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1.5">
+                Constraints
+              </label>
+              <textarea
+                placeholder="e.g., 2 engineers, no backend changes, must ship before conference"
+                value={context.constraints}
+                onChange={(e) => setContext({ ...context, constraints: e.target.value })}
+                rows={2}
+                className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 text-sm resize-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Features Section */}
+        <div className="mb-6">
+          <h2 className="text-lg font-medium mb-2">Features to Prioritize</h2>
+          <p className="text-sm text-muted mb-4">
+            Order these from highest to lowest priority. Drag to reorder.
+          </p>
+        </div>
+
         <div className="space-y-3 mb-6">
           {features.map((feature, index) => (
             <div
               key={feature.id}
-              className="flex gap-3 p-4 rounded-lg border border-border bg-background"
+              className="rounded-xl border border-border bg-background overflow-hidden"
             >
-              <div className="flex flex-col gap-1 justify-center">
-                <button
-                  onClick={() => moveFeature(index, "up")}
-                  disabled={index === 0}
-                  className="p-1 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ArrowUp className="w-4 h-4" />
-                </button>
-                <span className="text-xs text-muted text-center font-medium">
-                  #{index + 1}
-                </span>
-                <button
-                  onClick={() => moveFeature(index, "down")}
-                  disabled={index === features.length - 1}
-                  className="p-1 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ArrowDown className="w-4 h-4" />
-                </button>
+              {/* Feature Header - Always visible */}
+              <div className="flex gap-3 p-4">
+                <div className="flex flex-col gap-1 justify-center">
+                  <button
+                    onClick={() => moveFeature(index, "up")}
+                    disabled={index === 0}
+                    className="p-1 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <ArrowUp className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs text-muted text-center font-medium">
+                    #{index + 1}
+                  </span>
+                  <button
+                    onClick={() => moveFeature(index, "down")}
+                    disabled={index === features.length - 1}
+                    className="p-1 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <ArrowDown className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    placeholder="Feature name"
+                    value={feature.name}
+                    onChange={(e) => updateFeature(feature.id, "name", e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 font-medium"
+                  />
+
+                  {/* Quick tags when collapsed */}
+                  {!expandedFeatures.has(feature.id) && (feature.effort || feature.confidence) && (
+                    <div className="flex gap-2 mt-2">
+                      {feature.effort && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full border ${getEffortColor(feature.effort)}`}>
+                          {feature.effort} effort
+                        </span>
+                      )}
+                      {feature.confidence && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full border ${getConfidenceColor(feature.confidence)}`}>
+                          {feature.confidence} confidence
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => toggleFeatureExpanded(feature.id)}
+                    className="p-2 h-fit rounded hover:bg-foreground/5 text-muted hover:text-foreground"
+                  >
+                    {expandedFeatures.has(feature.id) ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => removeFeature(feature.id)}
+                    disabled={features.length === 1}
+                    className="p-2 h-fit rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed text-muted hover:text-foreground"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
-              <div className="flex-1 space-y-2">
-                <input
-                  type="text"
-                  placeholder="Feature name"
-                  value={feature.name}
-                  onChange={(e) => updateFeature(feature.id, "name", e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-foreground/20"
-                />
-                <textarea
-                  placeholder="Why is this the right priority? (optional but helps)"
-                  value={feature.reasoning}
-                  onChange={(e) => updateFeature(feature.id, "reasoning", e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 text-sm resize-none"
-                />
-              </div>
+              {/* Feature Details - Expandable */}
+              {expandedFeatures.has(feature.id) && (
+                <div className="px-4 pb-4 pt-0 border-t border-border bg-foreground/[0.01]">
+                  <div className="pt-4 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5">
+                        Description
+                      </label>
+                      <textarea
+                        placeholder="What does this feature do? Be specific."
+                        value={feature.description}
+                        onChange={(e) => updateFeature(feature.id, "description", e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 text-sm resize-none"
+                      />
+                    </div>
 
-              <button
-                onClick={() => removeFeature(feature.id)}
-                disabled={features.length === 1}
-                className="p-2 h-fit rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed text-muted hover:text-foreground"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5">
+                        User Impact
+                      </label>
+                      <textarea
+                        placeholder="How does this benefit users? What problem does it solve? Any data supporting this?"
+                        value={feature.userImpact}
+                        onChange={(e) => updateFeature(feature.id, "userImpact", e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 text-sm resize-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1.5">
+                          Engineering Effort
+                        </label>
+                        <select
+                          value={feature.effort}
+                          onChange={(e) => updateFeature(feature.id, "effort", e.target.value)}
+                          className={`w-full px-3 py-2 rounded-md border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20 text-sm ${feature.effort ? getEffortColor(feature.effort) : 'border-border'}`}
+                        >
+                          <option value="">Select effort...</option>
+                          <option value="low">Low (days)</option>
+                          <option value="medium">Medium (1-2 weeks)</option>
+                          <option value="high">High (weeks+)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-1.5">
+                          Confidence Level
+                        </label>
+                        <select
+                          value={feature.confidence}
+                          onChange={(e) => updateFeature(feature.id, "confidence", e.target.value)}
+                          className={`w-full px-3 py-2 rounded-md border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20 text-sm ${feature.confidence ? getConfidenceColor(feature.confidence) : 'border-border'}`}
+                        >
+                          <option value="">Select confidence...</option>
+                          <option value="high">High (validated)</option>
+                          <option value="medium">Medium (some signals)</option>
+                          <option value="low">Low (gut feeling)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5">
+                        Why This Priority?
+                      </label>
+                      <textarea
+                        placeholder="Why is this ranked here and not higher or lower? What tradeoffs did you consider?"
+                        value={feature.reasoning}
+                        onChange={(e) => updateFeature(feature.id, "reasoning", e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 rounded-md border border-border bg-background text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 text-sm resize-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -223,6 +488,16 @@ export default function Home() {
                 Start Over
               </button>
             </div>
+
+            {/* Overall Assessment */}
+            {debate.overallAssessment && (
+              <div className="p-4 rounded-xl border border-border bg-foreground/[0.02]">
+                <h3 className="text-sm font-medium uppercase tracking-wider text-muted mb-2">
+                  Overall Assessment
+                </h3>
+                <p className="text-sm">{debate.overallAssessment}</p>
+              </div>
+            )}
 
             {/* Challenges */}
             <div className="space-y-4">
