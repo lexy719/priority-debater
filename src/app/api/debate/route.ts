@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
 interface Feature {
   id: string;
@@ -9,8 +9,8 @@ interface Feature {
 
 export async function POST(request: Request) {
   try {
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+    const anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
     });
 
     const { features } = (await request.json()) as { features: Feature[] };
@@ -68,27 +68,22 @@ Respond in this exact JSON format:
 
 The challenges array should have one entry per feature. Keep blind spots to 2-4 items. Keep questions to 3-5 items. Only include revisedRanking if you genuinely think a different order is better — don't force it.`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
       messages: [
-        {
-          role: "system",
-          content:
-            "You are a rigorous senior PM who challenges prioritization decisions constructively. Always respond with valid JSON only, no markdown.",
-        },
         {
           role: "user",
           content: prompt,
         },
       ],
-      temperature: 0.7,
-      max_tokens: 2000,
+      system: "You are a rigorous senior PM who challenges prioritization decisions constructively. Always respond with valid JSON only, no markdown.",
     });
 
-    const responseText = completion.choices[0]?.message?.content;
+    const responseText = message.content[0].type === "text" ? message.content[0].text : null;
 
     if (!responseText) {
-      throw new Error("No response from OpenAI");
+      throw new Error("No response from Claude");
     }
 
     // Parse the JSON response
