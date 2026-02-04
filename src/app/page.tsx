@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Loader2, Send, RotateCcw, ArrowRight, ArrowLeft, Rocket, Scale, Lightbulb, Target, GraduationCap } from "lucide-react";
+import { Loader2, Send, RotateCcw, ArrowRight, ArrowLeft, Rocket, Scale, Lightbulb, Target, GraduationCap, MessageCircle } from "lucide-react";
 
 interface Message {
   id: string;
@@ -96,6 +96,22 @@ const templates: Template[] = [
       topic: "What's your GTM plan?",
       position: "Why this approach?",
       context: "Product, target market, timeline (optional)",
+    },
+  },
+  {
+    id: "open",
+    icon: <MessageCircle className="w-6 h-6" />,
+    title: "Open Debate",
+    subtitle: "Defend any position",
+    placeholder: {
+      topic: "Remote work is better than office work for most knowledge workers",
+      position: "Studies show higher productivity at home, commuting wastes 2+ hours daily, and companies save millions on real estate. The office is a relic of industrial-age management.",
+      context: "Tech worker, 5 years remote experience",
+    },
+    labels: {
+      topic: "What's your position?",
+      position: "Make your argument",
+      context: "Relevant background (optional)",
     },
   },
 ];
