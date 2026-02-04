@@ -1,12 +1,17 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Loader2, Send, RotateCcw, ArrowRight, ArrowLeft, Rocket, Scale, Lightbulb, Target, GraduationCap, MessageCircle } from "lucide-react";
+import {
+  Loader2, Send, RotateCcw, ArrowRight, ArrowLeft, Rocket, Scale,
+  Lightbulb, Target, GraduationCap, MessageCircle, DollarSign,
+  Users, Crosshair, Skull, Sparkles, LayoutGrid, FileText
+} from "lucide-react";
 
 interface Message {
   id: string;
   role: "user" | "opponent";
   content: string;
+  isQuickAction?: boolean;
 }
 
 interface DebateSetup {
@@ -14,6 +19,7 @@ interface DebateSetup {
   topic: string;
   position: string;
   context: string;
+  lens: "investor" | "customer" | "competitor" | "postmortem";
 }
 
 type Template = {
@@ -31,6 +37,14 @@ type Template = {
     position: string;
     context: string;
   };
+};
+
+type Lens = {
+  id: "investor" | "customer" | "competitor" | "postmortem";
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  color: string;
 };
 
 const templates: Template[] = [
@@ -116,6 +130,37 @@ const templates: Template[] = [
   },
 ];
 
+const lenses: Lens[] = [
+  {
+    id: "investor",
+    icon: <DollarSign className="w-5 h-5" />,
+    title: "Investor",
+    subtitle: "VC who's seen 1000 pitches",
+    color: "emerald",
+  },
+  {
+    id: "customer",
+    icon: <Users className="w-5 h-5" />,
+    title: "Customer",
+    subtitle: "Skeptical buyer who's been burned",
+    color: "blue",
+  },
+  {
+    id: "competitor",
+    icon: <Crosshair className="w-5 h-5" />,
+    title: "Competitor",
+    subtitle: "CEO planning to crush you",
+    color: "orange",
+  },
+  {
+    id: "postmortem",
+    icon: <Skull className="w-5 h-5" />,
+    title: "Post-Mortem",
+    subtitle: "Analyst from the future where you failed",
+    color: "red",
+  },
+];
+
 export default function Home() {
   const [stage, setStage] = useState<"template" | "form" | "debate">("template");
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
@@ -124,6 +169,7 @@ export default function Home() {
     topic: "",
     position: "",
     context: "",
+    lens: "investor",
   });
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -207,10 +253,56 @@ export default function Home() {
     }
   };
 
+  const handleQuickAction = async (actionType: "steelman" | "framework" | "summary") => {
+    if (isLoading) return;
+
+    const actionLabels = {
+      steelman: "💪 Steelman my position",
+      framework: "📊 Give me a framework",
+      summary: "📋 Summarize this debate",
+    };
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: actionLabels[actionType],
+      isQuickAction: true
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/debate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "quick",
+          quickAction: actionType,
+          setup,
+          messages: [...messages, userMessage]
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed");
+      const data = await response.json();
+      setMessages((prev) => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: "opponent",
+        content: data.response,
+        isQuickAction: true
+      }]);
+    } catch {
+      setError("Failed to get response.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const reset = () => {
     setStage("template");
     setSelectedTemplate(null);
-    setSetup({ template: "", topic: "", position: "", context: "" });
+    setSetup({ template: "", topic: "", position: "", context: "", lens: "investor" });
     setMessages([]);
     setInput("");
     setError(null);
@@ -223,6 +315,8 @@ export default function Home() {
     }
   };
 
+  const currentLens = lenses.find(l => l.id === setup.lens) || lenses[0];
+
   // Template Selection Stage
   if (stage === "template") {
     return (
@@ -230,7 +324,7 @@ export default function Home() {
         <div className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
           {/* Header */}
           <div className="text-center mb-10 sm:mb-14">
-            <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-slate-900 shadow-xl mb-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 shadow-xl mb-6">
               <GraduationCap className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mb-3">
@@ -240,11 +334,9 @@ export default function Home() {
               <span className="font-medium text-slate-700">Dr. Alex Chen</span>
               <span>•</span>
               <span>Stanford GSB</span>
-              <span>•</span>
-              <span>Ex-Google, Stripe, Airbnb</span>
             </div>
             <p className="text-slate-600 text-sm sm:text-base max-w-lg mx-auto">
-              I&apos;ll find the holes in your thinking before the market does.
+              I&apos;ll stress-test your thinking from multiple perspectives before reality does.
             </p>
           </div>
 
@@ -253,19 +345,19 @@ export default function Home() {
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4 text-center">
               What are we debating?
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {templates.map((template) => (
                 <button
                   key={template.id}
                   onClick={() => selectTemplate(template)}
-                  className="group p-5 sm:p-6 rounded-2xl border-2 border-slate-200 bg-white hover:border-slate-900 hover:shadow-lg transition-all text-left"
+                  className="group p-4 sm:p-5 rounded-2xl border-2 border-slate-200 bg-white hover:border-slate-900 hover:shadow-lg transition-all text-left"
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-xl bg-slate-100 text-slate-700 group-hover:bg-slate-900 group-hover:text-white transition-colors">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="p-2.5 sm:p-3 rounded-xl bg-slate-100 text-slate-700 group-hover:bg-slate-900 group-hover:text-white transition-colors">
                       {template.icon}
                     </div>
                     <div>
-                      <h3 className="font-semibold text-slate-900 mb-1">{template.title}</h3>
+                      <h3 className="font-semibold text-slate-900 mb-0.5">{template.title}</h3>
                       <p className="text-sm text-slate-500">{template.subtitle}</p>
                     </div>
                   </div>
@@ -295,19 +387,19 @@ export default function Home() {
   if (stage === "form" && selectedTemplate) {
     return (
       <div className="min-h-screen min-h-[100dvh] bg-gradient-to-b from-slate-50 to-white flex flex-col">
-        <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
           {/* Back Button */}
           <button
             onClick={() => setStage("template")}
-            className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 mb-8 transition-colors"
+            className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 mb-6 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Change topic
           </button>
 
           {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-3">
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-2">
               <div className="p-2.5 rounded-xl bg-slate-900 text-white">
                 {selectedTemplate.icon}
               </div>
@@ -318,8 +410,38 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Lens Selection */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-slate-700 mb-3">
+              Choose your challenger&apos;s perspective
+            </label>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              {lenses.map((lens) => (
+                <button
+                  key={lens.id}
+                  onClick={() => setSetup({ ...setup, lens: lens.id })}
+                  className={`p-3 sm:p-4 rounded-xl border-2 text-left transition-all ${
+                    setup.lens === lens.id
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={setup.lens === lens.id ? "text-white" : "text-slate-700"}>
+                      {lens.icon}
+                    </span>
+                    <span className="font-semibold text-sm">{lens.title}</span>
+                  </div>
+                  <p className={`text-xs ${setup.lens === lens.id ? "text-slate-300" : "text-slate-500"}`}>
+                    {lens.subtitle}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Form */}
-          <div className="space-y-6">
+          <div className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 {selectedTemplate.labels.topic}
@@ -395,12 +517,18 @@ export default function Home() {
       <div className="flex-shrink-0 border-b border-slate-200 bg-white sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex-shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-900 flex items-center justify-center">
+            <div className="flex-shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
               <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div className="min-w-0">
               <p className="text-sm sm:text-base font-semibold text-slate-900">Dr. Alex Chen</p>
-              <p className="text-xs text-slate-500 truncate">Stanford GSB • Ex-Google, Stripe</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-500">as</span>
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full">
+                  {currentLens.icon}
+                  <span>{currentLens.title}</span>
+                </span>
+              </div>
             </div>
           </div>
           <button
@@ -415,12 +543,12 @@ export default function Home() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto overscroll-contain">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-5 sm:space-y-6">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5">
           {messages.map((message) => (
             <div key={message.id} className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}>
               <div
                 className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center ${
-                  message.role === "user" ? "bg-slate-200" : "bg-slate-900"
+                  message.role === "user" ? "bg-slate-200" : "bg-gradient-to-br from-slate-800 to-slate-900"
                 }`}
               >
                 {message.role === "user" ? (
@@ -436,8 +564,12 @@ export default function Home() {
                 <div
                   className={`inline-block px-4 py-3 rounded-2xl text-sm sm:text-base leading-relaxed ${
                     message.role === "user"
-                      ? "bg-slate-900 text-white rounded-tr-md"
-                      : "bg-slate-100 text-slate-800 rounded-tl-md"
+                      ? message.isQuickAction
+                        ? "bg-violet-600 text-white rounded-tr-md"
+                        : "bg-slate-900 text-white rounded-tr-md"
+                      : message.isQuickAction
+                        ? "bg-gradient-to-br from-violet-50 to-indigo-50 text-slate-800 rounded-tl-md border border-violet-100"
+                        : "bg-slate-100 text-slate-800 rounded-tl-md"
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{message.content}</p>
@@ -448,7 +580,7 @@ export default function Home() {
 
           {isLoading && (
             <div className="flex gap-3">
-              <div className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-900 flex items-center justify-center">
+              <div className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
                 <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
               <div>
@@ -476,6 +608,38 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Quick Actions */}
+      <div className="flex-shrink-0 border-t border-slate-100 bg-slate-50/50">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-2">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <button
+              onClick={() => handleQuickAction("steelman")}
+              disabled={isLoading}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Steelman this
+            </button>
+            <button
+              onClick={() => handleQuickAction("framework")}
+              disabled={isLoading}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              Give me a framework
+            </button>
+            <button
+              onClick={() => handleQuickAction("summary")}
+              disabled={isLoading}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Summarize debate
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Input */}
       <div className="flex-shrink-0 border-t border-slate-200 bg-white p-3 sm:p-4 safe-area-bottom">
