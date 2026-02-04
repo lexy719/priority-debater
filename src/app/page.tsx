@@ -238,7 +238,7 @@ export default function Home() {
               rel="noopener noreferrer"
               className="text-neutral-500 hover:text-neutral-700 transition-colors"
             >
-              Manuel Fernandes
+              Manuel Gonçalves
             </a>
           </div>
         </div>
