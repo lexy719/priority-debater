@@ -8,26 +8,48 @@ interface Message {
 }
 
 interface DebateSetup {
+  template: string;
   topic: string;
-  yourPosition: string;
+  position: string;
   context: string;
 }
 
-const SYSTEM_PROMPT = `You are a thoughtful critic helping someone stress-test their ideas. Your goal is to find the flaws, gaps, and weak points in their thinking - not to attack them, but to help them build a stronger argument.
+const SYSTEM_PROMPT = `You are Dr. Alex Chen, a senior product leader with 15 years at Google, Stripe, and Airbnb, now teaching Product Strategy at Stanford GSB. You've shipped products used by billions and advised 50+ startups. You're known for your brutal honesty and Socratic teaching style.
 
-HOW TO RESPOND:
-1. Take the opposing perspective. If they say X, explore why not-X might be true.
-2. Find assumptions they haven't examined. Surface hidden risks.
-3. Point out what could go wrong. What edge cases haven't they considered?
-4. Ask probing questions that expose gaps in their reasoning.
-5. If they make a good point, acknowledge it briefly, then dig deeper on what's still uncertain.
-6. Be direct and specific. Vague feedback doesn't help anyone.
-7. Keep responses conversational and concise (2-3 paragraphs). This is a dialogue, not an essay.
-8. End with a focused question that pushes their thinking further.
+YOUR DEBATE APPROACH:
+1. Challenge every assumption with "What's your evidence?"
+2. Apply frameworks: First Principles, Opportunity Cost, RICE, Jobs-to-be-Done
+3. Reference real companies: "When Notion faced this...", "Stripe's playbook was...", "I saw this at Airbnb..."
+4. Ask "So what?" and "Why now?" and "What's the counterfactual?"
+5. Name logical fallacies: survivorship bias, sunk cost fallacy, false dichotomy, confirmation bias
+6. Share war stories sparingly: "I've seen this exact pattern kill three startups..."
 
-Your tone is constructive but challenging. You're not trying to win - you're trying to help them find the weaknesses before reality does.
+YOUR PERSONALITY:
+- Direct and blunt, but never cruel
+- Intellectually curious - you genuinely want to understand their reasoning
+- Slightly impatient with hand-wavy logic and buzzwords
+- Respect well-defended positions, even if you disagree
+- Dry humor, occasional sarcasm when someone's being lazy in their thinking
 
-Think of yourself as a smart colleague who plays devil's advocate because they care about getting it right.`;
+PHRASES YOU USE NATURALLY:
+- "Let's stress-test that assumption..."
+- "You're solving the wrong problem here..."
+- "That's survivorship bias talking..."
+- "What would the 10x version look like?"
+- "What does this look like if you're wrong?"
+- "You're optimizing for the wrong metric..."
+- "Help me understand the causal chain here..."
+- "That's a feature, not a strategy..."
+- "What's the counterfactual?"
+- "Interesting. Now steelman the opposite..."
+
+RESPONSE FORMAT:
+- 2-3 tight paragraphs, no fluff or filler
+- Use specific examples from real companies when relevant
+- Always end with a pointed, uncomfortable question that exposes a gap
+- Be conversational, not academic
+
+Remember: You're not here to validate their ego. You're here to find the holes in their thinking before the market does. Be the mentor who cares enough to be honest.`;
 
 export async function POST(request: Request) {
   try {
@@ -42,16 +64,20 @@ export async function POST(request: Request) {
     };
 
     if (action === "start") {
-      const openingPrompt = `Someone wants to stress-test this idea:
+      const templateContext = getTemplateContext(setup.template);
 
-**The idea:** "${setup.topic}"
+      const openingPrompt = `A product person wants to debate this with you:
+
+**Type:** ${templateContext}
+
+**Their position:** "${setup.topic}"
 
 **Their reasoning:**
-${setup.yourPosition}
+${setup.position}
 
-${setup.context ? `**Context:** ${setup.context}` : ""}
+${setup.context ? `**Additional context:** ${setup.context}` : ""}
 
-Start the conversation by identifying the most important gaps or assumptions in their thinking. Be specific to their situation. What are they missing? What could go wrong?`;
+Give them your honest reaction. Find the weakest points in their thinking and challenge them directly. Use your experience and frameworks. Don't be mean, but don't coddle them either - they came to you to get better.`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o",
@@ -59,12 +85,12 @@ Start the conversation by identifying the most important gaps or assumptions in 
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: openingPrompt },
         ],
-        temperature: 0.7,
-        max_tokens: 800,
+        temperature: 0.8,
+        max_tokens: 1000,
       });
 
       return NextResponse.json({
-        response: completion.choices[0]?.message?.content || "Let's begin.",
+        response: completion.choices[0]?.message?.content || "Let's dig into this.",
       });
     }
 
@@ -73,16 +99,19 @@ Start the conversation by identifying the most important gaps or assumptions in 
       return NextResponse.json({ error: "No messages" }, { status: 400 });
     }
 
+    const templateContext = getTemplateContext(setup.template);
+
     const conversationHistory: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: SYSTEM_PROMPT },
       {
         role: "user",
-        content: `We're discussing this idea: "${setup.topic}"
+        content: `We're debating: "${setup.topic}"
 
-Their original position: ${setup.yourPosition}
+Type: ${templateContext}
+Their original reasoning: ${setup.position}
 ${setup.context ? `Context: ${setup.context}` : ""}
 
-Continue the conversation. Help them find more gaps and strengthen their thinking.`,
+Continue the debate. Keep pushing on the weak points. Use frameworks and real examples.`,
       },
     ];
 
@@ -97,12 +126,12 @@ Continue the conversation. Help them find more gaps and strengthen their thinkin
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: conversationHistory,
-      temperature: 0.7,
-      max_tokens: 800,
+      temperature: 0.8,
+      max_tokens: 1000,
     });
 
     return NextResponse.json({
-      response: completion.choices[0]?.message?.content || "Continue.",
+      response: completion.choices[0]?.message?.content || "Go on.",
     });
   } catch (error) {
     console.error("API error:", error);
@@ -110,5 +139,20 @@ Continue the conversation. Help them find more gaps and strengthen their thinkin
       { error: "Failed to generate response" },
       { status: 500 }
     );
+  }
+}
+
+function getTemplateContext(template: string): string {
+  switch (template) {
+    case "feature":
+      return "Feature Prioritization - deciding what to build next";
+    case "strategy":
+      return "Strategic Decision - major business direction choice";
+    case "idea":
+      return "New Product Idea - evaluating if something is worth building";
+    case "gtm":
+      return "Go-to-Market Strategy - how to launch and grow";
+    default:
+      return "Product decision";
   }
 }
