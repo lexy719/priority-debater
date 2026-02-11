@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Priority Debater | Challenge Your Feature Priorities",
-  description: "AI-powered tool that challenges your feature prioritization. Input your ranked features and get rigorous pushback to strengthen your roadmap decisions.",
+  title: "The Adversary | Stress-Test Your Ideas",
+  description: "The world's most formidable AI debate partner. Validate ideas, stress-test strategies, and find the flaws in your thinking before reality does.",
 };
 
 export default function RootLayout({
