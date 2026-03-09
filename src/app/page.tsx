@@ -6,7 +6,7 @@ import remarkGfm from "remark-gfm";
 import {
   Loader2, Send, RotateCcw, ArrowRight, ArrowLeft,
   Sparkles, FileText, Swords, Shield, Eye, Clipboard, Check, Zap, FlaskConical,
-  Copy, Wand2, LayoutGrid, Download
+  Copy, Wand2, LayoutGrid, Download, BarChart3, AlertTriangle, Target, X
 } from "lucide-react";
 
 interface Message {
@@ -77,6 +77,77 @@ const generateTemplate: Template = {
 };
 
 
+// Parse validation response into tab sections (IdeaProof style)
+function parseValidationSections(content: string): { id: string; title: string; content: string; icon: string }[] {
+  const sections: { id: string; title: string; content: string; icon: string }[] = [];
+  const [mainPart, ...rest] = content.split(/\n---\n/);
+  const parts = mainPart.split(/\n(?=### )/);
+
+  const iconMap: Record<string, string> = {
+    summary: "file",
+    viability: "sparkles",
+    strengths: "check",
+    risks: "alert",
+    market: "chart",
+    recommendation: "target",
+    steps: "clipboard",
+    verdict: "zap",
+    challenge: "swords",
+  };
+
+  for (const part of parts) {
+    const firstNewline = part.indexOf("\n");
+    const titleLine = part.slice(0, firstNewline).replace(/^### /, "").trim();
+    const content = part.slice(firstNewline + 1).trim();
+    if (!titleLine || !content) continue;
+
+    let id = "section";
+    const t = titleLine.toLowerCase();
+    if (t.includes("idea summary")) id = "summary";
+    else if (t.includes("viability")) id = "viability";
+    else if (t.includes("strengths")) id = "strengths";
+    else if (t.includes("risk")) id = "risks";
+    else if (t.includes("market")) id = "market";
+    else if (t.includes("go/no-go") || t.includes("recommendation")) id = "recommendation";
+    else if (t.includes("validation steps")) id = "steps";
+    else if (t.includes("verdict")) id = "verdict";
+
+    sections.push({ id, title: titleLine, content, icon: iconMap[id] || "file" });
+  }
+
+  if (rest.length > 0) {
+    const challengeContent = rest.join("\n---\n").trim();
+    if (challengeContent) {
+      sections.push({ id: "challenge", title: "Key Challenge", content: challengeContent, icon: "swords" });
+    }
+  }
+
+  return sections;
+}
+
+// Extract score, strengths, risks for dashboard display
+function extractDashboardData(content: string) {
+  const scoreMatch = content.match(/(?:viability score|score)[:\s]*\[?(\d+)\]?\/10/i) || content.match(/(\d+)\/10/);
+  const score = scoreMatch ? parseInt(scoreMatch[1]) : null;
+
+  const strengthsSection = content.match(/### Strengths\s*\n([\s\S]*?)(?=### |---|$)/i);
+  const risksSection = content.match(/### Risk Flags?\s*\n([\s\S]*?)(?=### |---|$)/i);
+
+  const parseListItems = (text: string) =>
+    text.split(/\n/).filter((l) => /^\d+\.|^[-*]/.test(l.trim())).map((l) => l.replace(/^\d+\.\s*|^[-*]\s*/, "").trim()).filter(Boolean);
+
+  const strengths = strengthsSection ? parseListItems(strengthsSection[1]) : [];
+  const risks = risksSection ? parseListItems(risksSection[1]) : [];
+
+  const summarySection = content.match(/### Idea Summary\s*\n([\s\S]*?)(?=### |---|$)/i);
+  const summary = summarySection ? summarySection[1].trim().slice(0, 200) : null;
+
+  const verdictSection = content.match(/### One-Line Verdict\s*\n([\s\S]*?)(?=### |---|$)/i);
+  const verdict = verdictSection ? verdictSection[1].trim() : null;
+
+  return { score, strengths, risks, summary, verdict };
+}
+
 const TYPING_PHRASES = [
   "Finding the flaw...",
   "Stress-testing your logic...",
@@ -89,7 +160,8 @@ const TYPING_PHRASES = [
 ];
 
 export default function Home() {
-  const [stage, setStage] = useState<"home" | "form" | "debate">("home");
+  const [stage, setStage] = useState<"home" | "form" | "results" | "debate">("home");
+  const [activeTab, setActiveTab] = useState(0);
   const [setup, setSetup] = useState<DebateSetup>({
     template: "",
     topic: "",
@@ -170,7 +242,7 @@ export default function Home() {
     return accumulated;
   };
 
-  const startDebate = async () => {
+  const startValidation = async () => {
     const isGenerate = setup.template === "generate";
     if (isGenerate ? !setup.position.trim() : (!setup.topic.trim() || !setup.position.trim())) {
       setError(isGenerate ? "Tell us your interests and preferences" : "Fill in your idea and reasoning");
@@ -179,7 +251,6 @@ export default function Home() {
 
     setIsLoading(true);
     setError(null);
-    setStage("debate");
 
     try {
       const response = await fetch("/api/debate", {
@@ -191,7 +262,16 @@ export default function Home() {
       if (!response.ok) throw new Error("Failed to start");
 
       const content = await handleStreamResponse(response);
-      setMessages([{ id: Date.now().toString(), role: "opponent", content }]);
+      const validationMessage = { id: Date.now().toString(), role: "opponent" as const, content };
+
+      setMessages([validationMessage]);
+
+      if (setup.template === "validate") {
+        setStage("results");
+        setActiveTab(0);
+      } else {
+        setStage("debate");
+      }
     } catch {
       setError("Failed to start. Check your API key.");
     } finally {
@@ -315,6 +395,11 @@ export default function Home() {
     setInput("");
     setError(null);
     setStreamingContent("");
+    setActiveTab(0);
+  };
+
+  const openDebate = () => {
+    setStage("debate");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -554,7 +639,7 @@ export default function Home() {
             )}
 
             <button
-              onClick={startDebate}
+              onClick={startValidation}
               disabled={isLoading}
               className="w-full py-3.5 sm:py-4 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
             >
@@ -576,7 +661,201 @@ export default function Home() {
     );
   }
 
-  // Chat Stage
+  // Results Stage - IdeaProof style analytics tabs
+  const validationContent = messages[0]?.role === "opponent" ? messages[0].content : "";
+  let sections = parseValidationSections(validationContent);
+  if (sections.length === 0 && validationContent) {
+    sections = [{ id: "full", title: "Full Report", content: validationContent, icon: "file" }];
+  }
+  const getSectionIcon = (icon: string) => {
+    switch (icon) {
+      case "sparkles": return <Sparkles className="w-4 h-4" />;
+      case "chart": return <BarChart3 className="w-4 h-4" />;
+      case "alert": return <AlertTriangle className="w-4 h-4" />;
+      case "target": return <Target className="w-4 h-4" />;
+      case "swords": return <Swords className="w-4 h-4" />;
+      case "check": return <Check className="w-4 h-4" />;
+      case "clipboard": return <Clipboard className="w-4 h-4" />;
+      default: return <FileText className="w-4 h-4" />;
+    }
+  };
+
+  if (stage === "results" && sections.length > 0) {
+    const currentSection = sections[activeTab] || sections[0];
+    const dashboard = extractDashboardData(validationContent);
+    const scoreColor = dashboard.score != null
+      ? dashboard.score >= 7 ? "text-emerald-500" : dashboard.score >= 5 ? "text-amber-500" : "text-red-500"
+      : "text-slate-600";
+    const scoreBg = dashboard.score != null
+      ? dashboard.score >= 7 ? "bg-emerald-50 border-emerald-200" : dashboard.score >= 5 ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"
+      : "bg-slate-50 border-slate-200";
+
+    return (
+      <div className="min-h-screen min-h-[100dvh] bg-slate-100 flex flex-col">
+        <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          {/* Top bar */}
+          <div className="flex items-center justify-between mb-6">
+            <p className="text-sm text-slate-500 truncate max-w-[240px] sm:max-w-md">{setup.topic}</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={downloadReport}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-white/80 transition-colors"
+              >
+                <Download className="w-4 h-4" /> PDF
+              </button>
+              <button
+                onClick={reset}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-white/80 transition-colors"
+              >
+                <RotateCcw className="w-4 h-4" /> New
+              </button>
+            </div>
+          </div>
+
+          {/* Hero banner - IdeaProof style */}
+          <div className="rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-indigo-950 p-6 sm:p-8 mb-6 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Validation Report</span>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium">Ready</span>
+                </div>
+                <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">Step 1: Idea Validation</h1>
+                {(dashboard.summary || dashboard.verdict) && (
+                  <p className="text-slate-300 text-sm sm:text-base max-w-2xl">
+                    {dashboard.verdict || dashboard.summary}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-4 sm:gap-6">
+                {dashboard.score != null && (
+                  <div className={`flex flex-col items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 ${scoreBg} ${scoreColor}`}>
+                    <span className="text-2xl sm:text-3xl font-bold">{dashboard.score}</span>
+                    <span className="text-xs font-medium opacity-80">/10</span>
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <div className="flex flex-col items-center px-4 py-2 rounded-xl bg-white/5">
+                    <span className="text-xs text-slate-400 uppercase">Risk</span>
+                    <span className="text-sm font-bold text-amber-400">{dashboard.score != null ? Math.round((1 - dashboard.score / 10) * 100) : "—"}%</span>
+                  </div>
+                  <div className="flex flex-col items-center px-4 py-2 rounded-xl bg-white/5">
+                    <span className="text-xs text-slate-400 uppercase">Potential</span>
+                    <span className="text-sm font-bold text-emerald-400">{dashboard.score != null ? Math.round((dashboard.score / 10) * 100) : "—"}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main grid: content + sidebar */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            {/* Left: Tabs + content */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Tabs */}
+              <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide">
+                {sections.map((section, i) => (
+                  <button
+                    key={section.id}
+                    onClick={() => setActiveTab(i)}
+                    className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      activeTab === i
+                        ? "bg-white text-slate-900 shadow-md"
+                        : "bg-white/60 text-slate-600 hover:bg-white hover:text-slate-800"
+                    }`}
+                  >
+                    {getSectionIcon(section.icon)}
+                    <span className="max-w-[100px] truncate">{section.title.split(":")[0]}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab content card */}
+              <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 sm:p-8">
+                <h2 className="text-lg font-semibold text-slate-900 mb-4">{currentSection.title}</h2>
+                <div className="markdown-content text-slate-700 prose prose-slate max-w-none prose-headings:text-slate-900">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentSection.content}</ReactMarkdown>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Green Lights + Red Flags */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200/60 p-5 overflow-hidden">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-1.5 rounded-lg bg-emerald-100">
+                    <Check className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <h3 className="font-semibold text-slate-900">Green Lights</h3>
+                </div>
+                <ul className="space-y-2 max-h-48 overflow-y-auto">
+                  {dashboard.strengths.length > 0 ? dashboard.strengths.map((s, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-slate-700">
+                      <Check className="w-4 h-4 flex-shrink-0 text-emerald-500 mt-0.5" />
+                      <span>{s}</span>
+                    </li>
+                  )) : (
+                    <li className="text-sm text-slate-500 italic">See Strengths tab</li>
+                  )}
+                </ul>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-lg border-2 border-red-200/60 p-5 overflow-hidden">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-1.5 rounded-lg bg-red-100">
+                    <X className="w-4 h-4 text-red-600" />
+                  </div>
+                  <h3 className="font-semibold text-slate-900">Red Flags</h3>
+                </div>
+                <ul className="space-y-2 max-h-48 overflow-y-auto">
+                  {dashboard.risks.length > 0 ? dashboard.risks.map((r, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-slate-700">
+                      <X className="w-4 h-4 flex-shrink-0 text-red-500 mt-0.5" />
+                      <span>{r}</span>
+                    </li>
+                  )) : (
+                    <li className="text-sm text-slate-500 italic">See Risk Flags tab</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* CTA card - prominent */}
+          <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-2xl p-6 sm:p-8 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-white/20">
+                  <Swords className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Ready to stress-test your logic?</h3>
+                  <p className="text-violet-200 text-sm mt-1">Defend your position. Find blind spots. Refine before you build.</p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={openDebate}
+                  className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-white text-violet-700 font-semibold hover:bg-violet-50 transition-colors shadow-lg"
+                >
+                  <Swords className="w-5 h-5" />
+                  Debate this idea
+                </button>
+                <button
+                  onClick={reset}
+                  className="px-6 py-4 rounded-xl border-2 border-white/30 text-white font-medium hover:bg-white/10 transition-colors"
+                >
+                  Validate another
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Chat Stage (Debate)
   return (
     <div className="h-screen h-[100dvh] flex flex-col bg-white">
       {/* Header */}
