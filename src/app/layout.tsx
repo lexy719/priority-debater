@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "The Adversary | Stress-Test Your Ideas",
-  description: "The world's most formidable AI debate partner. Validate ideas, stress-test strategies, and find the flaws in your thinking before reality does.",
+  title: "The Adversary | Debate, Discuss, Futureproof",
+  description: "A thinking partner with personality. Debate your ideas, explore alternatives, and futureproof your business plan — before reality does.",
 };
 
 export default function RootLayout({

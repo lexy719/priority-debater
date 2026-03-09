@@ -8,7 +8,7 @@ import {
   Lightbulb, Target, MessageCircle, DollarSign,
   Users, Crosshair, Skull, Sparkles, LayoutGrid, FileText,
   Swords, Shield, Eye, Clipboard, Check, Zap, FlaskConical,
-  Copy
+  Copy, BarChart3, Briefcase, Wand2, Telescope, MessageSquare
 } from "lucide-react";
 
 interface Message {
@@ -23,7 +23,7 @@ interface DebateSetup {
   topic: string;
   position: string;
   context: string;
-  lens: "investor" | "customer" | "competitor" | "postmortem";
+  lens: "investor" | "customer" | "competitor" | "postmortem" | "market" | "future";
 }
 
 type Template = {
@@ -44,7 +44,7 @@ type Template = {
 };
 
 type Lens = {
-  id: "investor" | "customer" | "competitor" | "postmortem";
+  id: "investor" | "customer" | "competitor" | "postmortem" | "market" | "future";
   icon: React.ReactNode;
   title: string;
   subtitle: string;
@@ -133,6 +133,70 @@ const templates: Template[] = [
     },
   },
   {
+    id: "market",
+    icon: <BarChart3 className="w-6 h-6" />,
+    title: "Market Size",
+    subtitle: "Is this market big enough?",
+    placeholder: {
+      topic: "B2B AI meeting summarizer — TAM $2.1B, SAM $420M, SOM $42M",
+      position: "Every remote team has this pain. We're targeting mid-market companies (100-500 employees) first. At $10/user/month, 10k customers = $12M ARR. Market is growing 25% YoY.",
+      context: "Solo founder, technical, 6 months runway, targeting US market",
+    },
+    labels: {
+      topic: "What's your market and TAM/SAM/SOM?",
+      position: "Why is this market size realistic and attainable?",
+      context: "Your resources, target segment, geography (optional)",
+    },
+  },
+  {
+    id: "competitors",
+    icon: <Crosshair className="w-6 h-6" />,
+    title: "Competitor Analysis",
+    subtitle: "Why will we win vs. competitors?",
+    placeholder: {
+      topic: "AI-powered design tool competing with Figma and Canva",
+      position: "Figma is for pros, Canva is for amateurs. We're the middle — AI does 80% of the work so designers focus on creativity. We're 3x faster for rapid iteration. No one owns the 'AI-first design' space yet.",
+      context: "2 designers + 1 engineer, $500k seed, 18-month runway",
+    },
+    labels: {
+      topic: "Who are your direct and indirect competitors?",
+      position: "Why will you win? What's your unfair advantage?",
+      context: "Team, funding, timeline (optional)",
+    },
+  },
+  {
+    id: "futureproof",
+    icon: <Telescope className="w-6 h-6" />,
+    title: "Futureproof Plan",
+    subtitle: "Will this survive 5–10 years?",
+    placeholder: {
+      topic: "B2B SaaS for HR onboarding — $15/user/month",
+      position: "Remote work is permanent. Companies need better onboarding. We integrate with Workday, BambooHR. TAM $2B, growing 12% YoY. Plan to reach $5M ARR in 3 years.",
+      context: "2 founders, $800k seed, B2B SaaS experience",
+    },
+    labels: {
+      topic: "What's your business and plan?",
+      position: "Walk through your assumptions — market, tech, timeline",
+      context: "Team, funding, key dependencies (optional)",
+    },
+  },
+  {
+    id: "business",
+    icon: <Briefcase className="w-6 h-6" />,
+    title: "Business Plan",
+    subtitle: "Is this viable for investors?",
+    placeholder: {
+      topic: "SaaS for restaurant inventory management — $99/month per location",
+      position: "Restaurants waste 10-15% of food. We reduce that to 5% with AI forecasting. Unit economics: $99/mo, 3-month payback, 85% gross margin. Path to $10M ARR in 3 years with 500 locations.",
+      context: "Former restaurant owner + tech co-founder, raising $1M seed",
+    },
+    labels: {
+      topic: "What's your business model and key metrics?",
+      position: "Walk through unit economics, path to profitability, funding ask",
+      context: "Team, traction, use of funds (optional)",
+    },
+  },
+  {
     id: "devils",
     icon: <Swords className="w-6 h-6" />,
     title: "Devil's Advocate",
@@ -146,6 +210,22 @@ const templates: Template[] = [
       topic: "What position do you want destroyed?",
       position: "Make the strongest case you can",
       context: "Your perspective, background (optional)",
+    },
+  },
+  {
+    id: "generate",
+    icon: <Wand2 className="w-6 h-6" />,
+    title: "Idea Generator",
+    subtitle: "No idea yet? Generate one",
+    placeholder: {
+      topic: "AI, B2B SaaS, healthcare, or leave blank for surprise",
+      position: "I'm interested in problems I've personally experienced. Technical background. Prefer B2B over B2C.",
+      context: "Solo founder, 12 months runway, based in Europe",
+    },
+    labels: {
+      topic: "Industries or themes you're interested in?",
+      position: "What problems have you experienced? Skills, preferences?",
+      context: "Your situation, constraints (optional)",
     },
   },
   {
@@ -194,6 +274,20 @@ const lenses: Lens[] = [
     title: "Post-Mortem",
     subtitle: "Analyst from the future where you failed",
     color: "red",
+  },
+  {
+    id: "market",
+    icon: <BarChart3 className="w-5 h-5" />,
+    title: "Market Analyst",
+    subtitle: "Challenges your TAM/SAM/SOM assumptions",
+    color: "violet",
+  },
+  {
+    id: "future",
+    icon: <Telescope className="w-5 h-5" />,
+    title: "Future Strategist",
+    subtitle: "Stress-tests against 5–10 year scenarios",
+    color: "cyan",
   },
 ];
 
@@ -293,8 +387,9 @@ export default function Home() {
   };
 
   const startDebate = async () => {
-    if (!setup.topic.trim() || !setup.position.trim()) {
-      setError("Fill in your position and reasoning");
+    const isGenerate = setup.template === "generate";
+    if (isGenerate ? !setup.position.trim() : (!setup.topic.trim() || !setup.position.trim())) {
+      setError(isGenerate ? "Tell us your interests and preferences" : "Fill in your position and reasoning");
       return;
     }
 
@@ -347,7 +442,7 @@ export default function Home() {
     }
   };
 
-  const handleQuickAction = async (actionType: "steelman" | "framework" | "summary" | "devils-advocate" | "rate" | "blind-spots") => {
+  const handleQuickAction = async (actionType: "steelman" | "framework" | "summary" | "devils-advocate" | "rate" | "blind-spots" | "validation-report" | "generate-idea" | "discuss" | "futureproof") => {
     if (isLoading) return;
 
     const actionLabels: Record<string, string> = {
@@ -357,6 +452,10 @@ export default function Home() {
       "devils-advocate": "Play Devil's Advocate",
       rate: "Rate my argument",
       "blind-spots": "What am I missing?",
+      "validation-report": "Full validation report",
+      "generate-idea": "Generate startup ideas",
+      discuss: "Let's explore this",
+      futureproof: "Futureproof my plan",
     };
 
     const userMessage: Message = {
@@ -478,16 +577,25 @@ export default function Home() {
               I don&apos;t want you to be right. I want you to be less wrong.
             </p>
             <p className="text-slate-600 text-sm sm:text-base max-w-lg mx-auto">
-              Stress-test your ideas, validate your thinking, and find the flaws before reality does.
+              A thinking partner with personality. Debate your ideas, discuss alternatives, and futureproof your plan — before reality does.
             </p>
           </div>
 
+          {/* Hero CTA - IdeaProof style */}
+          <div className="mb-10 p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white text-center">
+            <p className="text-sm font-medium text-slate-300 mb-2">90% of startups fail. Don&apos;t be one.</p>
+            <p className="text-base sm:text-lg text-slate-100 mb-4 max-w-xl mx-auto">
+              Stress-test your ideas in minutes. Real debate. Real flaws exposed. No consultants, no waiting weeks.
+            </p>
+            <p className="text-xs text-slate-400">Free · No signup · Your idea stays private</p>
+          </div>
+
           {/* Template Grid */}
-          <div className="mb-8">
+          <div className="mb-10">
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4 text-center">
               Choose your arena
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {templates.map((template) => (
                 <button
                   key={template.id}
@@ -505,6 +613,54 @@ export default function Home() {
                   </div>
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* See what you'll get - IdeaProof style */}
+          <div className="mb-10">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4 text-center">
+              See what you&apos;ll get
+            </h2>
+            <p className="text-center text-slate-600 text-sm mb-6 max-w-lg mx-auto">
+              Real adversarial feedback. Structured reports. Actionable insights.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="p-4 rounded-xl border-2 border-slate-200 bg-white">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-100">
+                    <Sparkles className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <span className="font-semibold text-slate-900 text-sm">Viability Score</span>
+                </div>
+                <p className="text-xs text-slate-500">X/10 rating with strengths, risks & Go/No-Go</p>
+              </div>
+              <div className="p-4 rounded-xl border-2 border-slate-200 bg-white">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 rounded-lg bg-amber-100">
+                    <Eye className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <span className="font-semibold text-slate-900 text-sm">Risk Flags</span>
+                </div>
+                <p className="text-xs text-slate-500">Blind spots, assumptions & failure modes</p>
+              </div>
+              <div className="p-4 rounded-xl border-2 border-slate-200 bg-white">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 rounded-lg bg-blue-100">
+                    <Crosshair className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <span className="font-semibold text-slate-900 text-sm">Competitive Lens</span>
+                </div>
+                <p className="text-xs text-slate-500">Why you&apos;ll win vs. competitors</p>
+              </div>
+              <div className="p-4 rounded-xl border-2 border-slate-200 bg-white">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 rounded-lg bg-violet-100">
+                    <FileText className="w-4 h-4 text-violet-600" />
+                  </div>
+                  <span className="font-semibold text-slate-900 text-sm">Validation Report</span>
+                </div>
+                <p className="text-xs text-slate-500">Investor-ready summary & next steps</p>
+              </div>
             </div>
           </div>
 
@@ -557,7 +713,7 @@ export default function Home() {
             <label className="block text-sm font-medium text-slate-700 mb-3">
               Choose your challenger&apos;s perspective
             </label>
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
               {lenses.map((lens) => (
                 <button
                   key={lens.id}
@@ -587,6 +743,9 @@ export default function Home() {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 {selectedTemplate.labels.topic}
+                {selectedTemplate.id === "generate" && (
+                  <span className="font-normal text-slate-400 ml-1">(optional)</span>
+                )}
               </label>
               <input
                 type="text"
@@ -857,6 +1016,38 @@ export default function Home() {
             >
               <FileText className="w-3.5 h-3.5" />
               Summary
+            </button>
+            <button
+              onClick={() => handleQuickAction("validation-report")}
+              disabled={isLoading}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
+            >
+              <Clipboard className="w-3.5 h-3.5" />
+              Validation report
+            </button>
+            <button
+              onClick={() => handleQuickAction("generate-idea")}
+              disabled={isLoading}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
+            >
+              <Wand2 className="w-3.5 h-3.5" />
+              Generate ideas
+            </button>
+            <button
+              onClick={() => handleQuickAction("discuss")}
+              disabled={isLoading}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              Let&apos;s explore
+            </button>
+            <button
+              onClick={() => handleQuickAction("futureproof")}
+              disabled={isLoading}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
+            >
+              <Telescope className="w-3.5 h-3.5" />
+              Futureproof
             </button>
           </div>
         </div>
