@@ -739,123 +739,144 @@ export default function Home() {
 
     return (
       <div className="min-h-screen min-h-[100dvh] bg-slate-100 flex flex-col">
-        <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-          {/* Top bar */}
-          <div className="flex items-center justify-between mb-6">
-            <p className="text-sm text-slate-500 truncate max-w-[240px] sm:max-w-md">{setup.topic}</p>
-            <div className="flex items-center gap-2">
+        <div className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          {/* Top bar - idea title prominent */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900 truncate max-w-full">{setup.topic}</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Validation Report · Step 1 of 3</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={downloadReport}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-white/80 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg bg-white border border-slate-200 hover:border-slate-300 transition-colors"
               >
                 <Download className="w-4 h-4" /> PDF
               </button>
               <button
                 onClick={reset}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-white/80 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg bg-white border border-slate-200 hover:border-slate-300 transition-colors"
               >
                 <RotateCcw className="w-4 h-4" /> New
               </button>
             </div>
           </div>
 
-          {/* Hero banner - richer IdeaProof style */}
+          {/* Hero - score + verdict front and center */}
           <div className="rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-indigo-950 p-6 sm:p-8 mb-6 shadow-xl relative overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.15)_0%,_transparent_50%)]" />
-            <div className="relative flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
+            <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
               <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-2 mb-3">
-                  <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Validation Report</span>
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium">Ready</span>
-                  <span className="text-slate-400 text-xs">Step 1 of 3</span>
-                  <span className="text-slate-500 text-xs">·</span>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-semibold">Ready</span>
                   <span className="text-slate-400 text-xs">Est. 3–6 months to market</span>
                 </div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white mb-3">Step 1: Idea Validation</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-white mb-3">Idea Validation</h1>
                 {(dashboard.summary || dashboard.verdict) && (
-                  <p className="text-slate-300 text-sm sm:text-base max-w-2xl leading-relaxed">
+                  <p className="text-slate-200 text-base sm:text-lg max-w-2xl leading-relaxed font-medium">
                     {dashboard.verdict || dashboard.summary}
                   </p>
                 )}
               </div>
-              {/* Score + metrics block */}
-              <div className="flex flex-row lg:flex-col gap-6 items-center lg:items-end shrink-0">
-                {dashboard.score != null && (
-                  <div className={`flex items-center gap-4 ${scoreColor}`}>
-                    <div className="relative w-24 h-24 sm:w-28 sm:h-28">
-                      <svg className="score-gauge w-full h-full" viewBox="0 0 100 100">
-                        <circle className="score-gauge-bg" cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
-                        <circle
-                          className="score-gauge-fill"
-                          cx="50" cy="50" r="40"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="8"
-                          strokeLinecap="round"
-                          style={{ strokeDashoffset: 251.2 - (dashboard.score / 10) * 251.2 }}
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-inherit">
-                        <span className="text-2xl sm:text-3xl font-bold">{dashboard.score}</span>
-                        <span className="text-xs font-medium opacity-80">/10</span>
+              {dashboard.score != null && (
+                <div className={`flex items-center gap-6 shrink-0 ${scoreColor}`}>
+                  <div className="relative w-28 h-28 sm:w-32 sm:h-32">
+                    <svg className="score-gauge w-full h-full" viewBox="0 0 100 100">
+                      <circle className="score-gauge-bg" cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
+                      <circle className="score-gauge-fill" cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round" style={{ strokeDashoffset: 251.2 - (dashboard.score / 10) * 251.2 }} />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-inherit">
+                      <span className="text-3xl sm:text-4xl font-bold">{dashboard.score}</span>
+                      <span className="text-sm font-medium opacity-80">/10</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <div className="flex justify-between text-sm mb-1.5">
+                        <span className="text-slate-400">Potential</span>
+                        <span className="text-emerald-400 font-semibold">{Math.round((dashboard.score / 10) * 100)}%</span>
+                      </div>
+                      <div className="w-28 h-2 rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(dashboard.score / 10) * 100}%` }} />
                       </div>
                     </div>
-                    <div className="flex flex-col gap-3">
-                      <div>
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-400">Potential</span>
-                          <span className="text-emerald-400 font-medium">{Math.round((dashboard.score / 10) * 100)}%</span>
-                        </div>
-                        <div className="w-24 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                          <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(dashboard.score / 10) * 100}%` }} />
-                        </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1.5">
+                        <span className="text-slate-400">Risk</span>
+                        <span className="text-amber-400 font-semibold">{Math.round((1 - dashboard.score / 10) * 100)}%</span>
                       </div>
-                      <div>
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-400">Risk</span>
-                          <span className="text-amber-400 font-medium">{Math.round((1 - dashboard.score / 10) * 100)}%</span>
-                        </div>
-                        <div className="w-24 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                          <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${(1 - dashboard.score / 10) * 100}%` }} />
-                        </div>
+                      <div className="w-28 h-2 rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${(1 - dashboard.score / 10) * 100}%` }} />
                       </div>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Key metrics row - KPI cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200/50 p-3">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-0.5">Viability</p>
-              <p className={`text-xl font-bold ${dashboard.score != null ? (dashboard.score >= 7 ? "text-emerald-600" : dashboard.score >= 5 ? "text-amber-600" : "text-red-600") : "text-slate-600"}`}>
+          {/* Expanded metrics row - more KPIs */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Viability</p>
+              <p className={`text-2xl font-bold ${dashboard.score != null ? (dashboard.score >= 7 ? "text-emerald-600" : dashboard.score >= 5 ? "text-amber-600" : "text-red-600") : "text-slate-600"}`}>
                 {dashboard.score != null ? (dashboard.score >= 7 ? "Strong" : dashboard.score >= 5 ? "Moderate" : "Weak") : "—"}
               </p>
+              <p className="text-xs text-slate-500 mt-0.5">{dashboard.score != null ? `${dashboard.score}/10` : "—"}</p>
             </div>
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200/50 p-3">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-0.5">Strengths</p>
-              <p className="text-xl font-bold text-slate-900">{dashboard.strengths.length}</p>
+            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Green Lights</p>
+              <p className="text-2xl font-bold text-emerald-600">{dashboard.strengths.length}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Strengths identified</p>
             </div>
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200/50 p-3">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-0.5">Risk Flags</p>
-              <p className="text-xl font-bold text-slate-900">{dashboard.risks.length}</p>
+            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Red Flags</p>
+              <p className="text-2xl font-bold text-red-600">{dashboard.risks.length}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Risks to mitigate</p>
             </div>
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200/50 p-3">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-0.5">Next Steps</p>
-              <p className="text-xl font-bold text-slate-900">{dashboard.recommendations.length}</p>
+            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Next Steps</p>
+              <p className="text-2xl font-bold text-violet-600">{dashboard.recommendations.length}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Validation actions</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Market Fit</p>
+              <p className={`text-2xl font-bold ${dashboard.score != null ? "text-blue-600" : "text-slate-400"}`}>
+                {dashboard.score != null ? `${Math.round((dashboard.score / 10) * 100)}%` : "—"}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">Score-derived</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Stage</p>
+              <p className="text-2xl font-bold text-slate-900">1/3</p>
+              <p className="text-xs text-slate-500 mt-0.5">Idea Validation ✓</p>
             </div>
           </div>
 
-          {/* IdeaProof-style compact tabs */}
-          <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide mb-4">
+          {/* Quick insights bar - visible at a glance */}
+          <div className="flex flex-wrap gap-3 mb-6">
+            {dashboard.score != null && (
+              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${dashboard.score >= 7 ? "bg-emerald-100 text-emerald-800" : dashboard.score >= 5 ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}`}>
+                <span>Verdict:</span>
+                <span className="font-bold">{dashboard.score >= 7 ? "Go" : dashboard.score >= 5 ? "Caution" : "No-go"}</span>
+              </div>
+            )}
+            {dashboard.summary && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-sm max-w-md">
+                <FileText className="w-4 h-4 shrink-0 text-slate-500" />
+                <span className="truncate">{dashboard.summary}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Tabs - larger, easier to tap */}
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide mb-6">
             {resultsTabs.map((tab, i) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(i)}
-                className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                  activeTab === i ? "bg-white text-slate-900 shadow-md border border-slate-200" : "bg-white/60 text-slate-600 hover:bg-white hover:text-slate-800"
+                className={`shrink-0 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === i ? "bg-white text-slate-900 shadow-lg border-2 border-slate-200" : "bg-white/70 text-slate-600 hover:bg-white hover:text-slate-800 border-2 border-transparent"
                 }`}
               >
                 {tab.icon}
@@ -867,84 +888,118 @@ export default function Home() {
           {/* Tab content area */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             <div className="lg:col-span-2">
-              <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 sm:p-8 min-h-[320px]">
+              <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 sm:p-8 min-h-[360px]">
                 {currentTabId === "overview" && (
-                  <>
-                    {dashboard.summary && <p className="text-slate-700 text-sm mb-4">{dashboard.summary}</p>}
-                    {dashboard.score != null && (
-                      <div className="space-y-3 mb-4">
-                        <div className="flex justify-between text-sm"><span className="text-slate-600">Market fit</span><span className="font-medium">{Math.round((dashboard.score / 10) * 100)}%</span></div>
-                        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(dashboard.score / 10) * 100}%` }} /></div>
-                        <div className="flex justify-between text-sm"><span className="text-slate-600">Execution feasibility</span><span className="font-medium">{Math.round(((dashboard.score / 10) * 0.85 + 0.15) * 100)}%</span></div>
-                        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${((dashboard.score / 10) * 0.85 + 0.15) * 100}%` }} /></div>
+                  <div className="space-y-6">
+                    {dashboard.summary && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900 mb-2">Executive Summary</h3>
+                        <p className="text-slate-700 text-base leading-relaxed">{dashboard.summary}</p>
                       </div>
                     )}
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      <div className="p-3 rounded-lg border-l-4 border-emerald-500 bg-slate-50/50">
-                        <h4 className="text-xs font-semibold text-emerald-600 mb-2">Strengths</h4>
-                        <ul className="text-xs text-slate-700 space-y-1">{dashboard.strengths.slice(0, 3).map((s, i) => <li key={i}>• {s.slice(0, 60)}{s.length > 60 ? "…" : ""}</li>)}</ul>
+                    {dashboard.score != null && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900 mb-3">Score Breakdown</h3>
+                        <div className="space-y-4">
+                          <div>
+                            <div className="flex justify-between text-sm mb-1.5"><span className="text-slate-600 font-medium">Market fit</span><span className="font-bold text-slate-900">{Math.round((dashboard.score / 10) * 100)}%</span></div>
+                            <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(dashboard.score / 10) * 100}%` }} /></div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-sm mb-1.5"><span className="text-slate-600 font-medium">Execution feasibility</span><span className="font-bold text-slate-900">{Math.round(((dashboard.score / 10) * 0.85 + 0.15) * 100)}%</span></div>
+                            <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${((dashboard.score / 10) * 0.85 + 0.15) * 100}%` }} /></div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-sm mb-1.5"><span className="text-slate-600 font-medium">Risk level</span><span className="font-bold text-slate-900">{Math.round((1 - dashboard.score / 10) * 100)}%</span></div>
+                            <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${(1 - dashboard.score / 10) * 100}%` }} /></div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="p-3 rounded-lg border-l-4 border-amber-500 bg-slate-50/50">
-                        <h4 className="text-xs font-semibold text-amber-600 mb-2">Weaknesses</h4>
-                        <ul className="text-xs text-slate-700 space-y-1">{dashboard.risks.slice(0, 3).map((r, i) => <li key={i}>• {r.slice(0, 60)}{r.length > 60 ? "…" : ""}</li>)}</ul>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="p-4 rounded-xl border-l-4 border-emerald-500 bg-emerald-50/50">
+                        <h4 className="text-sm font-semibold text-emerald-700 mb-3 flex items-center gap-2"><Check className="w-4 h-4" /> Top Strengths</h4>
+                        <ul className="text-sm text-slate-700 space-y-2">{dashboard.strengths.slice(0, 4).map((s, i) => <li key={i} className="flex gap-2"><span className="text-emerald-500 shrink-0">•</span><span>{s}</span></li>)}</ul>
+                        {dashboard.strengths.length === 0 && <p className="text-slate-500 text-sm italic">See Validation tab</p>}
+                      </div>
+                      <div className="p-4 rounded-xl border-l-4 border-amber-500 bg-amber-50/50">
+                        <h4 className="text-sm font-semibold text-amber-700 mb-3 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> Top Risks</h4>
+                        <ul className="text-sm text-slate-700 space-y-2">{dashboard.risks.slice(0, 4).map((r, i) => <li key={i} className="flex gap-2"><span className="text-amber-500 shrink-0">•</span><span>{r}</span></li>)}</ul>
+                        {dashboard.risks.length === 0 && <p className="text-slate-500 text-sm italic">See Validation tab</p>}
                       </div>
                     </div>
-                    <table className="w-full text-xs">
-                      <tbody className="divide-y divide-slate-100">
-                        <tr><td className="py-2 text-slate-600">Viability</td><td className="py-2 font-medium">{dashboard.score != null ? `${dashboard.score}/10` : "—"}</td><td className="py-2">{dashboard.score != null && <span className={`px-2 py-0.5 rounded text-xs ${dashboard.score >= 7 ? "bg-emerald-100 text-emerald-700" : dashboard.score >= 5 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"}`}>{dashboard.score >= 7 ? "Go" : dashboard.score >= 5 ? "Caution" : "No-go"}</span>}</td></tr>
-                        <tr><td className="py-2 text-slate-600">Stage</td><td className="py-2 font-medium">Step 1 of 3</td><td className="py-2 text-slate-500">In progress</td></tr>
-                      </tbody>
-                    </table>
-                  </>
+                    {dashboard.recommendations.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2"><Target className="w-4 h-4 text-violet-600" /> Next Ideas to Explore</h3>
+                        <ol className="space-y-2">
+                          {dashboard.recommendations.map((rec, i) => (
+                            <li key={i} className="flex gap-3 text-sm text-slate-700">
+                              <span className="shrink-0 w-6 h-6 rounded-lg bg-violet-100 text-violet-700 font-semibold flex items-center justify-center text-xs">{i + 1}</span>
+                              <span>{rec}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                  </div>
                 )}
                 {currentTabId === "validation" && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {sections.filter(s => ["summary", "viability", "strengths", "risks"].includes(s.id)).map((section, i) => (
-                      <div key={i}>
-                        <h3 className="text-sm font-semibold text-slate-900 mb-2">{section.title}</h3>
-                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none">
+                      <div key={i} className="border-b border-slate-100 pb-6 last:border-0 last:pb-0">
+                        <h3 className="text-base font-bold text-slate-900 mb-3">{section.title}</h3>
+                        <div className="markdown-content text-slate-700 prose prose-slate prose-base max-w-none prose-p:my-2 prose-li:my-1">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>{section.content}</ReactMarkdown>
                         </div>
                       </div>
                     ))}
                     {sections.filter(s => ["summary", "viability", "strengths", "risks"].includes(s.id)).length === 0 && (
-                      <div className="markdown-content text-slate-700 prose prose-slate max-w-none">
+                      <div className="markdown-content text-slate-700 prose prose-slate prose-base max-w-none">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{sections[0]?.content || validationContent}</ReactMarkdown>
                       </div>
                     )}
                   </div>
                 )}
                 {currentTabId === "market" && (
-                  <div className="markdown-content text-slate-700 prose prose-slate max-w-none prose-p:my-2">
-                    {dashboard.marketSummary ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.marketSummary}</ReactMarkdown> : <p className="text-slate-500 italic">See full validation report for market opportunity.</p>}
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 mb-4">Market Opportunity</h3>
+                    <div className="markdown-content text-slate-700 prose prose-slate prose-base max-w-none prose-p:my-3 prose-li:my-1">
+                      {dashboard.marketSummary ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.marketSummary}</ReactMarkdown> : <p className="text-slate-500 italic">See full validation report for market opportunity.</p>}
+                    </div>
                   </div>
                 )}
                 {currentTabId === "competitors" && (
-                  <div className="markdown-content text-slate-700 prose prose-slate max-w-none prose-p:my-2">
-                    {dashboard.competitiveSummary ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.competitiveSummary}</ReactMarkdown> : <p className="text-slate-500 italic">Competitive landscape will appear in the validation report when available.</p>}
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 mb-4">Competitive Landscape</h3>
+                    <div className="markdown-content text-slate-700 prose prose-slate prose-base max-w-none prose-p:my-3 prose-li:my-1">
+                      {dashboard.competitiveSummary ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.competitiveSummary}</ReactMarkdown> : <p className="text-slate-500 italic">Competitive landscape will appear in the validation report when available.</p>}
+                    </div>
                   </div>
                 )}
                 {currentTabId === "financials" && (
-                  <div className="markdown-content text-slate-700 prose prose-slate max-w-none prose-p:my-2">
-                    {dashboard.financialSummary ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.financialSummary}</ReactMarkdown> : <p className="text-slate-500 italic">Financial snapshot will appear in the validation report when available.</p>}
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 mb-4">Financial Snapshot</h3>
+                    <div className="markdown-content text-slate-700 prose prose-slate prose-base max-w-none prose-p:my-3 prose-li:my-1">
+                      {dashboard.financialSummary ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.financialSummary}</ReactMarkdown> : <p className="text-slate-500 italic">Financial snapshot will appear in the validation report when available.</p>}
+                    </div>
                   </div>
                 )}
                 {currentTabId === "recommendations" && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {dashboard.goNoGo && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-900 mb-2">Go/No-Go Recommendation</h3>
-                        <div className="markdown-content text-slate-700 prose prose-slate max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo}</ReactMarkdown></div>
+                      <div className="p-4 rounded-xl bg-indigo-50/50 border-l-4 border-indigo-500">
+                        <h3 className="text-base font-bold text-slate-900 mb-3">Go/No-Go Recommendation</h3>
+                        <div className="markdown-content text-slate-700 prose prose-slate prose-base max-w-none prose-p:my-2"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo}</ReactMarkdown></div>
                       </div>
                     )}
                     {dashboard.recommendations.length > 0 && (
                       <div>
-                        <h3 className="text-sm font-semibold text-slate-900 mb-2">Top 3 Validation Steps</h3>
-                        <ol className="space-y-2">
+                        <h3 className="text-base font-bold text-slate-900 mb-4">Top Validation Steps — Ideas to Act On</h3>
+                        <ol className="space-y-4">
                           {dashboard.recommendations.map((rec, i) => (
-                            <li key={i} className="flex gap-2 text-slate-700">
-                              <span className="shrink-0 w-5 h-5 rounded bg-violet-100 text-violet-700 text-xs font-semibold flex items-center justify-center">{i + 1}</span>
-                              <span>{rec}</span>
+                            <li key={i} className="flex gap-4 text-slate-700">
+                              <span className="shrink-0 w-8 h-8 rounded-xl bg-violet-100 text-violet-700 text-sm font-bold flex items-center justify-center">{i + 1}</span>
+                              <span className="text-base leading-relaxed pt-1">{rec}</span>
                             </li>
                           ))}
                         </ol>
@@ -962,25 +1017,28 @@ export default function Home() {
             </div>
 
             {/* Right: Green Lights + Red Flags + Business Plan CTA + Journey */}
-            <div className="space-y-6">
+            <div className="space-y-5">
               <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200/60 p-5">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-emerald-100">
-                      <Check className="w-4 h-4 text-emerald-600" />
+                    <div className="p-2 rounded-xl bg-emerald-100">
+                      <Check className="w-5 h-5 text-emerald-600" />
                     </div>
-                    <h3 className="font-semibold text-slate-900">Green Lights</h3>
+                    <div>
+                      <h3 className="font-bold text-slate-900">Green Lights</h3>
+                      <p className="text-xs text-slate-500">Strengths to build on</p>
+                    </div>
                   </div>
-                  <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{dashboard.strengths.length}</span>
+                  <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">{dashboard.strengths.length}</span>
                 </div>
-                <ul className="space-y-2.5 max-h-48 overflow-y-auto">
+                <ul className="space-y-3 max-h-56 overflow-y-auto">
                   {dashboard.strengths.length > 0 ? dashboard.strengths.map((s, i) => (
-                    <li key={i} className="flex gap-2 text-sm text-slate-700">
+                    <li key={i} className="flex gap-2.5 text-sm text-slate-700 leading-snug">
                       <Check className="w-4 h-4 shrink-0 text-emerald-500 mt-0.5" />
                       <span>{s}</span>
                     </li>
                   )) : (
-                    <li className="text-sm text-slate-500 italic">See Strengths tab</li>
+                    <li className="text-sm text-slate-500 italic">See Validation tab</li>
                   )}
                 </ul>
               </div>
@@ -988,37 +1046,43 @@ export default function Home() {
               <div className="bg-white rounded-2xl shadow-lg border-2 border-red-200/60 p-5">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-red-100">
-                      <X className="w-4 h-4 text-red-600" />
+                    <div className="p-2 rounded-xl bg-red-100">
+                      <X className="w-5 h-5 text-red-600" />
                     </div>
-                    <h3 className="font-semibold text-slate-900">Red Flags</h3>
+                    <div>
+                      <h3 className="font-bold text-slate-900">Red Flags</h3>
+                      <p className="text-xs text-slate-500">Risks to address</p>
+                    </div>
                   </div>
-                  <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">{dashboard.risks.length}</span>
+                  <span className="text-sm font-bold text-red-600 bg-red-50 px-3 py-1 rounded-full">{dashboard.risks.length}</span>
                 </div>
-                <ul className="space-y-2.5 max-h-48 overflow-y-auto">
+                <ul className="space-y-3 max-h-56 overflow-y-auto">
                   {dashboard.risks.length > 0 ? dashboard.risks.map((r, i) => (
-                    <li key={i} className="flex gap-2 text-sm text-slate-700">
+                    <li key={i} className="flex gap-2.5 text-sm text-slate-700 leading-snug">
                       <X className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
                       <span>{r}</span>
                     </li>
                   )) : (
-                    <li className="text-sm text-slate-500 italic">See Risk Flags tab</li>
+                    <li className="text-sm text-slate-500 italic">See Validation tab</li>
                   )}
                 </ul>
               </div>
 
               {dashboard.recommendations.length > 0 && (
-                <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-5">
+                <div className="bg-white rounded-2xl shadow-lg border-2 border-violet-200/60 p-5">
                   <div className="flex items-center gap-2 mb-4">
-                    <div className="p-1.5 rounded-lg bg-violet-100">
-                      <Target className="w-4 h-4 text-violet-600" />
+                    <div className="p-2 rounded-xl bg-violet-100">
+                      <Target className="w-5 h-5 text-violet-600" />
                     </div>
-                    <h3 className="font-semibold text-slate-900">Top 3 Next Steps</h3>
+                    <div>
+                      <h3 className="font-bold text-slate-900">Top 3 Next Steps</h3>
+                      <p className="text-xs text-slate-500">Ideas to act on</p>
+                    </div>
                   </div>
-                  <ol className="space-y-2.5">
+                  <ol className="space-y-3">
                     {dashboard.recommendations.slice(0, 3).map((rec, i) => (
-                      <li key={i} className="flex gap-2 text-sm text-slate-700">
-                        <span className="shrink-0 w-5 h-5 rounded bg-violet-100 text-violet-700 text-xs font-semibold flex items-center justify-center">{i + 1}</span>
+                      <li key={i} className="flex gap-3 text-sm text-slate-700 leading-snug">
+                        <span className="shrink-0 w-6 h-6 rounded-lg bg-violet-100 text-violet-700 text-xs font-bold flex items-center justify-center">{i + 1}</span>
                         <span>{rec}</span>
                       </li>
                     ))}
@@ -1028,70 +1092,72 @@ export default function Home() {
 
               {/* Generate Business Plan */}
               <div className="bg-gradient-to-br from-indigo-50 to-violet-50 rounded-2xl border-2 border-indigo-200/60 p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-1.5 rounded-lg bg-indigo-100">
-                    <Briefcase className="w-4 h-4 text-indigo-600" />
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-xl bg-indigo-100">
+                    <Briefcase className="w-5 h-5 text-indigo-600" />
                   </div>
-                  <h3 className="font-semibold text-slate-900">Business Plan</h3>
+                  <div>
+                    <h3 className="font-bold text-slate-900">Business Plan</h3>
+                    <p className="text-xs text-slate-600">Investor-ready · Financials · GTM</p>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-600 mb-3">Investor-ready document with financials, GTM, and projections.</p>
                 <button
                   onClick={generateBusinessPlan}
                   disabled={isGeneratingBusinessPlan}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-md"
                 >
                   {isGeneratingBusinessPlan ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><Briefcase className="w-4 h-4" /> {businessPlanContent ? "Regenerate" : "Generate Business Plan"}</>}
                 </button>
               </div>
 
-              {/* Journey - IdeaProof style */}
+              {/* Journey - clearer progress */}
               <div className="bg-slate-800 rounded-2xl p-5 text-white">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4">Your Journey</h3>
-                <div className="space-y-3">
+                <h3 className="text-sm font-bold text-slate-200 mb-4">Your Journey</h3>
+                <div className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span className="text-sm font-medium">Idea Validation</span>
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0"><Check className="w-4 h-4 text-emerald-400" /></div>
+                    <div><span className="font-semibold">Idea Validation</span><span className="block text-xs text-slate-400">Complete</span></div>
                   </div>
                   <div className="flex items-center gap-3 text-slate-400">
-                    <div className="w-4 h-4 rounded-full border-2 border-slate-500 flex-shrink-0" />
-                    <span className="text-sm">Market Analysis</span>
+                    <div className="w-8 h-8 rounded-full border-2 border-slate-500 flex items-center justify-center shrink-0" />
+                    <div><span className="text-sm">Market Analysis</span><span className="block text-xs text-slate-500">Next</span></div>
                   </div>
                   <div className="flex items-center gap-3 text-slate-400">
-                    <div className="w-4 h-4 rounded-full border-2 border-slate-500 flex-shrink-0" />
-                    <span className="text-sm">Business Plan</span>
+                    <div className="w-8 h-8 rounded-full border-2 border-slate-500 flex items-center justify-center shrink-0" />
+                    <div><span className="text-sm">Business Plan</span></div>
                   </div>
                   <div className="flex items-center gap-3 text-slate-400">
-                    <div className="w-4 h-4 rounded-full border-2 border-slate-500 flex-shrink-0" />
-                    <span className="text-sm">Debate & Refine</span>
+                    <div className="w-8 h-8 rounded-full border-2 border-slate-500 flex items-center justify-center shrink-0" />
+                    <div><span className="text-sm">Debate & Refine</span></div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* CTA card - prominent */}
+          {/* CTA card - more prominent */}
           <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-2xl p-6 sm:p-8 shadow-xl">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-white/20">
-                  <Swords className="w-8 h-8 text-white" />
+              <div className="flex items-center gap-5">
+                <div className="p-4 rounded-2xl bg-white/20 shrink-0">
+                  <Swords className="w-10 h-10 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">Ready to stress-test your logic?</h3>
-                  <p className="text-violet-200 text-sm mt-1">Defend your position. Find blind spots. Refine before you build.</p>
+                  <h3 className="text-xl font-bold text-white">Ready to stress-test your logic?</h3>
+                  <p className="text-violet-100 text-base mt-2">Defend your position. Find blind spots. Refine before you build.</p>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={openDebate}
-                  className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-white text-violet-700 font-semibold hover:bg-violet-50 transition-colors shadow-lg"
+                  className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-white text-violet-700 font-bold hover:bg-violet-50 transition-colors shadow-lg text-base"
                 >
                   <Swords className="w-5 h-5" />
                   Debate this idea
                 </button>
                 <button
                   onClick={reset}
-                  className="px-6 py-4 rounded-xl border-2 border-white/30 text-white font-medium hover:bg-white/10 transition-colors"
+                  className="px-6 py-4 rounded-xl border-2 border-white/40 text-white font-semibold hover:bg-white/10 transition-colors"
                 >
                   Validate another
                 </button>
