@@ -125,7 +125,7 @@ function parseValidationSections(content: string): { id: string; title: string; 
   return sections;
 }
 
-// Extract score, strengths, risks for dashboard display
+// Extract score, strengths, risks, and more for dashboard display
 function extractDashboardData(content: string) {
   const scoreMatch = content.match(/(?:viability score|score)[:\s]*\[?(\d+)\]?\/10/i) || content.match(/(\d+)\/10/);
   const score = scoreMatch ? parseInt(scoreMatch[1]) : null;
@@ -140,12 +140,21 @@ function extractDashboardData(content: string) {
   const risks = risksSection ? parseListItems(risksSection[1]) : [];
 
   const summarySection = content.match(/### Idea Summary\s*\n([\s\S]*?)(?=### |---|$)/i);
-  const summary = summarySection ? summarySection[1].trim().slice(0, 200) : null;
+  const summary = summarySection ? summarySection[1].trim() : null;
 
   const verdictSection = content.match(/### One-Line Verdict\s*\n([\s\S]*?)(?=### |---|$)/i);
   const verdict = verdictSection ? verdictSection[1].trim() : null;
 
-  return { score, strengths, risks, summary, verdict };
+  const recommendationSection = content.match(/### Go\/No-Go[\s\S]*?\n([\s\S]*?)(?=### |---|$)/i);
+  const goNoGo = recommendationSection ? recommendationSection[1].trim() : null;
+
+  const stepsSection = content.match(/### Top 3[^\n]*\n([\s\S]*?)(?=### |---|$)/i);
+  const recommendations = stepsSection ? parseListItems(stepsSection[1]) : [];
+
+  const marketSection = content.match(/### Market Opportunity\s*\n([\s\S]*?)(?=### |---|$)/i);
+  const marketSummary = marketSection ? marketSection[1].trim().slice(0, 300) : null;
+
+  return { score, strengths, risks, summary, verdict, goNoGo, recommendations, marketSummary };
 }
 
 const TYPING_PHRASES = [
@@ -719,6 +728,7 @@ export default function Home() {
                 <div className="flex items-center gap-3 mb-2">
                   <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Validation Report</span>
                   <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium">Ready</span>
+                  <span className="text-slate-400 text-xs">Step 1 of 3 · 3–6 months</span>
                 </div>
                 <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">Step 1: Idea Validation</h1>
                 {(dashboard.summary || dashboard.verdict) && (
@@ -727,28 +737,71 @@ export default function Home() {
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-4 sm:gap-6">
-                {dashboard.score != null && (
-                  <div className={`flex flex-col items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 ${scoreBg} ${scoreColor}`}>
-                    <span className="text-2xl sm:text-3xl font-bold">{dashboard.score}</span>
-                    <span className="text-xs font-medium opacity-80">/10</span>
-                  </div>
-                )}
-                <div className="flex gap-3">
-                  <div className="flex flex-col items-center px-4 py-2 rounded-xl bg-white/5">
-                    <span className="text-xs text-slate-400 uppercase">Risk</span>
-                    <span className="text-sm font-bold text-amber-400">{dashboard.score != null ? Math.round((1 - dashboard.score / 10) * 100) : "—"}%</span>
-                  </div>
-                  <div className="flex flex-col items-center px-4 py-2 rounded-xl bg-white/5">
-                    <span className="text-xs text-slate-400 uppercase">Potential</span>
-                    <span className="text-sm font-bold text-emerald-400">{dashboard.score != null ? Math.round((dashboard.score / 10) * 100) : "—"}%</span>
-                  </div>
+              {dashboard.score != null && (
+                <div className={`flex flex-col items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 ${scoreBg} ${scoreColor}`}>
+                  <span className="text-2xl sm:text-3xl font-bold">{dashboard.score}</span>
+                  <span className="text-xs font-medium opacity-80">/10</span>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
-          {/* Main grid: content + sidebar */}
+          {/* Executive Summary - IdeaProof style */}
+          {dashboard.summary && (
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 sm:p-8 mb-6">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-slate-600" />
+                Executive Summary
+              </h2>
+              <p className="text-slate-700 leading-relaxed">{dashboard.summary}</p>
+            </div>
+          )}
+
+          {/* Key Recommendations + Go/No-Go row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {dashboard.recommendations.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 sm:p-8">
+                <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                  <Target className="w-5 h-5 text-violet-600" />
+                  Key Recommendations
+                </h2>
+                <ol className="space-y-3">
+                  {dashboard.recommendations.map((rec, i) => (
+                    <li key={i} className="flex gap-3 text-slate-700">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-sm font-semibold flex items-center justify-center">{i + 1}</span>
+                      <span>{rec}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+            {dashboard.goNoGo && (
+              <div className="bg-white rounded-2xl shadow-lg border-2 border-indigo-200/60 p-6 sm:p-8">
+                <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-indigo-600" />
+                  Go/No-Go Recommendation
+                </h2>
+                <div className="markdown-content text-slate-700 prose prose-slate max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo}</ReactMarkdown>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Market Opportunity card */}
+          {dashboard.marketSummary && (
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 sm:p-8 mb-6">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-blue-600" />
+                Market Opportunity
+              </h2>
+              <div className="markdown-content text-slate-700 prose prose-slate max-w-none prose-p:my-2">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.marketSummary}</ReactMarkdown>
+              </div>
+            </div>
+          )}
+
+          {/* Main grid: Tabs + content + sidebar */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             {/* Left: Tabs + content */}
             <div className="lg:col-span-2 space-y-6">
@@ -779,16 +832,16 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right: Green Lights + Red Flags */}
+            {/* Right: Green Lights + Red Flags + Journey */}
             <div className="space-y-6">
-              <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200/60 p-5 overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200/60 p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="p-1.5 rounded-lg bg-emerald-100">
                     <Check className="w-4 h-4 text-emerald-600" />
                   </div>
                   <h3 className="font-semibold text-slate-900">Green Lights</h3>
                 </div>
-                <ul className="space-y-2 max-h-48 overflow-y-auto">
+                <ul className="space-y-2.5">
                   {dashboard.strengths.length > 0 ? dashboard.strengths.map((s, i) => (
                     <li key={i} className="flex gap-2 text-sm text-slate-700">
                       <Check className="w-4 h-4 flex-shrink-0 text-emerald-500 mt-0.5" />
@@ -800,14 +853,14 @@ export default function Home() {
                 </ul>
               </div>
 
-              <div className="bg-white rounded-2xl shadow-lg border-2 border-red-200/60 p-5 overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-lg border-2 border-red-200/60 p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="p-1.5 rounded-lg bg-red-100">
                     <X className="w-4 h-4 text-red-600" />
                   </div>
                   <h3 className="font-semibold text-slate-900">Red Flags</h3>
                 </div>
-                <ul className="space-y-2 max-h-48 overflow-y-auto">
+                <ul className="space-y-2.5">
                   {dashboard.risks.length > 0 ? dashboard.risks.map((r, i) => (
                     <li key={i} className="flex gap-2 text-sm text-slate-700">
                       <X className="w-4 h-4 flex-shrink-0 text-red-500 mt-0.5" />
@@ -817,6 +870,29 @@ export default function Home() {
                     <li className="text-sm text-slate-500 italic">See Risk Flags tab</li>
                   )}
                 </ul>
+              </div>
+
+              {/* Journey - IdeaProof style */}
+              <div className="bg-slate-800 rounded-2xl p-5 text-white">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4">Your Journey</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    <span className="text-sm font-medium">Idea Validation</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-slate-400">
+                    <div className="w-4 h-4 rounded-full border-2 border-slate-500 flex-shrink-0" />
+                    <span className="text-sm">Market Analysis</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-slate-400">
+                    <div className="w-4 h-4 rounded-full border-2 border-slate-500 flex-shrink-0" />
+                    <span className="text-sm">Business Plan</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-slate-400">
+                    <div className="w-4 h-4 rounded-full border-2 border-slate-500 flex-shrink-0" />
+                    <span className="text-sm">Debate & Refine</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1010,70 +1086,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      {/* Quick Actions */}
-      <div className="flex-shrink-0 border-t border-slate-100 bg-slate-50/50">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-2">
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            <button
-              onClick={() => handleQuickAction("steelman")}
-              disabled={isLoading}
-              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
-            >
-              <Shield className="w-3.5 h-3.5" />
-              Steelman
-            </button>
-            <button
-              onClick={() => handleQuickAction("devils-advocate")}
-              disabled={isLoading}
-              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
-            >
-              <Swords className="w-3.5 h-3.5" />
-              Devil&apos;s Advocate
-            </button>
-            <button
-              onClick={() => handleQuickAction("rate")}
-              disabled={isLoading}
-              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              Rate argument
-            </button>
-            <button
-              onClick={() => handleQuickAction("blind-spots")}
-              disabled={isLoading}
-              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              Blind spots
-            </button>
-            <button
-              onClick={() => handleQuickAction("framework")}
-              disabled={isLoading}
-              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              Framework
-            </button>
-            <button
-              onClick={() => handleQuickAction("summary")}
-              disabled={isLoading}
-              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              Summary
-            </button>
-            <button
-              onClick={() => handleQuickAction("validation-report")}
-              disabled={isLoading}
-              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-full hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
-            >
-              <Clipboard className="w-3.5 h-3.5" />
-              Validation report
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Input */}
       <div className="flex-shrink-0 border-t border-slate-200 bg-white p-3 sm:p-4 safe-area-bottom">
