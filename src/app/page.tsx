@@ -721,30 +721,199 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Hero banner - IdeaProof style */}
-          <div className="rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-indigo-950 p-6 sm:p-8 mb-6 shadow-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
+          {/* Hero banner - richer IdeaProof style */}
+          <div className="rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-indigo-950 p-6 sm:p-8 mb-6 shadow-xl relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.15)_0%,_transparent_50%)]" />
+            <div className="relative flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
                   <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Validation Report</span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium">Ready</span>
-                  <span className="text-slate-400 text-xs">Step 1 of 3 · 3–6 months</span>
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium">Ready</span>
+                  <span className="text-slate-400 text-xs">Step 1 of 3</span>
+                  <span className="text-slate-500 text-xs">·</span>
+                  <span className="text-slate-400 text-xs">Est. 3–6 months to market</span>
                 </div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">Step 1: Idea Validation</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-white mb-3">Step 1: Idea Validation</h1>
                 {(dashboard.summary || dashboard.verdict) && (
-                  <p className="text-slate-300 text-sm sm:text-base max-w-2xl">
+                  <p className="text-slate-300 text-sm sm:text-base max-w-2xl leading-relaxed">
                     {dashboard.verdict || dashboard.summary}
                   </p>
                 )}
               </div>
-              {dashboard.score != null && (
-                <div className={`flex flex-col items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 ${scoreBg} ${scoreColor}`}>
-                  <span className="text-2xl sm:text-3xl font-bold">{dashboard.score}</span>
-                  <span className="text-xs font-medium opacity-80">/10</span>
-                </div>
-              )}
+              {/* Score + metrics block */}
+              <div className="flex flex-row lg:flex-col gap-6 items-center lg:items-end shrink-0">
+                {dashboard.score != null && (
+                  <div className={`flex items-center gap-4 ${scoreColor}`}>
+                    <div className="relative w-24 h-24 sm:w-28 sm:h-28">
+                      <svg className="score-gauge w-full h-full" viewBox="0 0 100 100">
+                        <circle className="score-gauge-bg" cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
+                        <circle
+                          className="score-gauge-fill"
+                          cx="50" cy="50" r="40"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="8"
+                          strokeLinecap="round"
+                          style={{ strokeDashoffset: 251.2 - (dashboard.score / 10) * 251.2 }}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-inherit">
+                        <span className="text-2xl sm:text-3xl font-bold">{dashboard.score}</span>
+                        <span className="text-xs font-medium opacity-80">/10</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-slate-400">Potential</span>
+                          <span className="text-emerald-400 font-medium">{Math.round((dashboard.score / 10) * 100)}%</span>
+                        </div>
+                        <div className="w-24 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                          <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(dashboard.score / 10) * 100}%` }} />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-slate-400">Risk</span>
+                          <span className="text-amber-400 font-medium">{Math.round((1 - dashboard.score / 10) * 100)}%</span>
+                        </div>
+                        <div className="w-24 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                          <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${(1 - dashboard.score / 10) * 100}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+
+          {/* Key metrics row - KPI cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Viability</p>
+              <p className={`text-2xl font-bold ${dashboard.score != null ? (dashboard.score >= 7 ? "text-emerald-600" : dashboard.score >= 5 ? "text-amber-600" : "text-red-600") : "text-slate-600"}`}>
+                {dashboard.score != null ? (dashboard.score >= 7 ? "Strong" : dashboard.score >= 5 ? "Moderate" : "Weak") : "—"}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Strengths</p>
+              <p className="text-2xl font-bold text-slate-900">{dashboard.strengths.length}</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Risk Flags</p>
+              <p className="text-2xl font-bold text-slate-900">{dashboard.risks.length}</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Next Steps</p>
+              <p className="text-2xl font-bold text-slate-900">{dashboard.recommendations.length}</p>
+            </div>
+          </div>
+
+          {/* SWOT grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div className="bg-white rounded-xl shadow-md border-l-4 border-emerald-500 p-5">
+              <h3 className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Check className="w-4 h-4" /> Strengths
+              </h3>
+              <ul className="space-y-2 text-sm text-slate-700">
+                {dashboard.strengths.slice(0, 4).map((s, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="text-emerald-500">•</span>
+                    <span>{s}</span>
+                  </li>
+                ))}
+                {dashboard.strengths.length === 0 && <li className="text-slate-500 italic">See validation report</li>}
+              </ul>
+            </div>
+            <div className="bg-white rounded-xl shadow-md border-l-4 border-amber-500 p-5">
+              <h3 className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" /> Weaknesses
+              </h3>
+              <ul className="space-y-2 text-sm text-slate-700">
+                {dashboard.risks.slice(0, 4).map((r, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="text-amber-500">•</span>
+                    <span>{r}</span>
+                  </li>
+                ))}
+                {dashboard.risks.length === 0 && <li className="text-slate-500 italic">See validation report</li>}
+              </ul>
+            </div>
+            <div className="bg-white rounded-xl shadow-md border-l-4 border-blue-500 p-5">
+              <h3 className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Target className="w-4 h-4" /> Opportunities
+              </h3>
+              <ul className="space-y-2 text-sm text-slate-700">
+                {dashboard.marketSummary ? (
+                  <li className="flex gap-2">
+                    <span className="text-blue-500">•</span>
+                    <span>{dashboard.marketSummary.slice(0, 120)}{dashboard.marketSummary.length > 120 ? "…" : ""}</span>
+                  </li>
+                ) : (
+                  <>
+                    <li className="flex gap-2"><span className="text-blue-500">•</span><span>Market expansion potential</span></li>
+                    <li className="flex gap-2"><span className="text-blue-500">•</span><span>Technology adoption trends</span></li>
+                  </>
+                )}
+              </ul>
+            </div>
+            <div className="bg-white rounded-xl shadow-md border-l-4 border-red-500 p-5">
+              <h3 className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <X className="w-4 h-4" /> Threats
+              </h3>
+              <ul className="space-y-2 text-sm text-slate-700">
+                {dashboard.risks.slice(4, 8).map((r, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="text-red-500">•</span>
+                    <span>{r}</span>
+                  </li>
+                ))}
+                {dashboard.risks.length <= 4 && (
+                  <li className="flex gap-2"><span className="text-red-500">•</span><span>Regulatory & competitive pressure</span></li>
+                )}
+                {dashboard.risks.length === 0 && <li className="text-slate-500 italic">See validation report</li>}
+              </ul>
+            </div>
+          </div>
+
+          {/* Score breakdown - visual bars */}
+          {dashboard.score != null && (
+            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-6 mb-6">
+              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" /> Validation Score Breakdown
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-sm mb-1.5">
+                    <span className="text-slate-600">Market fit</span>
+                    <span className="font-medium text-slate-900">{Math.round((dashboard.score / 10) * 100)}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all" style={{ width: `${(dashboard.score / 10) * 100}%` }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-1.5">
+                    <span className="text-slate-600">Execution feasibility</span>
+                    <span className="font-medium text-slate-900">{Math.round(((dashboard.score / 10) * 0.85 + 0.15) * 100)}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all" style={{ width: `${((dashboard.score / 10) * 0.85 + 0.15) * 100}%` }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-1.5">
+                    <span className="text-slate-600">Risk profile</span>
+                    <span className="font-medium text-slate-900">{Math.round((1 - dashboard.score / 10) * 100)}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all" style={{ width: `${(1 - dashboard.score / 10) * 100}%` }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Executive Summary - IdeaProof style */}
           {dashboard.summary && (
@@ -801,6 +970,57 @@ export default function Home() {
             </div>
           )}
 
+          {/* Insights table - at a glance */}
+          <div className="bg-white rounded-xl shadow-md border border-slate-200/50 overflow-hidden mb-6">
+            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+              <LayoutGrid className="w-4 h-4" /> At a Glance
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50/80">
+                    <th className="text-left px-6 py-3 font-semibold text-slate-600">Metric</th>
+                    <th className="text-left px-6 py-3 font-semibold text-slate-600">Value</th>
+                    <th className="text-left px-6 py-3 font-semibold text-slate-600">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  <tr>
+                    <td className="px-6 py-3 text-slate-600">Viability score</td>
+                    <td className="px-6 py-3 font-medium text-slate-900">{dashboard.score != null ? `${dashboard.score}/10` : "—"}</td>
+                    <td className="px-6 py-3">
+                      {dashboard.score != null && (
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                          dashboard.score >= 7 ? "bg-emerald-100 text-emerald-700" :
+                          dashboard.score >= 5 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
+                        }`}>
+                          {dashboard.score >= 7 ? "Go" : dashboard.score >= 5 ? "Caution" : "No-go"}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-3 text-slate-600">Green lights</td>
+                    <td className="px-6 py-3 font-medium text-slate-900">{dashboard.strengths.length}</td>
+                    <td className="px-6 py-3 text-slate-500">—</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-3 text-slate-600">Red flags</td>
+                    <td className="px-6 py-3 font-medium text-slate-900">{dashboard.risks.length}</td>
+                    <td className="px-6 py-3 text-slate-500">—</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-3 text-slate-600">Validation stage</td>
+                    <td className="px-6 py-3 font-medium text-slate-900">Step 1 of 3</td>
+                    <td className="px-6 py-3">
+                      <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">In progress</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* Main grid: Tabs + content + sidebar */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             {/* Left: Tabs + content */}
@@ -832,19 +1052,22 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right: Green Lights + Red Flags + Journey */}
+            {/* Right: Green Lights + Red Flags + Recommendations + Journey */}
             <div className="space-y-6">
               <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200/60 p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="p-1.5 rounded-lg bg-emerald-100">
-                    <Check className="w-4 h-4 text-emerald-600" />
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-emerald-100">
+                      <Check className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <h3 className="font-semibold text-slate-900">Green Lights</h3>
                   </div>
-                  <h3 className="font-semibold text-slate-900">Green Lights</h3>
+                  <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{dashboard.strengths.length}</span>
                 </div>
-                <ul className="space-y-2.5">
+                <ul className="space-y-2.5 max-h-48 overflow-y-auto">
                   {dashboard.strengths.length > 0 ? dashboard.strengths.map((s, i) => (
                     <li key={i} className="flex gap-2 text-sm text-slate-700">
-                      <Check className="w-4 h-4 flex-shrink-0 text-emerald-500 mt-0.5" />
+                      <Check className="w-4 h-4 shrink-0 text-emerald-500 mt-0.5" />
                       <span>{s}</span>
                     </li>
                   )) : (
@@ -854,16 +1077,19 @@ export default function Home() {
               </div>
 
               <div className="bg-white rounded-2xl shadow-lg border-2 border-red-200/60 p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="p-1.5 rounded-lg bg-red-100">
-                    <X className="w-4 h-4 text-red-600" />
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-red-100">
+                      <X className="w-4 h-4 text-red-600" />
+                    </div>
+                    <h3 className="font-semibold text-slate-900">Red Flags</h3>
                   </div>
-                  <h3 className="font-semibold text-slate-900">Red Flags</h3>
+                  <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">{dashboard.risks.length}</span>
                 </div>
-                <ul className="space-y-2.5">
+                <ul className="space-y-2.5 max-h-48 overflow-y-auto">
                   {dashboard.risks.length > 0 ? dashboard.risks.map((r, i) => (
                     <li key={i} className="flex gap-2 text-sm text-slate-700">
-                      <X className="w-4 h-4 flex-shrink-0 text-red-500 mt-0.5" />
+                      <X className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
                       <span>{r}</span>
                     </li>
                   )) : (
@@ -871,6 +1097,25 @@ export default function Home() {
                   )}
                 </ul>
               </div>
+
+              {dashboard.recommendations.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="p-1.5 rounded-lg bg-violet-100">
+                      <Target className="w-4 h-4 text-violet-600" />
+                    </div>
+                    <h3 className="font-semibold text-slate-900">Top 3 Next Steps</h3>
+                  </div>
+                  <ol className="space-y-2.5">
+                    {dashboard.recommendations.slice(0, 3).map((rec, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-slate-700">
+                        <span className="shrink-0 w-5 h-5 rounded bg-violet-100 text-violet-700 text-xs font-semibold flex items-center justify-center">{i + 1}</span>
+                        <span>{rec}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
 
               {/* Journey - IdeaProof style */}
               <div className="bg-slate-800 rounded-2xl p-5 text-white">
