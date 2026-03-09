@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "The Adversary | Debate, Discuss, Futureproof",
-  description: "A thinking partner with personality. Debate your ideas, explore alternatives, and futureproof your business plan — before reality does.",
+  title: "The Adversary | Idea Validator + Debate",
+  description: "Validate your startup idea in minutes. Get a viability report, then debate it to refine. Free, no signup, your idea stays private.",
 };
 
 export default function RootLayout({
