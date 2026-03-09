@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "The Adversary | Idea Validator + Debate",
-  description: "Validate your startup idea in minutes. Get a viability report, then debate it to refine. Free, no signup, your idea stays private.",
+  title: "The Adversary | Startup Idea Validator 2026 - AI Validation in 2 min",
+  description: "Complete viability report in 2 minutes. Viability score, TAM/SAM/SOM, competitor analysis, risk flags. Then debate to refine. Free, no signup, private.",
 };
 
 export default function RootLayout({

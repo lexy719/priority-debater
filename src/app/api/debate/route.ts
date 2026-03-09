@@ -532,21 +532,53 @@ You are the FUTURE STRATEGIST. Lead with your sharpest future-risk observation. 
 
 Be direct, specific, and actionable. Give them one concrete thing they could do NOW to make their plan more resilient. End with the future scenario that should keep them up at night.`;
       } else {
-        openingPrompt = `Someone has come to you to stress-test their thinking:
+        // IdeaProof-style structured validation report for first response
+        openingPrompt = `You are an AI startup idea validator. Generate a COMPLETE VALIDATION REPORT in the style of IdeaProof. Be thorough, structured, and investor-ready.
 
-**Debate Type:** ${templateContext}
-**Your Lens:** ${lensName}
+**Idea to validate:** "${setup.topic}"
 
-**Their position:** "${setup.topic}"
-
-**Their reasoning:**
+**Founder's reasoning:**
 ${setup.position}
 
 ${setup.context ? `**Context:** ${setup.context}` : ""}
 
-Give them your honest, sharp reaction THROUGH YOUR CURRENT LENS. Find the weakest point in their reasoning and go straight for it. Use your thinking arsenal — apply the most relevant stress test. Be direct, be specific, be incisive. They came to you because they want to be challenged, not coddled.
+Generate a full validation report with these EXACT sections (use markdown headers and formatting):
 
-Start with your sharpest observation. End with the question they need to answer.`;
+## VALIDATION REPORT
+
+### Idea Summary
+[One-line summary of the idea]
+
+### Viability Score: [X]/10
+[One sentence: GO / CAUTION / NO-GO with confidence level. Be specific about why.]
+
+### Strengths
+1. [Specific strength with why it matters]
+2. [Another strength]
+3. [Third strength]
+
+### Risk Flags
+1. [Highest risk — and how to mitigate]
+2. [Second risk]
+3. [Third risk]
+
+### Market Opportunity
+- **TAM/SAM/SOM assessment:** [Realistic / Inflated / Underestimated — with brief reasoning and ballpark numbers if possible]
+- **Competitive landscape:** [Crowded / Moderate / Open — name 3-5 key competitors and positioning gap]
+
+### Go/No-Go Recommendation
+[Clear recommendation: GO (with conditions) / CAUTION (validate X first) / NO-GO (reason)]
+
+### Top 3 Validation Steps Before Building
+1. [Specific, actionable validation step]
+2. [Second step]
+3. [Third step]
+
+### One-Line Verdict
+[The single most important insight about this idea]
+
+---
+**Then add 1-2 short paragraphs** of your sharpest adversarial challenge — the question they need to answer, the flaw you'd push on in a debate. End with: "Want to debate this? Defend your position below."`;
       }
 
       const stream = await openai.chat.completions.create({

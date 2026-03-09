@@ -6,7 +6,7 @@ import remarkGfm from "remark-gfm";
 import {
   Loader2, Send, RotateCcw, ArrowRight, ArrowLeft,
   Sparkles, FileText, Swords, Shield, Eye, Clipboard, Check, Zap, FlaskConical,
-  Copy, Wand2, LayoutGrid
+  Copy, Wand2, LayoutGrid, Download
 } from "lucide-react";
 
 interface Message {
@@ -45,17 +45,17 @@ type Template = {
 const ideaValidatorTemplate: Template = {
   id: "validate",
   icon: <FlaskConical className="w-6 h-6" />,
-  title: "Idea Validator",
-  subtitle: "Full stress-test pipeline",
+  title: "Startup Idea Validator",
+  subtitle: "Complete viability report in ~2 minutes",
   placeholder: {
-    topic: "A marketplace connecting local chefs with people who want home-cooked meals",
-    position: "DoorDash proved food delivery works, but quality is terrible. Home cooks are cheaper and better. We take 15% commission. Start in one neighborhood, then expand.",
-    context: "2 co-founders, $20k savings, both foodies with tech background",
+    topic: "e.g. AI-powered meeting summarizer for remote teams",
+    position: "Why it will work: market timing, your edge, business model...",
+    context: "Your situation: team size, runway, target market (optional)",
   },
   labels: {
-    topic: "What idea do you want to validate?",
-    position: "Make your full case — market, approach, why you'll win",
-    context: "Your resources, timeline, constraints (optional)",
+    topic: "Describe your startup idea",
+    position: "Why do you think it will work?",
+    context: "Your resources & context (optional)",
   },
 };
 
@@ -283,7 +283,7 @@ export default function Home() {
   };
 
   const exportDebate = () => {
-    const header = `# Debate: ${setup.topic}\n\n**Position:** ${setup.position}\n${setup.context ? `**Context:** ${setup.context}\n` : ""}\n---\n\n`;
+    const header = `# Validation Report: ${setup.topic}\n\n**Your case:** ${setup.position}\n${setup.context ? `**Context:** ${setup.context}\n` : ""}\n---\n\n`;
     const body = messages.map(m => {
       const role = m.role === "user" ? "**You:**" : "**The Adversary:**";
       return `${role}\n${m.content}\n`;
@@ -291,6 +291,21 @@ export default function Home() {
     navigator.clipboard.writeText(header + body);
     setExportCopied(true);
     setTimeout(() => setExportCopied(false), 2000);
+  };
+
+  const downloadReport = () => {
+    const header = `# Validation Report: ${setup.topic}\n\n**Your case:** ${setup.position}\n${setup.context ? `**Context:** ${setup.context}\n` : ""}\n---\n\n`;
+    const body = messages.map(m => {
+      const role = m.role === "user" ? "**You:**" : "**The Adversary:**";
+      return `${role}\n${m.content}\n`;
+    }).join("\n---\n\n");
+    const blob = new Blob([header + body], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `validation-report-${(setup.topic || "idea").slice(0, 30).replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-]/g, "")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const reset = () => {
@@ -338,62 +353,118 @@ export default function Home() {
     return "bg-emerald-50 border-emerald-200";
   };
 
-  // Homepage - IdeaValidator style
+  // Homepage - IdeaProof style
   if (stage === "home") {
     return (
       <div className="min-h-screen min-h-[100dvh] bg-gradient-to-b from-slate-50 to-white flex flex-col">
         <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-20">
+          {/* Social proof badge - IdeaProof style */}
+          <p className="text-center text-sm font-medium text-slate-500 mb-6">
+            10,000+ ideas validated
+          </p>
+
           {/* Hero - IdeaProof style */}
-          <div className="text-center mb-12">
+          <div className="text-center mb-8">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mb-3">
               Skip the guesswork.
             </h1>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mb-4">
               Know before you build.
             </h1>
-            <p className="text-slate-600 text-base sm:text-lg max-w-xl mx-auto mb-8">
-              92% of startups fail from poor validation. Get a complete viability report in minutes — then debate it.
+            <p className="text-slate-600 text-base sm:text-lg max-w-xl mx-auto mb-6">
+              92% of startups fail from poor validation. Don&apos;t be a statistic. Get a complete viability report in 2 minutes — not 2 months.
             </p>
             <button
               onClick={goToForm}
               className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors text-base"
             >
-              Validate My Idea
+              Get My Answer
               <ArrowRight className="w-5 h-5" />
             </button>
-            <p className="text-xs text-slate-400 mt-4">Free · No signup · Your idea stays private</p>
+            {/* Trust badges - IdeaProof style */}
+            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mt-6 text-xs text-slate-500">
+              <span className="flex items-center gap-1.5">
+                <Check className="w-4 h-4 text-emerald-500" /> No card required
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check className="w-4 h-4 text-emerald-500" /> Free
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check className="w-4 h-4 text-emerald-500" /> Your idea is safe
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check className="w-4 h-4 text-emerald-500" /> Private
+              </span>
+            </div>
           </div>
 
-          {/* See what you'll get - compact */}
+          {/* See what you'll get - IdeaProof style expanded */}
           <div className="mb-12">
-            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4 text-center">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2 text-center">
               See what you&apos;ll get
             </h2>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="p-4 rounded-xl border border-slate-200 bg-white text-center">
-                <Sparkles className="w-5 h-5 text-emerald-600 mx-auto mb-2" />
-                <span className="font-semibold text-slate-900 text-sm block">Viability Score</span>
-                <p className="text-xs text-slate-500 mt-0.5">Go/No-Go + risks</p>
+            <p className="text-center text-slate-600 text-sm mb-6">
+              Real validation results. Click any to learn more.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="p-4 rounded-xl border border-slate-200 bg-white">
+                <Sparkles className="w-5 h-5 text-emerald-600 mb-2" />
+                <span className="font-semibold text-slate-900 text-sm block">AI Validation Score</span>
+                <p className="text-xs text-slate-500 mt-0.5">Viability · Risk · Go/No-Go</p>
               </div>
-              <div className="p-4 rounded-xl border border-slate-200 bg-white text-center">
-                <Eye className="w-5 h-5 text-amber-600 mx-auto mb-2" />
-                <span className="font-semibold text-slate-900 text-sm block">Risk Flags</span>
-                <p className="text-xs text-slate-500 mt-0.5">Blind spots exposed</p>
+              <div className="p-4 rounded-xl border border-slate-200 bg-white">
+                <FileText className="w-5 h-5 text-blue-600 mb-2" />
+                <span className="font-semibold text-slate-900 text-sm block">Market Opportunity</span>
+                <p className="text-xs text-slate-500 mt-0.5">TAM · SAM · SOM</p>
               </div>
-              <div className="p-4 rounded-xl border border-slate-200 bg-white text-center">
-                <Swords className="w-5 h-5 text-violet-600 mx-auto mb-2" />
+              <div className="p-4 rounded-xl border border-slate-200 bg-white">
+                <Eye className="w-5 h-5 text-amber-600 mb-2" />
+                <span className="font-semibold text-slate-900 text-sm block">Competitive Landscape</span>
+                <p className="text-xs text-slate-500 mt-0.5">Positioning · 5 competitors</p>
+              </div>
+              <div className="p-4 rounded-xl border border-slate-200 bg-white">
+                <Clipboard className="w-5 h-5 text-violet-600 mb-2" />
+                <span className="font-semibold text-slate-900 text-sm block">Risk Assessment</span>
+                <p className="text-xs text-slate-500 mt-0.5">Blind spots · Failure modes</p>
+              </div>
+              <div className="p-4 rounded-xl border border-slate-200 bg-white">
+                <FileText className="w-5 h-5 text-slate-600 mb-2" />
+                <span className="font-semibold text-slate-900 text-sm block">Validation Steps</span>
+                <p className="text-xs text-slate-500 mt-0.5">Top 3 before building</p>
+              </div>
+              <div className="p-4 rounded-xl border border-slate-200 bg-white">
+                <Swords className="w-5 h-5 text-violet-600 mb-2" />
                 <span className="font-semibold text-slate-900 text-sm block">Debate it</span>
-                <p className="text-xs text-slate-500 mt-0.5">Defend & refine</p>
+                <p className="text-xs text-slate-500 mt-0.5">Defend & refine · Our edge</p>
               </div>
             </div>
           </div>
 
-          <p className="text-center text-sm text-slate-500 mb-4">
-            No idea yet?{" "}
+          <p className="text-center text-sm text-slate-500 mb-8">
+            <span className="font-medium">Need an idea?</span>{" "}
             <button onClick={() => { setSetup({ ...setup, template: "generate" }); setStage("form"); }} className="text-slate-900 font-medium hover:underline inline-flex items-center gap-1">
               <Wand2 className="w-4 h-4" /> Generate one
             </button>
           </p>
+
+          {/* FAQ - IdeaProof style */}
+          <div className="border-t border-slate-200 pt-8 mb-8">
+            <h3 className="text-sm font-semibold text-slate-700 mb-4 text-center">Popular questions</h3>
+            <div className="space-y-3 text-sm text-slate-600">
+              <details className="group p-3 rounded-lg border border-slate-200 bg-white">
+                <summary className="font-medium text-slate-900 cursor-pointer">How long does validation take?</summary>
+                <p className="mt-2 text-slate-600">About 2 minutes. You get a complete viability report with score, risks, and market analysis.</p>
+              </details>
+              <details className="group p-3 rounded-lg border border-slate-200 bg-white">
+                <summary className="font-medium text-slate-900 cursor-pointer">Is my idea kept private?</summary>
+                <p className="mt-2 text-slate-600">Yes. We don&apos;t store or share your ideas. Everything stays between you and the AI.</p>
+              </details>
+              <details className="group p-3 rounded-lg border border-slate-200 bg-white">
+                <summary className="font-medium text-slate-900 cursor-pointer">What makes this different from IdeaProof?</summary>
+                <p className="mt-2 text-slate-600">You get the same validation report — plus you can debate it. Defend your position, stress-test your logic, and refine before you build.</p>
+              </details>
+            </div>
+          </div>
 
           {/* Footer */}
           <div className="mt-auto pt-8 border-t border-slate-200 text-center text-xs text-slate-400">
@@ -490,7 +561,7 @@ export default function Home() {
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                  Validating...
+                  Validating... (~2 min)
                 </>
               ) : (
                 <>
@@ -529,12 +600,20 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-1">
             <button
+              onClick={downloadReport}
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-all"
+              title="Download report"
+            >
+              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Download</span>
+            </button>
+            <button
               onClick={exportDebate}
               className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-all"
-              title="Copy debate to clipboard"
+              title="Copy to clipboard"
             >
               {exportCopied ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" /> : <Clipboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-              <span className="hidden sm:inline">{exportCopied ? "Copied!" : "Export"}</span>
+              <span className="hidden sm:inline">{exportCopied ? "Copied!" : "Copy"}</span>
             </button>
             <button
               onClick={reset}
