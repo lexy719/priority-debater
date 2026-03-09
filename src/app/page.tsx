@@ -5,8 +5,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   Loader2, Send, RotateCcw, ArrowRight, ArrowLeft,
-  Sparkles, FileText, Swords, Shield, Eye, Clipboard, Check, Zap, FlaskConical,
-  Copy, Wand2, LayoutGrid, Download, BarChart3, AlertTriangle, Target, X
+  Sparkles, FileText, Swords, Eye, Clipboard, Check, Zap, FlaskConical,
+  Copy, Wand2, LayoutGrid, Download, BarChart3, AlertTriangle, Target, X, Briefcase, TrendingUp, Users
 } from "lucide-react";
 
 interface Message {
@@ -89,6 +89,8 @@ function parseValidationSections(content: string): { id: string; title: string; 
     strengths: "check",
     risks: "alert",
     market: "chart",
+    competitive: "chart",
+    financial: "chart",
     recommendation: "target",
     steps: "clipboard",
     verdict: "zap",
@@ -107,9 +109,11 @@ function parseValidationSections(content: string): { id: string; title: string; 
     else if (t.includes("viability")) id = "viability";
     else if (t.includes("strengths")) id = "strengths";
     else if (t.includes("risk")) id = "risks";
-    else if (t.includes("market")) id = "market";
+    else if (t.includes("market opportunity")) id = "market";
+    else if (t.includes("competitive") || t.includes("landscape")) id = "competitive";
+    else if (t.includes("financial")) id = "financial";
     else if (t.includes("go/no-go") || t.includes("recommendation")) id = "recommendation";
-    else if (t.includes("validation steps")) id = "steps";
+    else if (t.includes("validation steps") || t.includes("top 3")) id = "steps";
     else if (t.includes("verdict")) id = "verdict";
 
     sections.push({ id, title: titleLine, content, icon: iconMap[id] || "file" });
@@ -152,9 +156,15 @@ function extractDashboardData(content: string) {
   const recommendations = stepsSection ? parseListItems(stepsSection[1]) : [];
 
   const marketSection = content.match(/### Market Opportunity\s*\n([\s\S]*?)(?=### |---|$)/i);
-  const marketSummary = marketSection ? marketSection[1].trim().slice(0, 300) : null;
+  const marketSummary = marketSection ? marketSection[1].trim() : null;
 
-  return { score, strengths, risks, summary, verdict, goNoGo, recommendations, marketSummary };
+  const competitiveSection = content.match(/### Competitive Landscape\s*\n([\s\S]*?)(?=### |---|$)/i);
+  const competitiveSummary = competitiveSection ? competitiveSection[1].trim() : null;
+
+  const financialSection = content.match(/### Financial Snapshot\s*\n([\s\S]*?)(?=### |---|$)/i);
+  const financialSummary = financialSection ? financialSection[1].trim() : null;
+
+  return { score, strengths, risks, summary, verdict, goNoGo, recommendations, marketSummary, competitiveSummary, financialSummary };
 }
 
 const TYPING_PHRASES = [
@@ -186,6 +196,8 @@ export default function Home() {
   const [typingPhrase, setTypingPhrase] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [exportCopied, setExportCopied] = useState(false);
+  const [businessPlanContent, setBusinessPlanContent] = useState<string>("");
+  const [isGeneratingBusinessPlan, setIsGeneratingBusinessPlan] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -404,11 +416,36 @@ export default function Home() {
     setInput("");
     setError(null);
     setStreamingContent("");
+    setBusinessPlanContent("");
     setActiveTab(0);
   };
 
   const openDebate = () => {
     setStage("debate");
+  };
+
+  const generateBusinessPlan = async () => {
+    setIsGeneratingBusinessPlan(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/debate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "business-plan",
+          setup,
+          validationContent: messages[0]?.role === "opponent" ? messages[0].content : "",
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to generate");
+      const content = await handleStreamResponse(response);
+      setBusinessPlanContent(content);
+      setActiveTab(6); // Business Plan tab index when it exists
+    } catch {
+      setError("Failed to generate business plan.");
+    } finally {
+      setIsGeneratingBusinessPlan(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -530,6 +567,11 @@ export default function Home() {
                 <Swords className="w-5 h-5 text-violet-600 mb-2" />
                 <span className="font-semibold text-slate-900 text-sm block">Debate it</span>
                 <p className="text-xs text-slate-500 mt-0.5">Defend & refine · Our edge</p>
+              </div>
+              <div className="p-4 rounded-xl border border-slate-200 bg-white">
+                <Briefcase className="w-5 h-5 text-indigo-600 mb-2" />
+                <span className="font-semibold text-slate-900 text-sm block">Business Plan</span>
+                <p className="text-xs text-slate-500 mt-0.5">Investor-ready · Financials · GTM</p>
               </div>
             </div>
           </div>
@@ -676,22 +718,18 @@ export default function Home() {
   if (sections.length === 0 && validationContent) {
     sections = [{ id: "full", title: "Full Report", content: validationContent, icon: "file" }];
   }
-  const getSectionIcon = (icon: string) => {
-    switch (icon) {
-      case "sparkles": return <Sparkles className="w-4 h-4" />;
-      case "chart": return <BarChart3 className="w-4 h-4" />;
-      case "alert": return <AlertTriangle className="w-4 h-4" />;
-      case "target": return <Target className="w-4 h-4" />;
-      case "swords": return <Swords className="w-4 h-4" />;
-      case "check": return <Check className="w-4 h-4" />;
-      case "clipboard": return <Clipboard className="w-4 h-4" />;
-      default: return <FileText className="w-4 h-4" />;
-    }
-  };
-
   if (stage === "results" && sections.length > 0) {
-    const currentSection = sections[activeTab] || sections[0];
     const dashboard = extractDashboardData(validationContent);
+    const resultsTabs = [
+      { id: "overview", label: "Overview", icon: <LayoutGrid className="w-4 h-4" /> },
+      { id: "validation", label: "Validation", icon: <FileText className="w-4 h-4" /> },
+      { id: "market", label: "Market", icon: <BarChart3 className="w-4 h-4" /> },
+      { id: "competitors", label: "Competitors", icon: <Users className="w-4 h-4" /> },
+      { id: "financials", label: "Financials", icon: <TrendingUp className="w-4 h-4" /> },
+      { id: "recommendations", label: "Recommendations", icon: <Target className="w-4 h-4" /> },
+      ...(businessPlanContent ? [{ id: "business-plan", label: "Business Plan", icon: <Briefcase className="w-4 h-4" /> }] : []),
+    ];
+    const currentTabId = resultsTabs[Math.min(activeTab, resultsTabs.length - 1)]?.id || "overview";
     const scoreColor = dashboard.score != null
       ? dashboard.score >= 7 ? "text-emerald-500" : dashboard.score >= 5 ? "text-amber-500" : "text-red-500"
       : "text-slate-600";
@@ -789,270 +827,141 @@ export default function Home() {
           </div>
 
           {/* Key metrics row - KPI cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Viability</p>
-              <p className={`text-2xl font-bold ${dashboard.score != null ? (dashboard.score >= 7 ? "text-emerald-600" : dashboard.score >= 5 ? "text-amber-600" : "text-red-600") : "text-slate-600"}`}>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200/50 p-3">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-0.5">Viability</p>
+              <p className={`text-xl font-bold ${dashboard.score != null ? (dashboard.score >= 7 ? "text-emerald-600" : dashboard.score >= 5 ? "text-amber-600" : "text-red-600") : "text-slate-600"}`}>
                 {dashboard.score != null ? (dashboard.score >= 7 ? "Strong" : dashboard.score >= 5 ? "Moderate" : "Weak") : "—"}
               </p>
             </div>
-            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Strengths</p>
-              <p className="text-2xl font-bold text-slate-900">{dashboard.strengths.length}</p>
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200/50 p-3">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-0.5">Strengths</p>
+              <p className="text-xl font-bold text-slate-900">{dashboard.strengths.length}</p>
             </div>
-            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Risk Flags</p>
-              <p className="text-2xl font-bold text-slate-900">{dashboard.risks.length}</p>
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200/50 p-3">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-0.5">Risk Flags</p>
+              <p className="text-xl font-bold text-slate-900">{dashboard.risks.length}</p>
             </div>
-            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Next Steps</p>
-              <p className="text-2xl font-bold text-slate-900">{dashboard.recommendations.length}</p>
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200/50 p-3">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-0.5">Next Steps</p>
+              <p className="text-xl font-bold text-slate-900">{dashboard.recommendations.length}</p>
             </div>
           </div>
 
-          {/* SWOT grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            <div className="bg-white rounded-xl shadow-md border-l-4 border-emerald-500 p-5">
-              <h3 className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Check className="w-4 h-4" /> Strengths
-              </h3>
-              <ul className="space-y-2 text-sm text-slate-700">
-                {dashboard.strengths.slice(0, 4).map((s, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="text-emerald-500">•</span>
-                    <span>{s}</span>
-                  </li>
-                ))}
-                {dashboard.strengths.length === 0 && <li className="text-slate-500 italic">See validation report</li>}
-              </ul>
-            </div>
-            <div className="bg-white rounded-xl shadow-md border-l-4 border-amber-500 p-5">
-              <h3 className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4" /> Weaknesses
-              </h3>
-              <ul className="space-y-2 text-sm text-slate-700">
-                {dashboard.risks.slice(0, 4).map((r, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="text-amber-500">•</span>
-                    <span>{r}</span>
-                  </li>
-                ))}
-                {dashboard.risks.length === 0 && <li className="text-slate-500 italic">See validation report</li>}
-              </ul>
-            </div>
-            <div className="bg-white rounded-xl shadow-md border-l-4 border-blue-500 p-5">
-              <h3 className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Target className="w-4 h-4" /> Opportunities
-              </h3>
-              <ul className="space-y-2 text-sm text-slate-700">
-                {dashboard.marketSummary ? (
-                  <li className="flex gap-2">
-                    <span className="text-blue-500">•</span>
-                    <span>{dashboard.marketSummary.slice(0, 120)}{dashboard.marketSummary.length > 120 ? "…" : ""}</span>
-                  </li>
-                ) : (
+          {/* IdeaProof-style compact tabs */}
+          <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide mb-4">
+            {resultsTabs.map((tab, i) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(i)}
+                className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                  activeTab === i ? "bg-white text-slate-900 shadow-md border border-slate-200" : "bg-white/60 text-slate-600 hover:bg-white hover:text-slate-800"
+                }`}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content area */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 sm:p-8 min-h-[320px]">
+                {currentTabId === "overview" && (
                   <>
-                    <li className="flex gap-2"><span className="text-blue-500">•</span><span>Market expansion potential</span></li>
-                    <li className="flex gap-2"><span className="text-blue-500">•</span><span>Technology adoption trends</span></li>
+                    {dashboard.summary && <p className="text-slate-700 text-sm mb-4">{dashboard.summary}</p>}
+                    {dashboard.score != null && (
+                      <div className="space-y-3 mb-4">
+                        <div className="flex justify-between text-sm"><span className="text-slate-600">Market fit</span><span className="font-medium">{Math.round((dashboard.score / 10) * 100)}%</span></div>
+                        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(dashboard.score / 10) * 100}%` }} /></div>
+                        <div className="flex justify-between text-sm"><span className="text-slate-600">Execution feasibility</span><span className="font-medium">{Math.round(((dashboard.score / 10) * 0.85 + 0.15) * 100)}%</span></div>
+                        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${((dashboard.score / 10) * 0.85 + 0.15) * 100}%` }} /></div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="p-3 rounded-lg border-l-4 border-emerald-500 bg-slate-50/50">
+                        <h4 className="text-xs font-semibold text-emerald-600 mb-2">Strengths</h4>
+                        <ul className="text-xs text-slate-700 space-y-1">{dashboard.strengths.slice(0, 3).map((s, i) => <li key={i}>• {s.slice(0, 60)}{s.length > 60 ? "…" : ""}</li>)}</ul>
+                      </div>
+                      <div className="p-3 rounded-lg border-l-4 border-amber-500 bg-slate-50/50">
+                        <h4 className="text-xs font-semibold text-amber-600 mb-2">Weaknesses</h4>
+                        <ul className="text-xs text-slate-700 space-y-1">{dashboard.risks.slice(0, 3).map((r, i) => <li key={i}>• {r.slice(0, 60)}{r.length > 60 ? "…" : ""}</li>)}</ul>
+                      </div>
+                    </div>
+                    <table className="w-full text-xs">
+                      <tbody className="divide-y divide-slate-100">
+                        <tr><td className="py-2 text-slate-600">Viability</td><td className="py-2 font-medium">{dashboard.score != null ? `${dashboard.score}/10` : "—"}</td><td className="py-2">{dashboard.score != null && <span className={`px-2 py-0.5 rounded text-xs ${dashboard.score >= 7 ? "bg-emerald-100 text-emerald-700" : dashboard.score >= 5 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"}`}>{dashboard.score >= 7 ? "Go" : dashboard.score >= 5 ? "Caution" : "No-go"}</span>}</td></tr>
+                        <tr><td className="py-2 text-slate-600">Stage</td><td className="py-2 font-medium">Step 1 of 3</td><td className="py-2 text-slate-500">In progress</td></tr>
+                      </tbody>
+                    </table>
                   </>
                 )}
-              </ul>
-            </div>
-            <div className="bg-white rounded-xl shadow-md border-l-4 border-red-500 p-5">
-              <h3 className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <X className="w-4 h-4" /> Threats
-              </h3>
-              <ul className="space-y-2 text-sm text-slate-700">
-                {dashboard.risks.slice(4, 8).map((r, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="text-red-500">•</span>
-                    <span>{r}</span>
-                  </li>
-                ))}
-                {dashboard.risks.length <= 4 && (
-                  <li className="flex gap-2"><span className="text-red-500">•</span><span>Regulatory & competitive pressure</span></li>
+                {currentTabId === "validation" && (
+                  <div className="space-y-4">
+                    {sections.filter(s => ["summary", "viability", "strengths", "risks"].includes(s.id)).map((section, i) => (
+                      <div key={i}>
+                        <h3 className="text-sm font-semibold text-slate-900 mb-2">{section.title}</h3>
+                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{section.content}</ReactMarkdown>
+                        </div>
+                      </div>
+                    ))}
+                    {sections.filter(s => ["summary", "viability", "strengths", "risks"].includes(s.id)).length === 0 && (
+                      <div className="markdown-content text-slate-700 prose prose-slate max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{sections[0]?.content || validationContent}</ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
                 )}
-                {dashboard.risks.length === 0 && <li className="text-slate-500 italic">See validation report</li>}
-              </ul>
-            </div>
-          </div>
-
-          {/* Score breakdown - visual bars */}
-          {dashboard.score != null && (
-            <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-6 mb-6">
-              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" /> Validation Score Breakdown
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-1.5">
-                    <span className="text-slate-600">Market fit</span>
-                    <span className="font-medium text-slate-900">{Math.round((dashboard.score / 10) * 100)}%</span>
+                {currentTabId === "market" && (
+                  <div className="markdown-content text-slate-700 prose prose-slate max-w-none prose-p:my-2">
+                    {dashboard.marketSummary ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.marketSummary}</ReactMarkdown> : <p className="text-slate-500 italic">See full validation report for market opportunity.</p>}
                   </div>
-                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all" style={{ width: `${(dashboard.score / 10) * 100}%` }} />
+                )}
+                {currentTabId === "competitors" && (
+                  <div className="markdown-content text-slate-700 prose prose-slate max-w-none prose-p:my-2">
+                    {dashboard.competitiveSummary ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.competitiveSummary}</ReactMarkdown> : <p className="text-slate-500 italic">Competitive landscape will appear in the validation report when available.</p>}
                   </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1.5">
-                    <span className="text-slate-600">Execution feasibility</span>
-                    <span className="font-medium text-slate-900">{Math.round(((dashboard.score / 10) * 0.85 + 0.15) * 100)}%</span>
+                )}
+                {currentTabId === "financials" && (
+                  <div className="markdown-content text-slate-700 prose prose-slate max-w-none prose-p:my-2">
+                    {dashboard.financialSummary ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.financialSummary}</ReactMarkdown> : <p className="text-slate-500 italic">Financial snapshot will appear in the validation report when available.</p>}
                   </div>
-                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all" style={{ width: `${((dashboard.score / 10) * 0.85 + 0.15) * 100}%` }} />
+                )}
+                {currentTabId === "recommendations" && (
+                  <div className="space-y-4">
+                    {dashboard.goNoGo && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900 mb-2">Go/No-Go Recommendation</h3>
+                        <div className="markdown-content text-slate-700 prose prose-slate max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo}</ReactMarkdown></div>
+                      </div>
+                    )}
+                    {dashboard.recommendations.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900 mb-2">Top 3 Validation Steps</h3>
+                        <ol className="space-y-2">
+                          {dashboard.recommendations.map((rec, i) => (
+                            <li key={i} className="flex gap-2 text-slate-700">
+                              <span className="shrink-0 w-5 h-5 rounded bg-violet-100 text-violet-700 text-xs font-semibold flex items-center justify-center">{i + 1}</span>
+                              <span>{rec}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                    {!dashboard.goNoGo && dashboard.recommendations.length === 0 && <p className="text-slate-500 italic">See full validation report.</p>}
                   </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1.5">
-                    <span className="text-slate-600">Risk profile</span>
-                    <span className="font-medium text-slate-900">{Math.round((1 - dashboard.score / 10) * 100)}%</span>
+                )}
+                {currentTabId === "business-plan" && businessPlanContent && (
+                  <div className="markdown-content text-slate-700 prose prose-slate max-w-none prose-headings:text-slate-900 prose-h2:text-lg prose-h3:text-base">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{businessPlanContent}</ReactMarkdown>
                   </div>
-                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all" style={{ width: `${(1 - dashboard.score / 10) * 100}%` }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Executive Summary - IdeaProof style */}
-          {dashboard.summary && (
-            <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 sm:p-8 mb-6">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-slate-600" />
-                Executive Summary
-              </h2>
-              <p className="text-slate-700 leading-relaxed">{dashboard.summary}</p>
-            </div>
-          )}
-
-          {/* Key Recommendations + Go/No-Go row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {dashboard.recommendations.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 sm:p-8">
-                <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                  <Target className="w-5 h-5 text-violet-600" />
-                  Key Recommendations
-                </h2>
-                <ol className="space-y-3">
-                  {dashboard.recommendations.map((rec, i) => (
-                    <li key={i} className="flex gap-3 text-slate-700">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-sm font-semibold flex items-center justify-center">{i + 1}</span>
-                      <span>{rec}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            )}
-            {dashboard.goNoGo && (
-              <div className="bg-white rounded-2xl shadow-lg border-2 border-indigo-200/60 p-6 sm:p-8">
-                <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-indigo-600" />
-                  Go/No-Go Recommendation
-                </h2>
-                <div className="markdown-content text-slate-700 prose prose-slate max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo}</ReactMarkdown>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Market Opportunity card */}
-          {dashboard.marketSummary && (
-            <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 sm:p-8 mb-6">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-blue-600" />
-                Market Opportunity
-              </h2>
-              <div className="markdown-content text-slate-700 prose prose-slate max-w-none prose-p:my-2">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.marketSummary}</ReactMarkdown>
-              </div>
-            </div>
-          )}
-
-          {/* Insights table - at a glance */}
-          <div className="bg-white rounded-xl shadow-md border border-slate-200/50 overflow-hidden mb-6">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider px-6 py-4 border-b border-slate-100 flex items-center gap-2">
-              <LayoutGrid className="w-4 h-4" /> At a Glance
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50/80">
-                    <th className="text-left px-6 py-3 font-semibold text-slate-600">Metric</th>
-                    <th className="text-left px-6 py-3 font-semibold text-slate-600">Value</th>
-                    <th className="text-left px-6 py-3 font-semibold text-slate-600">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  <tr>
-                    <td className="px-6 py-3 text-slate-600">Viability score</td>
-                    <td className="px-6 py-3 font-medium text-slate-900">{dashboard.score != null ? `${dashboard.score}/10` : "—"}</td>
-                    <td className="px-6 py-3">
-                      {dashboard.score != null && (
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                          dashboard.score >= 7 ? "bg-emerald-100 text-emerald-700" :
-                          dashboard.score >= 5 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
-                        }`}>
-                          {dashboard.score >= 7 ? "Go" : dashboard.score >= 5 ? "Caution" : "No-go"}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-3 text-slate-600">Green lights</td>
-                    <td className="px-6 py-3 font-medium text-slate-900">{dashboard.strengths.length}</td>
-                    <td className="px-6 py-3 text-slate-500">—</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-3 text-slate-600">Red flags</td>
-                    <td className="px-6 py-3 font-medium text-slate-900">{dashboard.risks.length}</td>
-                    <td className="px-6 py-3 text-slate-500">—</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-3 text-slate-600">Validation stage</td>
-                    <td className="px-6 py-3 font-medium text-slate-900">Step 1 of 3</td>
-                    <td className="px-6 py-3">
-                      <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">In progress</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Main grid: Tabs + content + sidebar */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            {/* Left: Tabs + content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Tabs */}
-              <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide">
-                {sections.map((section, i) => (
-                  <button
-                    key={section.id}
-                    onClick={() => setActiveTab(i)}
-                    className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                      activeTab === i
-                        ? "bg-white text-slate-900 shadow-md"
-                        : "bg-white/60 text-slate-600 hover:bg-white hover:text-slate-800"
-                    }`}
-                  >
-                    {getSectionIcon(section.icon)}
-                    <span className="max-w-[100px] truncate">{section.title.split(":")[0]}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Tab content card */}
-              <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 sm:p-8">
-                <h2 className="text-lg font-semibold text-slate-900 mb-4">{currentSection.title}</h2>
-                <div className="markdown-content text-slate-700 prose prose-slate max-w-none prose-headings:text-slate-900">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentSection.content}</ReactMarkdown>
-                </div>
+                )}
               </div>
             </div>
 
-            {/* Right: Green Lights + Red Flags + Recommendations + Journey */}
+            {/* Right: Green Lights + Red Flags + Business Plan CTA + Journey */}
             <div className="space-y-6">
               <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200/60 p-5">
                 <div className="flex items-center justify-between mb-4">
@@ -1116,6 +1025,24 @@ export default function Home() {
                   </ol>
                 </div>
               )}
+
+              {/* Generate Business Plan */}
+              <div className="bg-gradient-to-br from-indigo-50 to-violet-50 rounded-2xl border-2 border-indigo-200/60 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-1.5 rounded-lg bg-indigo-100">
+                    <Briefcase className="w-4 h-4 text-indigo-600" />
+                  </div>
+                  <h3 className="font-semibold text-slate-900">Business Plan</h3>
+                </div>
+                <p className="text-xs text-slate-600 mb-3">Investor-ready document with financials, GTM, and projections.</p>
+                <button
+                  onClick={generateBusinessPlan}
+                  disabled={isGeneratingBusinessPlan}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                >
+                  {isGeneratingBusinessPlan ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><Briefcase className="w-4 h-4" /> {businessPlanContent ? "Regenerate" : "Generate Business Plan"}</>}
+                </button>
+              </div>
 
               {/* Journey - IdeaProof style */}
               <div className="bg-slate-800 rounded-2xl p-5 text-white">

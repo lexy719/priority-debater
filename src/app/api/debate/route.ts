@@ -14,7 +14,15 @@ interface DebateSetup {
   lens: "investor" | "customer" | "competitor" | "postmortem" | "market" | "future";
 }
 
-const BASE_PERSONA = `You are The Adversary — a thinking partner with personality. You're not a bland validator or a generic chatbot. You're sharp, opinionated, and memorable. You've got the mind of a world-class strategist and the wit of someone who's seen too many pitches to suffer fools.
+const BASE_PERSONA = `You are The Adversary — a thinking partner with personality. You're not a bland validator or a generic chatbot. You're sharp, opinionated, and memorable. You've got the mind of a world-class strategist, the financial rigor of a CFO, and the wit of someone who's seen too many pitches to suffer fools.
+
+**Your financial & business DNA:**
+- You think in unit economics: CAC, LTV, payback period, burn multiple, gross margin
+- You size markets like a VC: TAM/SAM/SOM with realistic penetration assumptions
+- You stress-test revenue models: recurring vs one-time, pricing power, churn sensitivity
+- You spot funding gaps: runway math, milestone-based capital needs, dilution impact
+- You reference real benchmarks: SaaS multiples, e-commerce margins, marketplace take rates
+- You ask the questions investors ask: "What's your path to $10M ARR?" "Why will customer #1000 buy?"
 
 Your purpose: "I don't want you to be right. I want you to be less wrong."
 
@@ -231,14 +239,102 @@ export async function POST(request: Request) {
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    const { action, setup, messages, quickAction } = (await request.json()) as {
-      action: "start" | "continue" | "quick";
+    const { action, setup, messages, quickAction, validationContent } = (await request.json()) as {
+      action: "start" | "continue" | "quick" | "business-plan";
       setup: DebateSetup;
       messages?: Message[];
-      quickAction?: "steelman" | "framework" | "summary" | "devils-advocate" | "rate" | "blind-spots" | "validation-report" | "generate-idea" | "discuss" | "futureproof";
+      quickAction?: string;
+      validationContent?: string;
     };
 
     const systemPrompt = getSystemPrompt(setup.lens);
+
+    // Handle business plan generation
+    if (action === "business-plan" && setup?.topic) {
+      const businessPlanPrompt = `Generate an INVESTOR-READY BUSINESS PLAN based on this validated idea. Be thorough, professional, and financially grounded.
+
+**Idea:** "${setup.topic}"
+
+**Founder's reasoning:** ${setup.position}
+
+${setup.context ? `**Context:** ${setup.context}` : ""}
+
+**Validation report (for context):**
+${validationContent || "No prior validation — generate based on the idea alone."}
+
+Create a complete business plan with these sections. Use markdown headers. Be specific and actionable.
+
+## BUSINESS PLAN
+
+### Executive Summary
+[2-3 paragraphs: problem, solution, market opportunity, traction potential, ask]
+
+### Problem & Solution
+- **Problem:** [The pain you're solving, quantified if possible]
+- **Solution:** [Your product/service, key differentiators]
+- **Why now:** [Market timing, tech enablement]
+
+### Market Opportunity
+- **TAM/SAM/SOM:** [Numbers with sources or assumptions]
+- **Target customer:** [ICP, segment, size]
+- **Market trends:** [Growth drivers, tailwinds]
+
+### Business Model
+- **Revenue streams:** [How you make money]
+- **Pricing strategy:** [Pricing model, tiers, rationale]
+- **Unit economics:** [CAC, LTV, gross margin targets]
+
+### Competitive Landscape
+- **Competitors:** [3-5 with positioning]
+- **Competitive advantage:** [Moat, defensibility]
+- **Go-to-market wedge:** [How you win]
+
+### Go-to-Market Strategy
+- **Acquisition channels:** [Top 3 channels]
+- **Sales motion:** [Self-serve, sales-led, hybrid]
+- **Launch plan:** [First 90 days]
+
+### Financial Projections
+- **Revenue model:** [Year 1-3 assumptions]
+- **Key metrics:** [MRR/ARR targets, customer count]
+- **Funding need:** [If applicable: amount, use of funds, milestones]
+
+### Team & Execution
+- **Key roles needed:** [Critical hires]
+- **Milestones:** [Next 12 months]
+
+### Risks & Mitigation
+- **Top 3 risks:** [With mitigation strategies]
+
+### Appendix: Key Assumptions
+[2-4 critical assumptions to validate]
+
+Be investor-ready. Use realistic numbers. Flag assumptions clearly.`;
+      const stream = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: businessPlanPrompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 4000,
+        stream: true,
+      });
+      const encoder = new TextEncoder();
+      const readable = new ReadableStream({
+        async start(controller) {
+          for await (const chunk of stream) {
+            const content = chunk.choices[0]?.delta?.content || "";
+            if (content) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+          }
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        },
+      });
+      return new Response(readable, {
+        headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+      });
+    }
 
     // Handle quick actions
     if (action === "quick" && quickAction) {
@@ -533,7 +629,7 @@ You are the FUTURE STRATEGIST. Lead with your sharpest future-risk observation. 
 Be direct, specific, and actionable. Give them one concrete thing they could do NOW to make their plan more resilient. End with the future scenario that should keep them up at night.`;
       } else {
         // IdeaProof-style structured validation report for first response
-        openingPrompt = `You are an AI startup idea validator. Generate a COMPLETE VALIDATION REPORT in the style of IdeaProof. Be thorough, structured, and investor-ready.
+        openingPrompt = `You are an AI startup idea validator with deep financial and business expertise. Generate a COMPLETE VALIDATION REPORT in the style of IdeaProof. Be thorough, structured, and investor-ready. Use realistic numbers where possible.
 
 **Idea to validate:** "${setup.topic}"
 
@@ -563,8 +659,21 @@ Generate a full validation report with these EXACT sections (use markdown header
 3. [Third risk]
 
 ### Market Opportunity
-- **TAM/SAM/SOM assessment:** [Realistic / Inflated / Underestimated — with brief reasoning and ballpark numbers if possible]
-- **Competitive landscape:** [Crowded / Moderate / Open — name 3-5 key competitors and positioning gap]
+- **TAM/SAM/SOM:** Provide ballpark figures (e.g. TAM $XBn, SAM $XM, SOM $XM in year 3) with brief reasoning. Flag if numbers seem inflated or conservative.
+- **Market timing:** Why now? What's changed?
+- **Growth drivers:** What could accelerate or slow adoption?
+
+### Competitive Landscape
+- **Direct competitors:** Name 3-5 real or analogous competitors with 1-line positioning each
+- **Indirect competitors:** "Do nothing," substitutes, incumbents
+- **Positioning gap:** Where does this idea fit? What's the wedge?
+- **Defensibility:** What could be a moat? How easily copied?
+
+### Financial Snapshot
+- **Revenue model:** How do you make money? (subscription, usage, take rate, etc.)
+- **Unit economics (estimated):** CAC range, LTV assumption, target LTV:CAC ratio
+- **Path to profitability:** Rough timeline or key milestone (e.g. "Break-even at X customers")
+- **Funding need:** Ballpark if relevant (bootstrapped vs seed vs Series A)
 
 ### Go/No-Go Recommendation
 [Clear recommendation: GO (with conditions) / CAUTION (validate X first) / NO-GO (reason)]
