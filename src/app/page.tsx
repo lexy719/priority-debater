@@ -1,1231 +1,154 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import Link from "next/link";
 import {
-  Loader2, Send, RotateCcw, ArrowRight, ArrowLeft,
-  Sparkles, FileText, Swords, Eye, Clipboard, Check, Zap, FlaskConical,
-  Copy, Wand2, Download, BarChart3, AlertTriangle, Target, X, Briefcase,
-  Lightbulb, Users, MessageSquare, Layout, HelpCircle, Calendar
+  ArrowRight,
+  Check,
+  Sparkles,
+  FileText,
+  Swords,
+  Eye,
+  Clipboard,
+  Wand2,
+  Briefcase,
+  Target,
 } from "lucide-react";
-
-interface Message {
-  id: string;
-  role: "user" | "opponent";
-  content: string;
-  isQuickAction?: boolean;
-}
-
-interface DebateSetup {
-  template: string;
-  topic: string;
-  position: string;
-  context: string;
-  lens: "investor" | "customer" | "competitor" | "postmortem" | "market" | "future";
-}
-
-type Template = {
-  id: string;
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  placeholder: {
-    topic: string;
-    position: string;
-    context: string;
-  };
-  labels: {
-    topic: string;
-    position: string;
-    context: string;
-  };
-};
-
-// Idea Validator template - IdeaProof style
-const ideaValidatorTemplate: Template = {
-  id: "validate",
-  icon: <FlaskConical className="w-6 h-6" />,
-  title: "Startup Idea Validator",
-  subtitle: "Complete viability report in ~2 minutes",
-  placeholder: {
-    topic: "e.g. AI-powered meeting summarizer for remote teams",
-    position: "Why it will work: market timing, your edge, business model...",
-    context: "Your situation: team size, runway, target market (optional)",
-  },
-  labels: {
-    topic: "Describe your startup idea",
-    position: "Why do you think it will work?",
-    context: "Your resources & context (optional)",
-  },
-};
-
-const generateTemplate: Template = {
-  id: "generate",
-  icon: <Wand2 className="w-6 h-6" />,
-  title: "Idea Generator",
-  subtitle: "No idea yet? Generate one",
-  placeholder: {
-    topic: "AI, B2B SaaS, healthcare, or leave blank",
-    position: "Problems I've experienced. Technical background. Prefer B2B.",
-    context: "Solo founder, 12 months runway",
-  },
-  labels: {
-    topic: "Industries or themes? (optional)",
-    position: "What problems have you experienced? Skills, preferences?",
-    context: "Your situation (optional)",
-  },
-};
-
-
-// Parse validation response into tab sections (IdeaProof style)
-function parseValidationSections(content: string): { id: string; title: string; content: string; icon: string }[] {
-  const sections: { id: string; title: string; content: string; icon: string }[] = [];
-  const [mainPart, ...rest] = content.split(/\n---\n/);
-  const parts = mainPart.split(/\n(?=### )/);
-
-  const iconMap: Record<string, string> = {
-    summary: "file",
-    viability: "sparkles",
-    strengths: "check",
-    risks: "alert",
-    market: "chart",
-    competitive: "chart",
-    financial: "chart",
-    recommendation: "target",
-    steps: "clipboard",
-    verdict: "zap",
-    challenge: "swords",
-  };
-
-  for (const part of parts) {
-    const firstNewline = part.indexOf("\n");
-    const titleLine = part.slice(0, firstNewline).replace(/^### /, "").trim();
-    const content = part.slice(firstNewline + 1).trim();
-    if (!titleLine || !content) continue;
-
-    let id = "section";
-    const t = titleLine.toLowerCase();
-    if (t.includes("idea summary")) id = "summary";
-    else if (t.includes("viability")) id = "viability";
-    else if (t.includes("strengths")) id = "strengths";
-    else if (t.includes("risk")) id = "risks";
-    else if (t.includes("market opportunity")) id = "market";
-    else if (t.includes("competitive") || t.includes("landscape")) id = "competitive";
-    else if (t.includes("financial")) id = "financial";
-    else if (t.includes("go/no-go") || t.includes("recommendation")) id = "recommendation";
-    else if (t.includes("validation steps") || t.includes("top 3")) id = "steps";
-    else if (t.includes("verdict")) id = "verdict";
-
-    sections.push({ id, title: titleLine, content, icon: iconMap[id] || "file" });
-  }
-
-  if (rest.length > 0) {
-    const challengeContent = rest.join("\n---\n").trim();
-    if (challengeContent) {
-      sections.push({ id: "challenge", title: "Key Challenge", content: challengeContent, icon: "swords" });
-    }
-  }
-
-  return sections;
-}
-
-// Extract all sections for comprehensive dashboard
-function extractSection(content: string, header: string | RegExp): string | null {
-  const pattern = typeof header === "string" ? new RegExp(`### ${header}\\s*\\n([\\s\\S]*?)(?=### |---|$)`, "i") : header;
-  const match = content.match(pattern);
-  return match ? match[1].trim() : null;
-}
-
-function extractDashboardData(content: string) {
-  const scoreMatch = content.match(/(?:viability score|score)[:\s]*\[?(\d+)\]?\/10/i) || content.match(/(\d+)\/10/);
-  const score = scoreMatch ? parseInt(scoreMatch[1]) : null;
-
-  const parseListItems = (text: string) =>
-    text.split(/\n/).filter((l) => /^\d+\.|^[-*]/.test(l.trim())).map((l) => l.replace(/^\d+\.\s*|^[-*]\s*/, "").trim()).filter(Boolean);
-
-  const strengths = parseListItems(extractSection(content, "Strengths") || "");
-  const risks = parseListItems(extractSection(content, "Risk Flags?") || "");
-
-  return {
-    score,
-    strengths,
-    risks,
-    summary: extractSection(content, "Idea Summary"),
-    verdict: extractSection(content, "One-Line Verdict"),
-    goNoGo: extractSection(content, "Go/No-Go"),
-    recommendations: parseListItems(extractSection(content, "Top \\d") || ""),
-    marketSummary: extractSection(content, "Market Opportunity"),
-    competitiveSummary: extractSection(content, "Competitive Landscape"),
-    financialSummary: extractSection(content, "Financial Snapshot"),
-    problemSolution: extractSection(content, "Problem-Solution Fit"),
-    targetCustomer: extractSection(content, "Target Customer & ICP") || extractSection(content, "Target Customer"),
-    valueProposition: extractSection(content, "Value Proposition"),
-    businessModel: extractSection(content, "Business Model"),
-    keyAssumptions: extractSection(content, "Key Assumptions"),
-    timelineToLaunch: extractSection(content, "Timeline to Launch"),
-  };
-}
-
-const TYPING_PHRASES = [
-  "Finding the flaw...",
-  "Stress-testing your logic...",
-  "Checking your assumptions...",
-  "Building the counter-argument...",
-  "Analyzing weak points...",
-  "Applying the inversion test...",
-  "Running the pre-mortem...",
-  "Examining your blind spots...",
-];
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 
 export default function Home() {
-  const [stage, setStage] = useState<"home" | "form" | "results" | "debate">("home");
-  const [activeTab, setActiveTab] = useState(0);
-  const [setup, setSetup] = useState<DebateSetup>({
-    template: "",
-    topic: "",
-    position: "",
-    context: "",
-    lens: "investor",
-  });
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [streamingContent, setStreamingContent] = useState("");
-  const [typingPhrase, setTypingPhrase] = useState("");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [exportCopied, setExportCopied] = useState(false);
-  const [businessPlanContent, setBusinessPlanContent] = useState<string>("");
-  const [isGeneratingBusinessPlan, setIsGeneratingBusinessPlan] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, streamingContent, scrollToBottom]);
-
-  useEffect(() => {
-    if (isLoading) {
-      setTypingPhrase(TYPING_PHRASES[Math.floor(Math.random() * TYPING_PHRASES.length)]);
-    }
-  }, [isLoading]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-    e.target.style.height = "auto";
-    e.target.style.height = Math.min(e.target.scrollHeight, 150) + "px";
-  };
-
-  const goToForm = () => {
-    setSetup((s) => ({ ...s, template: "validate" }));
-    setStage("form");
-  };
-
-  const handleStreamResponse = async (response: Response, isQuickAction: boolean = false) => {
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error("No reader");
-
-    const decoder = new TextDecoder();
-    let accumulated = "";
-
-    setStreamingContent("");
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split("\n");
-
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const data = line.slice(6);
-          if (data === "[DONE]") break;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.content) {
-              accumulated += parsed.content;
-              setStreamingContent(accumulated);
-            }
-          } catch {
-            // Skip malformed JSON
-          }
-        }
-      }
-    }
-
-    setStreamingContent("");
-    return accumulated;
-  };
-
-  const startValidation = async () => {
-    const isGenerate = setup.template === "generate";
-    if (isGenerate ? !setup.position.trim() : (!setup.topic.trim() || !setup.position.trim())) {
-      setError(isGenerate ? "Tell us your interests and preferences" : "Fill in your idea and reasoning");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/debate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "start", setup }),
-      });
-
-      if (!response.ok) throw new Error("Failed to start");
-
-      const content = await handleStreamResponse(response);
-      const validationMessage = { id: Date.now().toString(), role: "opponent" as const, content };
-
-      setMessages([validationMessage]);
-
-      if (setup.template === "validate") {
-        setStage("results");
-        setActiveTab(0);
-      } else {
-        setStage("debate");
-      }
-    } catch {
-      setError("Failed to start. Check your API key.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: Message = { id: Date.now().toString(), role: "user", content: input.trim() };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    if (inputRef.current) inputRef.current.style.height = "auto";
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/debate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "continue", setup, messages: [...messages, userMessage] }),
-      });
-
-      if (!response.ok) throw new Error("Failed");
-      const content = await handleStreamResponse(response);
-      setMessages((prev) => [...prev, { id: (Date.now() + 1).toString(), role: "opponent", content }]);
-    } catch {
-      setError("Failed to get response.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleQuickAction = async (actionType: "steelman" | "framework" | "summary" | "devils-advocate" | "rate" | "blind-spots" | "validation-report") => {
-    if (isLoading) return;
-
-    const actionLabels: Record<string, string> = {
-      steelman: "Steelman my position",
-      framework: "Give me a framework",
-      summary: "Summarize this debate",
-      "devils-advocate": "Play Devil's Advocate",
-      rate: "Rate my argument",
-      "blind-spots": "What am I missing?",
-      "validation-report": "Full validation report",
-    };
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: actionLabels[actionType],
-      isQuickAction: true
-    };
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/debate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "quick",
-          quickAction: actionType,
-          setup,
-          messages: [...messages, userMessage]
-        }),
-      });
-
-      if (!response.ok) throw new Error("Failed");
-      const content = await handleStreamResponse(response, true);
-      setMessages((prev) => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: "opponent",
-        content,
-        isQuickAction: true
-      }]);
-    } catch {
-      setError("Failed to get response.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const copyMessage = (id: string, content: string) => {
-    navigator.clipboard.writeText(content);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const exportDebate = () => {
-    const header = `# Validation Report: ${setup.topic}\n\n**Your case:** ${setup.position}\n${setup.context ? `**Context:** ${setup.context}\n` : ""}\n---\n\n`;
-    const body = messages.map(m => {
-      const role = m.role === "user" ? "**You:**" : "**The Adversary:**";
-      return `${role}\n${m.content}\n`;
-    }).join("\n---\n\n");
-    navigator.clipboard.writeText(header + body);
-    setExportCopied(true);
-    setTimeout(() => setExportCopied(false), 2000);
-  };
-
-  const downloadReport = () => {
-    const header = `# Validation Report: ${setup.topic}\n\n**Your case:** ${setup.position}\n${setup.context ? `**Context:** ${setup.context}\n` : ""}\n---\n\n`;
-    const body = messages.map(m => {
-      const role = m.role === "user" ? "**You:**" : "**The Adversary:**";
-      return `${role}\n${m.content}\n`;
-    }).join("\n---\n\n");
-    const blob = new Blob([header + body], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `validation-report-${(setup.topic || "idea").slice(0, 30).replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-]/g, "")}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const reset = () => {
-    setStage("home");
-    setSetup({ template: "validate", topic: "", position: "", context: "", lens: "investor" });
-    setMessages([]);
-    setInput("");
-    setError(null);
-    setStreamingContent("");
-    setBusinessPlanContent("");
-    setActiveTab(0);
-  };
-
-  const openDebate = () => {
-    setStage("debate");
-  };
-
-  const generateBusinessPlan = async () => {
-    setIsGeneratingBusinessPlan(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/debate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "business-plan",
-          setup,
-          validationContent: messages[0]?.role === "opponent" ? messages[0].content : "",
-        }),
-      });
-      if (!response.ok) throw new Error("Failed to generate");
-      const content = await handleStreamResponse(response);
-      setBusinessPlanContent(content);
-      setActiveTab(6); // Business Plan tab index when it exists
-    } catch {
-      setError("Failed to generate business plan.");
-    } finally {
-      setIsGeneratingBusinessPlan(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
-  // Extract score from messages
-  const getArgumentScore = (): number | null => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i];
-      if (msg.role === "opponent") {
-        const match = msg.content.match(/(?:Argument Strength|Score)[:\s]*\[?(\d+)\]?\/10/i)
-          || msg.content.match(/(\d+)\/10/);
-        if (match) return parseInt(match[1]);
-      }
-    }
-    return null;
-  };
-
-  const score = getArgumentScore();
-
-  const getScoreColor = (s: number) => {
-    if (s <= 3) return "text-red-500";
-    if (s <= 5) return "text-amber-500";
-    if (s <= 7) return "text-yellow-500";
-    return "text-emerald-500";
-  };
-
-  const getScoreBg = (s: number) => {
-    if (s <= 3) return "bg-red-50 border-red-200";
-    if (s <= 5) return "bg-amber-50 border-amber-200";
-    if (s <= 7) return "bg-yellow-50 border-yellow-200";
-    return "bg-emerald-50 border-emerald-200";
-  };
-
-  // Homepage - IdeaProof style
-  if (stage === "home") {
-    return (
-      <div className="min-h-screen min-h-[100dvh] bg-gradient-to-b from-slate-50 to-white flex flex-col">
-        <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-20">
-          {/* Social proof badge - IdeaProof style */}
-          <p className="text-center text-sm font-medium text-slate-500 mb-6">
-            10,000+ ideas validated
-          </p>
-
-          {/* Hero - IdeaProof style */}
-          <div className="text-center mb-8">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mb-3">
-              Skip the guesswork.
-            </h1>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mb-4">
-              Know before you build.
-            </h1>
-            <p className="text-slate-600 text-base sm:text-lg max-w-xl mx-auto mb-6">
-              92% of startups fail from poor validation. Don&apos;t be a statistic. Get a complete viability report in 2 minutes — not 2 months.
-            </p>
-            <button
-              onClick={goToForm}
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors text-base"
-            >
-              Get My Answer
-              <ArrowRight className="w-5 h-5" />
-            </button>
-            {/* Trust badges - IdeaProof style */}
-            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mt-6 text-xs text-slate-500">
-              <span className="flex items-center gap-1.5">
-                <Check className="w-4 h-4 text-emerald-500" /> No card required
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Check className="w-4 h-4 text-emerald-500" /> Free
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Check className="w-4 h-4 text-emerald-500" /> Your idea is safe
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Check className="w-4 h-4 text-emerald-500" /> Private
-              </span>
-            </div>
-          </div>
-
-          {/* See what you'll get - IdeaProof style expanded */}
-          <div className="mb-12">
-            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2 text-center">
-              See what you&apos;ll get
-            </h2>
-            <p className="text-center text-slate-600 text-sm mb-6">
-              Real validation results. Click any to learn more.
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <div className="p-4 rounded-xl border border-slate-200 bg-white">
-                <Sparkles className="w-5 h-5 text-emerald-600 mb-2" />
-                <span className="font-semibold text-slate-900 text-sm block">AI Validation Score</span>
-                <p className="text-xs text-slate-500 mt-0.5">Viability · Risk · Go/No-Go</p>
-              </div>
-              <div className="p-4 rounded-xl border border-slate-200 bg-white">
-                <FileText className="w-5 h-5 text-blue-600 mb-2" />
-                <span className="font-semibold text-slate-900 text-sm block">Market Opportunity</span>
-                <p className="text-xs text-slate-500 mt-0.5">TAM · SAM · SOM</p>
-              </div>
-              <div className="p-4 rounded-xl border border-slate-200 bg-white">
-                <Eye className="w-5 h-5 text-amber-600 mb-2" />
-                <span className="font-semibold text-slate-900 text-sm block">Competitive Landscape</span>
-                <p className="text-xs text-slate-500 mt-0.5">Positioning · 5 competitors</p>
-              </div>
-              <div className="p-4 rounded-xl border border-slate-200 bg-white">
-                <Clipboard className="w-5 h-5 text-violet-600 mb-2" />
-                <span className="font-semibold text-slate-900 text-sm block">Risk Assessment</span>
-                <p className="text-xs text-slate-500 mt-0.5">Blind spots · Failure modes</p>
-              </div>
-              <div className="p-4 rounded-xl border border-slate-200 bg-white">
-                <FileText className="w-5 h-5 text-slate-600 mb-2" />
-                <span className="font-semibold text-slate-900 text-sm block">Validation Steps</span>
-                <p className="text-xs text-slate-500 mt-0.5">Top 3 before building</p>
-              </div>
-              <div className="p-4 rounded-xl border border-slate-200 bg-white">
-                <Swords className="w-5 h-5 text-violet-600 mb-2" />
-                <span className="font-semibold text-slate-900 text-sm block">Debate it</span>
-                <p className="text-xs text-slate-500 mt-0.5">Defend & refine · Our edge</p>
-              </div>
-              <div className="p-4 rounded-xl border border-slate-200 bg-white">
-                <Briefcase className="w-5 h-5 text-indigo-600 mb-2" />
-                <span className="font-semibold text-slate-900 text-sm block">Business Plan</span>
-                <p className="text-xs text-slate-500 mt-0.5">Investor-ready · Financials · GTM</p>
-              </div>
-            </div>
-          </div>
-
-          <p className="text-center text-sm text-slate-500 mb-8">
-            <span className="font-medium">Need an idea?</span>{" "}
-            <button onClick={() => { setSetup({ ...setup, template: "generate" }); setStage("form"); }} className="text-slate-900 font-medium hover:underline inline-flex items-center gap-1">
-              <Wand2 className="w-4 h-4" /> Generate one
-            </button>
-          </p>
-
-          {/* FAQ - IdeaProof style */}
-          <div className="border-t border-slate-200 pt-8 mb-8">
-            <h3 className="text-sm font-semibold text-slate-700 mb-4 text-center">Popular questions</h3>
-            <div className="space-y-3 text-sm text-slate-600">
-              <details className="group p-3 rounded-lg border border-slate-200 bg-white">
-                <summary className="font-medium text-slate-900 cursor-pointer">How long does validation take?</summary>
-                <p className="mt-2 text-slate-600">About 2 minutes. You get a complete viability report with score, risks, and market analysis.</p>
-              </details>
-              <details className="group p-3 rounded-lg border border-slate-200 bg-white">
-                <summary className="font-medium text-slate-900 cursor-pointer">Is my idea kept private?</summary>
-                <p className="mt-2 text-slate-600">Yes. We don&apos;t store or share your ideas. Everything stays between you and the AI.</p>
-              </details>
-              <details className="group p-3 rounded-lg border border-slate-200 bg-white">
-                <summary className="font-medium text-slate-900 cursor-pointer">What makes this different from IdeaProof?</summary>
-                <p className="mt-2 text-slate-600">You get the same validation report — plus you can debate it. Defend your position, stress-test your logic, and refine before you build.</p>
-              </details>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="mt-auto pt-8 border-t border-slate-200 text-center text-xs text-slate-400">
-            Built by{" "}
-            <a href="https://manuelfernandes.vercel.app" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-slate-900 font-medium">
-              Manuel Gonçalves
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Form Stage
-  const formTemplate = setup.template === "generate" ? generateTemplate : ideaValidatorTemplate;
-  if (stage === "form") {
-    return (
-      <div className="min-h-screen min-h-[100dvh] bg-gradient-to-b from-slate-50 to-white flex flex-col">
-        <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
-          {/* Back Button */}
-          <button
-            onClick={() => { setStage("home"); setSetup({ ...setup, template: "validate" }); }}
-            className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 mb-6 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </button>
-
-          {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2.5 rounded-xl bg-slate-900 text-white">
-                {formTemplate.icon}
-              </div>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{formTemplate.title}</h1>
-                <p className="text-sm text-slate-500">{formTemplate.subtitle}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Form */}
-          <div className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                {formTemplate.labels.topic}
-              </label>
-              <input
-                type="text"
-                placeholder={formTemplate.placeholder.topic}
-                value={setup.topic}
-                onChange={(e) => setSetup({ ...setup, topic: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 transition-colors text-sm sm:text-base"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                {formTemplate.labels.position}
-              </label>
-              <textarea
-                placeholder={formTemplate.placeholder.position}
-                value={setup.position}
-                onChange={(e) => setSetup({ ...setup, position: e.target.value })}
-                rows={4}
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 transition-colors resize-none text-sm sm:text-base"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                {formTemplate.labels.context}
-              </label>
-              <textarea
-                placeholder={formTemplate.placeholder.context}
-                value={setup.context}
-                onChange={(e) => setSetup({ ...setup, context: e.target.value })}
-                rows={2}
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 transition-colors resize-none text-sm sm:text-base"
-              />
-            </div>
-
-            {error && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
-                {error}
-              </div>
-            )}
-
-            <button
-              onClick={startValidation}
-              disabled={isLoading}
-              className="w-full py-3.5 sm:py-4 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                  Validating... (~2 min)
-                </>
-              ) : (
-                <>
-                  Get My Answer
-                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Results Stage - IdeaProof style analytics tabs
-  const validationContent = messages[0]?.role === "opponent" ? messages[0].content : "";
-  let sections = parseValidationSections(validationContent);
-  if (sections.length === 0 && validationContent) {
-    sections = [{ id: "full", title: "Full Report", content: validationContent, icon: "file" }];
-  }
-  if (stage === "results" && sections.length > 0) {
-    const dashboard = extractDashboardData(validationContent);
-    const scoreColor = dashboard.score != null
-      ? dashboard.score >= 7 ? "text-emerald-500" : dashboard.score >= 5 ? "text-amber-500" : "text-red-500"
-      : "text-slate-600";
-    const scoreBg = dashboard.score != null
-      ? dashboard.score >= 7 ? "bg-emerald-50 border-emerald-200" : dashboard.score >= 5 ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"
-      : "bg-slate-50 border-slate-200";
-
-    // IdeaProof-style derived scores (RISK, DIFF, COMP, SCORE)
-    const s = dashboard.score ?? 5;
-    const score100 = Math.round((s / 10) * 100);
-    const riskPct = Math.round((1 - s / 10) * 100);
-    const diffPct = Math.min(100, Math.round((s / 10) * 85 + 15));
-    const compPct = Math.min(100, Math.round(100 - (s / 10) * 60));
-
-    const marketFactors = [
-      { label: "Target Market Clarity", value: Math.min(100, Math.round((s / 10) * 70 + 20)) },
-      { label: "Market Timing", value: Math.min(100, Math.round((s / 10) * 80 + 10)) },
-      { label: "Market Entry Barriers", value: Math.min(100, Math.round((s / 10) * 50 + 30)) },
-      { label: "Competition Level", value: Math.min(100, Math.round(100 - (s / 10) * 50)) },
-      { label: "Problem-Solution Fit", value: Math.min(100, Math.round((s / 10) * 90 + 5)) },
-    ];
-    const executionFactors = [
-      { label: "MVP Viability", value: Math.min(100, Math.round((s / 10) * 75 + 15)) },
-      { label: "Value Proposition", value: Math.min(100, Math.round((s / 10) * 85 + 10)) },
-      { label: "Initial Feasibility", value: Math.min(100, Math.round((s / 10) * 70 + 20)) },
-      { label: "Resource Requirements", value: Math.min(100, Math.round(100 - (s / 10) * 40)) },
-    ];
-
-    return (
-      <div className="min-h-screen min-h-[100dvh] flex bg-slate-100">
-        {/* IdeaProof-style dark left sidebar */}
-        <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-slate-900 text-white">
-          <div className="p-5 border-b border-slate-700">
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center">
-                <Zap className="w-5 h-5" />
-              </div>
-              <span className="font-bold text-lg">Priority Debater</span>
-            </div>
-          </div>
-          <div className="p-4">
-            <button
-              onClick={reset}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-medium text-sm transition-colors"
-            >
-              <span>+</span> Validate new idea
-            </button>
-          </div>
-          <div className="flex-1 px-4 pt-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4">Journey</h3>
-            <div className="space-y-1">
-              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-indigo-600/20 border border-indigo-500/30">
-                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                <div className="min-w-0">
-                  <span className="font-medium text-sm block">Idea Validation</span>
-                  <span className="text-xs text-slate-400">Complete</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800/50 transition-colors">
-                <div className="w-4 h-4 rounded-full border-2 border-slate-500 shrink-0" />
-                <div><span className="text-sm">Market Analysis</span><span className="text-xs text-slate-500 block">Next</span></div>
-              </div>
-              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800/50 transition-colors">
-                <div className="w-4 h-4 rounded-full border-2 border-slate-500 shrink-0" />
-                <span className="text-sm">Business Plan</span>
-              </div>
-              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800/50 transition-colors">
-                <div className="w-4 h-4 rounded-full border-2 border-slate-500 shrink-0" />
-                <span className="text-sm">Debate & Refine</span>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        {/* Main content - IdeaProof vertical card layout */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <div className="min-w-0">
-                <h2 className="text-lg font-semibold text-slate-900 truncate">{setup.topic}</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Validation Report · Step 1 of 3</p>
-              </div>
-              <button onClick={downloadReport} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg bg-white border border-slate-200 shrink-0">
-                <Download className="w-4 h-4" /> PDF
-              </button>
-            </div>
-
-            {/* Score row — prominent metrics */}
-            <div className="relative rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-indigo-950 p-6 sm:p-8 mb-8 overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.2)_0%,_transparent_50%)]" />
-              <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                <div className="flex-1">
-                  {(dashboard.summary || dashboard.verdict) && (
-                    <p className="text-slate-200 text-base sm:text-lg leading-relaxed max-w-2xl">
-                      {dashboard.verdict || dashboard.summary}
-                    </p>
-                  )}
-                </div>
-                {dashboard.score != null && (
-                  <div className="flex items-center gap-4 sm:gap-6 shrink-0">
-                    <div className="flex flex-col items-center">
-                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-red-400 bg-white/5 border border-white/10">
-                        {riskPct}
-                      </div>
-                      <span className="text-xs text-slate-400 mt-1.5 font-medium">RISK</span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-blue-400 bg-white/5 border border-white/10">
-                        {diffPct}
-                      </div>
-                      <span className="text-xs text-slate-400 mt-1.5 font-medium">DIFF</span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-amber-400 bg-white/5 border border-white/10">
-                        {compPct}
-                      </div>
-                      <span className="text-xs text-slate-400 mt-1.5 font-medium">COMP</span>
-                    </div>
-                    <div className={`flex flex-col items-center`}>
-                      <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold border-2 ${scoreColor} bg-white/10`}>
-                        {score100}
-                      </div>
-                      <span className="text-xs text-slate-400 mt-1.5 font-medium">SCORE</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Tabs — divide content, reduce scroll */}
-            <div className="flex gap-1 overflow-x-auto pb-2 mb-6 scrollbar-hide">
-              {["Overview", "Customer & Market", "Strategy", "Financials"].map((label, i) => (
-                <button
-                  key={label}
-                  onClick={() => setActiveTab(i)}
-                  className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    activeTab === i ? "bg-slate-900 text-white shadow-md" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {/* Tab content — side-by-side panels, fixed height with scroll */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 min-h-[420px]">
-              {activeTab === 0 && (
-                <>
-                  <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-5 overflow-y-auto max-h-[480px]">
-                    <h3 className="text-sm font-bold text-slate-900 mb-3">Summary & Verdict</h3>
-                    {dashboard.summary && <p className="text-slate-700 text-sm mb-3">{dashboard.summary}</p>}
-                    {dashboard.verdict && <p className="text-indigo-700 font-medium text-sm mb-3">{dashboard.verdict}</p>}
-                    {dashboard.goNoGo && <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo}</ReactMarkdown></div>}
-                  </div>
-                  <div className="space-y-4 overflow-y-auto max-h-[480px]">
-                    <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-5">
-                      <h3 className="text-sm font-bold text-slate-900 mb-3">Key Recommendations</h3>
-                      {dashboard.recommendations.length > 0 ? (
-                        <ol className="space-y-2 text-sm text-slate-700">
-                          {dashboard.recommendations.map((rec, i) => <li key={i} className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded bg-violet-100 text-violet-700 text-xs font-semibold flex items-center justify-center">{i + 1}</span><span>{rec}</span></li>)}
-                        </ol>
-                      ) : <p className="text-slate-500 italic text-sm">—</p>}
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-white rounded-xl shadow-md border-2 border-emerald-200/60 p-4">
-                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-600" /> Strengths</h3>
-                        <ul className="space-y-1.5 text-xs text-slate-700">{dashboard.strengths.slice(0, 4).map((s, i) => <li key={i} className="flex gap-1.5"><Check className="w-3 h-3 shrink-0 text-emerald-500 mt-0.5" /><span>{s}</span></li>)}</ul>
-                      </div>
-                      <div className="bg-white rounded-xl shadow-md border-2 border-red-200/60 p-4">
-                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><X className="w-4 h-4 text-red-600" /> Concerns</h3>
-                        <ul className="space-y-1.5 text-xs text-slate-700">{dashboard.risks.slice(0, 4).map((r, i) => <li key={i} className="flex gap-1.5"><X className="w-3 h-3 shrink-0 text-red-500 mt-0.5" /><span>{r}</span></li>)}</ul>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-              {activeTab === 1 && (
-                <>
-                  <div className="space-y-4 overflow-y-auto max-h-[480px]">
-                    {dashboard.problemSolution && (
-                      <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl shadow-md border border-amber-200/50 p-4">
-                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><Lightbulb className="w-4 h-4 text-amber-600" /> Problem-Solution Fit</h3>
-                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.problemSolution}</ReactMarkdown></div>
-                      </div>
-                    )}
-                    {dashboard.targetCustomer && (
-                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-md border border-blue-200/50 p-4">
-                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><Users className="w-4 h-4 text-blue-600" /> Target Customer</h3>
-                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.targetCustomer}</ReactMarkdown></div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-4 overflow-y-auto max-h-[480px]">
-                    {dashboard.valueProposition && (
-                      <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl shadow-md border border-violet-200/50 p-4">
-                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><MessageSquare className="w-4 h-4 text-violet-600" /> Value Proposition</h3>
-                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.valueProposition}</ReactMarkdown></div>
-                      </div>
-                    )}
-                    {dashboard.businessModel && (
-                      <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl shadow-md border border-emerald-200/50 p-4">
-                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><Layout className="w-4 h-4 text-emerald-600" /> Business Model</h3>
-                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.businessModel}</ReactMarkdown></div>
-                      </div>
-                    )}
-                    {dashboard.marketSummary && (
-                      <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><BarChart3 className="w-4 h-4 text-sky-600" /> Market Opportunity</h3>
-                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.marketSummary}</ReactMarkdown></div>
-                      </div>
-                    )}
-                    {dashboard.competitiveSummary && (
-                      <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><Target className="w-4 h-4 text-rose-600" /> Competitive Landscape</h3>
-                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.competitiveSummary}</ReactMarkdown></div>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-              {activeTab === 2 && (
-                <>
-                  <div className="space-y-4 overflow-y-auto max-h-[480px]">
-                    {dashboard.keyAssumptions && (
-                      <div className="bg-white rounded-xl shadow-md border-l-4 border-amber-500 p-4">
-                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><HelpCircle className="w-4 h-4 text-amber-600" /> Key Assumptions</h3>
-                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.keyAssumptions}</ReactMarkdown></div>
-                      </div>
-                    )}
-                    {dashboard.timelineToLaunch && (
-                      <div className="bg-white rounded-xl shadow-md border-l-4 border-indigo-500 p-4">
-                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><Calendar className="w-4 h-4 text-indigo-600" /> Timeline to Launch</h3>
-                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.timelineToLaunch}</ReactMarkdown></div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[480px]">
-                    <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-3">Market Factors</h3>
-                      <div className="space-y-3">{marketFactors.map((f, i) => (
-                        <div key={i}><div className="flex justify-between text-xs mb-1"><span className="text-slate-600">{f.label}</span><span className="font-semibold">{f.value}/100</span></div><div className="h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-indigo-500 rounded-full" style={{ width: `${f.value}%` }} /></div></div>
-                      ))}</div>
-                    </div>
-                    <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-3">Execution Factors</h3>
-                      <div className="space-y-3">{executionFactors.map((f, i) => (
-                        <div key={i}><div className="flex justify-between text-xs mb-1"><span className="text-slate-600">{f.label}</span><span className="font-semibold">{f.value}/100</span></div><div className="h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-violet-500 rounded-full" style={{ width: `${f.value}%` }} /></div></div>
-                      ))}</div>
-                    </div>
-                  </div>
-                </>
-              )}
-              {activeTab === 3 && (
-                <>
-                  <div className="space-y-4 overflow-y-auto max-h-[480px]">
-                    {dashboard.financialSummary && (
-                      <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><BarChart3 className="w-4 h-4 text-slate-600" /> Financial Snapshot</h3>
-                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.financialSummary}</ReactMarkdown></div>
-                      </div>
-                    )}
-                    <div className="bg-gradient-to-br from-indigo-50 to-violet-50 rounded-xl border-2 border-indigo-200/60 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><Briefcase className="w-4 h-4 text-indigo-600" /> Business Plan</h3>
-                      <p className="text-slate-600 text-xs mb-3">Formalize with financials, GTM and projections.</p>
-                      <button onClick={generateBusinessPlan} disabled={isGeneratingBusinessPlan} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50">
-                        {isGeneratingBusinessPlan ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><Briefcase className="w-4 h-4" /> Generate Business Plan</>}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="overflow-y-auto max-h-[480px]">
-                    {businessPlanContent ? (
-                      <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-                        <h3 className="text-sm font-bold text-slate-900 mb-3">Business Plan</h3>
-                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-headings:text-slate-900 prose-h2:text-base prose-h3:text-sm"><ReactMarkdown remarkPlugins={[remarkGfm]}>{businessPlanContent}</ReactMarkdown></div>
-                      </div>
-                    ) : (
-                      <div className="bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 p-8 text-center">
-                        <Briefcase className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                        <p className="text-slate-500 text-sm">Generate a business plan to see it here.</p>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* CTA card */}
-            <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-2xl p-6 sm:p-8 shadow-xl">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                <div className="flex items-center gap-5">
-                  <div className="p-4 rounded-2xl bg-white/20 shrink-0">
-                    <Swords className="w-10 h-10 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">Ready to stress-test your logic?</h3>
-                    <p className="text-violet-100 text-base mt-2">Defend your position. Find blind spots. Refine before you build.</p>
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={openDebate}
-                    className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-white text-violet-700 font-bold hover:bg-violet-50 transition-colors shadow-lg text-base"
-                  >
-                    <Swords className="w-5 h-5" />
-                    Debate this idea
-                  </button>
-                  <button
-                    onClick={reset}
-                    className="px-6 py-4 rounded-xl border-2 border-white/40 text-white font-semibold hover:bg-white/10 transition-colors"
-                  >
-                    Validate another
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // Chat Stage (Debate)
   return (
-    <div className="h-screen h-[100dvh] flex flex-col bg-white">
-      {/* Header */}
-      <div className="flex-shrink-0 border-b border-slate-200 bg-white sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex-shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-              <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm sm:text-base font-semibold text-slate-900">The Adversary</p>
-                {score !== null && (
-                  <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full border ${getScoreBg(score)} ${getScoreColor(score)}`}>
-                    {score}/10
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-500">Idea Validator · Debate to refine</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={downloadReport}
-              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-all"
-              title="Download report"
-            >
-              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Download</span>
-            </button>
-            <button
-              onClick={exportDebate}
-              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-all"
-              title="Copy to clipboard"
-            >
-              {exportCopied ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" /> : <Clipboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-              <span className="hidden sm:inline">{exportCopied ? "Copied!" : "Copy"}</span>
-            </button>
-            <button
-              onClick={reset}
-              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-all"
-            >
-              <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">New</span>
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen min-h-[100dvh] bg-gradient-to-b from-slate-50 to-white flex flex-col">
+      <Header />
+      <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-20">
+        <p className="text-center text-sm font-medium text-slate-500 mb-6">
+          10,000+ ideas validated
+        </p>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto overscroll-contain">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5">
-          {messages.map((message) => (
-            <div key={message.id} className={`group flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""} msg-fade-in`}>
-              <div
-                className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center ${
-                  message.role === "user" ? "bg-slate-200" : "bg-gradient-to-br from-slate-800 to-slate-900"
-                }`}
-              >
-                {message.role === "user" ? (
-                  <span className="text-xs font-bold text-slate-600">You</span>
-                ) : (
-                  <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                )}
-              </div>
-              <div className={`flex-1 max-w-[85%] sm:max-w-[80%] ${message.role === "user" ? "flex flex-col items-end" : ""}`}>
-                {message.role === "opponent" && (
-                  <div className="flex items-center gap-2 mb-1 ml-1">
-                    <span className="text-xs font-medium text-slate-500">The Adversary</span>
-                    <button
-                      onClick={() => copyMessage(message.id, message.content)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-slate-100"
-                      title="Copy message"
-                    >
-                      {copiedId === message.id ? (
-                        <Check className="w-3 h-3 text-emerald-500" />
-                      ) : (
-                        <Copy className="w-3 h-3 text-slate-400" />
-                      )}
-                    </button>
-                  </div>
-                )}
-                <div
-                  className={`inline-block px-4 py-3 rounded-2xl text-sm sm:text-base leading-relaxed ${
-                    message.role === "user"
-                      ? message.isQuickAction
-                        ? "bg-violet-600 text-white rounded-tr-md"
-                        : "bg-slate-900 text-white rounded-tr-md"
-                      : message.isQuickAction
-                        ? "bg-gradient-to-br from-violet-50 to-indigo-50 text-slate-800 rounded-tl-md border border-violet-100"
-                        : "bg-slate-100 text-slate-800 rounded-tl-md"
-                  }`}
-                >
-                  {message.role === "opponent" ? (
-                    <div className="markdown-content">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
-                    </div>
-                  ) : (
-                    <p className="whitespace-pre-wrap">{message.content}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {/* Streaming content */}
-          {isLoading && streamingContent && (
-            <div className="flex gap-3 msg-fade-in">
-              <div className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </div>
-              <div className="flex-1 max-w-[85%] sm:max-w-[80%]">
-                <span className="text-xs font-medium text-slate-500 mb-1 ml-1 block">The Adversary</span>
-                <div className="inline-block px-4 py-3 rounded-2xl rounded-tl-md bg-slate-100 text-slate-800 text-sm sm:text-base leading-relaxed">
-                  <div className="markdown-content">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Loading indicator (before streaming starts) */}
-          {isLoading && !streamingContent && (
-            <div className="flex gap-3 msg-fade-in">
-              <div className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </div>
-              <div>
-                <span className="text-xs font-medium text-slate-500 mb-1 ml-1 block">The Adversary</span>
-                <div className="flex items-center gap-3 px-4 py-3 rounded-2xl rounded-tl-md bg-slate-100">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                  </div>
-                  <span className="text-xs text-slate-500 italic">{typingPhrase}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
-
-      {/* Error */}
-      {error && (
-        <div className="flex-shrink-0 px-4 sm:px-6 pb-2">
-          <div className="max-w-3xl mx-auto p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
-            {error}
-          </div>
-        </div>
-      )}
-
-      {/* Input */}
-      <div className="flex-shrink-0 border-t border-slate-200 bg-white p-3 sm:p-4 safe-area-bottom">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex gap-2 sm:gap-3 items-end">
-            <div className="flex-1 relative">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Defend your position..."
-                rows={1}
-                className="w-full px-4 py-3 pr-12 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 focus:bg-white transition-all resize-none text-sm sm:text-base"
-                style={{ minHeight: "48px", maxHeight: "120px" }}
-              />
-              <button
-                onClick={sendMessage}
-                disabled={isLoading || !input.trim()}
-                className="absolute right-2 bottom-2 p-2.5 rounded-lg bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-          <p className="hidden sm:block text-center text-xs text-slate-400 mt-2">
-            Enter to send · Shift+Enter for new line
+        <div className="text-center mb-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mb-3">
+            Skip the guesswork.
+          </h1>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mb-4">
+            Know before you build.
+          </h1>
+          <p className="text-slate-600 text-base sm:text-lg max-w-xl mx-auto mb-6">
+            92% of startups fail from poor validation. Don&apos;t be a statistic.
+            Get a complete viability report in 2 minutes — not 2 months.
           </p>
+          <Link
+            href="/validate"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors text-base"
+          >
+            Get My Answer
+            <ArrowRight className="w-5 h-5" />
+          </Link>
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mt-6 text-xs text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <Check className="w-4 h-4 text-emerald-500" /> No card required
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Check className="w-4 h-4 text-emerald-500" /> Free
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Check className="w-4 h-4 text-emerald-500" /> Your idea is safe
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Check className="w-4 h-4 text-emerald-500" /> Private
+            </span>
+          </div>
         </div>
+
+        <div className="mb-12">
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2 text-center">
+            See what you&apos;ll get
+          </h2>
+          <p className="text-center text-slate-600 text-sm mb-6">
+            Real validation results. Click any to learn more.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="p-4 rounded-xl border border-slate-200 bg-white">
+              <Sparkles className="w-5 h-5 text-emerald-600 mb-2" />
+              <span className="font-semibold text-slate-900 text-sm block">AI Validation Score</span>
+              <p className="text-xs text-slate-500 mt-0.5">Viability · Risk · Go/No-Go</p>
+            </div>
+            <div className="p-4 rounded-xl border border-slate-200 bg-white">
+              <FileText className="w-5 h-5 text-blue-600 mb-2" />
+              <span className="font-semibold text-slate-900 text-sm block">Market Opportunity</span>
+              <p className="text-xs text-slate-500 mt-0.5">TAM · SAM · SOM</p>
+            </div>
+            <div className="p-4 rounded-xl border border-slate-200 bg-white">
+              <Eye className="w-5 h-5 text-amber-600 mb-2" />
+              <span className="font-semibold text-slate-900 text-sm block">Competitive Landscape</span>
+              <p className="text-xs text-slate-500 mt-0.5">Positioning · 5 competitors</p>
+            </div>
+            <div className="p-4 rounded-xl border border-slate-200 bg-white">
+              <Clipboard className="w-5 h-5 text-violet-600 mb-2" />
+              <span className="font-semibold text-slate-900 text-sm block">Risk Assessment</span>
+              <p className="text-xs text-slate-500 mt-0.5">Blind spots · Failure modes</p>
+            </div>
+            <div className="p-4 rounded-xl border border-slate-200 bg-white">
+              <Target className="w-5 h-5 text-slate-600 mb-2" />
+              <span className="font-semibold text-slate-900 text-sm block">Validation Steps</span>
+              <p className="text-xs text-slate-500 mt-0.5">Top 3 before building</p>
+            </div>
+            <div className="p-4 rounded-xl border border-slate-200 bg-white">
+              <Swords className="w-5 h-5 text-violet-600 mb-2" />
+              <span className="font-semibold text-slate-900 text-sm block">Debate it</span>
+              <p className="text-xs text-slate-500 mt-0.5">Defend & refine · Our edge</p>
+            </div>
+            <div className="p-4 rounded-xl border border-slate-200 bg-white sm:col-span-2 sm:col-start-2">
+              <Briefcase className="w-5 h-5 text-indigo-600 mb-2" />
+              <span className="font-semibold text-slate-900 text-sm block">Business Plan</span>
+              <p className="text-xs text-slate-500 mt-0.5">Investor-ready · Financials · GTM</p>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-center text-sm text-slate-500 mb-8">
+          <span className="font-medium">Need an idea?</span>{" "}
+          <Link
+            href="/validate?mode=generate"
+            className="text-slate-900 font-medium hover:underline inline-flex items-center gap-1"
+          >
+            <Wand2 className="w-4 h-4" /> Generate one
+          </Link>
+        </p>
+
+        <div className="border-t border-slate-200 pt-8 mb-8">
+          <h3 className="text-sm font-semibold text-slate-700 mb-4 text-center">Popular questions</h3>
+          <div className="space-y-3 text-sm text-slate-600">
+            <details className="group p-3 rounded-lg border border-slate-200 bg-white">
+              <summary className="font-medium text-slate-900 cursor-pointer">
+                How long does validation take?
+              </summary>
+              <p className="mt-2 text-slate-600">
+                About 2 minutes. You get a complete viability report with score, risks, and market
+                analysis.
+              </p>
+            </details>
+            <details className="group p-3 rounded-lg border border-slate-200 bg-white">
+              <summary className="font-medium text-slate-900 cursor-pointer">
+                Is my idea kept private?
+              </summary>
+              <p className="mt-2 text-slate-600">
+                Yes. We don&apos;t store or share your ideas. Everything stays between you and the
+                AI.
+              </p>
+            </details>
+            <details className="group p-3 rounded-lg border border-slate-200 bg-white">
+              <summary className="font-medium text-slate-900 cursor-pointer">
+                What makes this different?
+              </summary>
+              <p className="mt-2 text-slate-600">
+                You get the same validation report — plus you can debate it. Defend your position,
+                stress-test your logic, and refine before you build.
+              </p>
+            </details>
+          </div>
+        </div>
+
+        <Footer />
       </div>
     </div>
   );

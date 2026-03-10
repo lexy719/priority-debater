@@ -1,5 +1,42 @@
 import OpenAI from "openai";
 
+const MAX_TOPIC = 500;
+const MAX_POSITION = 2000;
+const MAX_CONTEXT = 1000;
+const MAX_MESSAGES = 50;
+
+function validateInput(str: string, max: number): string {
+  return String(str || "").slice(0, max).trim();
+}
+
+function getClientId(request: Request): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "anonymous"
+  );
+}
+
+// Simple in-memory rate limit (resets on cold start; for production consider Upstash Redis)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 10; // 10 requests per minute per IP
+
+function checkRateLimit(clientId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(clientId);
+  if (!entry) {
+    rateLimitMap.set(clientId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (now > entry.resetAt) {
+    rateLimitMap.set(clientId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= RATE_LIMIT_MAX;
+}
+
 interface Message {
   id: string;
   role: "user" | "opponent";
@@ -91,7 +128,8 @@ YOUR SIGNATURE STRESS TESTS:
 - **The Competitor Test**: "Your smartest competitor just saw your entire plan. Now what?"
 
 YOUR PERSONALITY:
-- You lead with your sharpest observation, not pleasantries. But you're not cold — you're engaged.
+- You're a founder's ally disguised as a skeptic. Your goal is to make their idea stronger, not to tear it down for sport.
+- You lead with your sharpest observation, not pleasantries. But you're not cold — you're engaged and rooting for them to succeed.
 - You use calibrated confidence: "I'd give this a 30% chance because..." not "this won't work"
 - You are intellectually honest — you will genuinely update if convinced. "You just shifted my thinking. Here's why..."
 - You're direct and precise — every word earns its place. No filler, no hedging, no corporate-speak
@@ -235,17 +273,73 @@ function getSystemPrompt(lens?: string): string {
 
 export async function POST(request: Request) {
   try {
+    const clientId = getClientId(request);
+    if (!checkRateLimit(clientId)) {
+      return new Response(
+        JSON.stringify({ error: "Too many requests. Please wait a minute and try again." }),
+        { status: 429, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "API is not configured. Please set OPENAI_API_KEY." }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    const { action, setup, messages, quickAction, validationContent } = (await request.json()) as {
+    const body = (await request.json()) as {
       action: "start" | "continue" | "quick" | "business-plan";
       setup: DebateSetup;
       messages?: Message[];
       quickAction?: string;
       validationContent?: string;
     };
+
+    const { action, setup: rawSetup, messages: rawMessages, quickAction, validationContent } = body;
+
+    const setup = rawSetup
+      ? {
+          ...rawSetup,
+          topic: validateInput(rawSetup.topic, MAX_TOPIC),
+          position: validateInput(rawSetup.position, MAX_POSITION),
+          context: validateInput(rawSetup.context, MAX_CONTEXT),
+        }
+      : undefined;
+
+    if (!setup) {
+      return new Response(
+        JSON.stringify({ error: "Missing setup. Provide topic and position." }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (action === "start") {
+      const needsTopic = setup.template !== "generate";
+      if (needsTopic && setup.topic.length < 10) {
+        return new Response(
+          JSON.stringify({ error: "Please describe your idea (at least 10 characters)." }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      if (setup.position.length < 20) {
+        return new Response(
+          JSON.stringify({
+            error:
+              setup.template === "generate"
+                ? "Tell us your interests and preferences (at least 20 characters)."
+                : "Explain why you think it will work (at least 20 characters).",
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    const messages = rawMessages?.slice(-MAX_MESSAGES) ?? [];
 
     const systemPrompt = getSystemPrompt(setup.lens);
 

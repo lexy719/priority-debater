@@ -13,8 +13,28 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "The Adversary | Startup Idea Validator 2026 - AI Validation in 2 min",
-  description: "Complete viability report in 2 minutes. Viability score, TAM/SAM/SOM, competitor analysis, risk flags. Then debate to refine. Free, no signup, private.",
+  metadataBase: new URL("https://priority-debater.vercel.app"),
+  title: {
+    default: "Priority Debater | AI Startup Idea Validator in 2 Minutes",
+    template: "%s | Priority Debater",
+  },
+  description:
+    "Validate your startup idea in 2 minutes. Get a viability score, TAM/SAM/SOM, competitor analysis, risk flags, and business plan. Then debate to refine. Free, private, no signup.",
+  keywords: ["startup validation", "idea validator", "AI validation", "business plan", "startup idea"],
+  openGraph: {
+    title: "Priority Debater | AI Startup Idea Validator",
+    description: "Validate your startup idea in 2 minutes. Get a viability score, debate to refine. Free, private.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Priority Debater | AI Startup Idea Validator",
+    description: "Validate your startup idea in 2 minutes. Free, private.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
