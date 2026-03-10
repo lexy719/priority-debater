@@ -13,11 +13,6 @@ export function Header() {
           </div>
           <span>Priority Debater</span>
         </Link>
-        <nav className="flex items-center gap-4 text-sm">
-          <Link href="/validate" className="text-slate-600 hover:text-slate-900 font-medium">
-            Validate
-          </Link>
-        </nav>
       </div>
     </header>
   );

@@ -320,19 +320,19 @@ export async function POST(request: Request) {
 
     if (action === "start") {
       const needsTopic = setup.template !== "generate";
-      if (needsTopic && setup.topic.length < 10) {
+      if (needsTopic && setup.topic.length < 3) {
         return new Response(
-          JSON.stringify({ error: "Please describe your idea (at least 10 characters)." }),
+          JSON.stringify({ error: "Please describe your idea (at least 3 characters)." }),
           { status: 400, headers: { "Content-Type": "application/json" } }
         );
       }
-      if (setup.position.length < 20) {
+      if (setup.position.length < 10) {
         return new Response(
           JSON.stringify({
             error:
               setup.template === "generate"
-                ? "Tell us your interests and preferences (at least 20 characters)."
-                : "Explain why you think it will work (at least 20 characters).",
+                ? "Tell us your interests and preferences (at least 10 characters)."
+                : "Explain why you think it will work (at least 10 characters).",
           }),
           { status: 400, headers: { "Content-Type": "application/json" } }
         );

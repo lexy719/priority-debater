@@ -104,7 +104,7 @@ function ValidateForm() {
   const template = isGenerate ? generateTemplate : ideaValidatorTemplate;
 
   const valid =
-    (isGenerate ? setup.position.trim().length >= 20 : setup.topic.trim().length >= 10 && setup.position.trim().length >= 20) &&
+    (isGenerate ? setup.position.trim().length >= 10 : setup.topic.trim().length >= 3 && setup.position.trim().length >= 10) &&
     humanCheck;
 
   const handleSubmit = async () => {
@@ -266,6 +266,12 @@ function ValidateForm() {
               </>
             )}
           </button>
+          {!valid && !isLoading && humanCheck && (
+            <p className="text-xs text-slate-500 text-center mt-2">
+              {!isGenerate && setup.topic.trim().length < 3 && "Add at least 3 characters to your idea. "}
+              {setup.position.trim().length < 10 && "Add at least 10 characters to your reasoning."}
+            </p>
+          )}
         </div>
       </div>
     </div>
