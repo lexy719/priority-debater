@@ -850,260 +850,162 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Section divider */}
-            <div className="flex items-center gap-4 mb-8">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-              <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Comprehensive Analysis</span>
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
-            </div>
-
-            {/* Executive Summary */}
-            {dashboard.summary && (
-              <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 mb-6">
-                <h3 className="text-base font-bold text-slate-900 mb-3">Executive Summary</h3>
-                <p className="text-slate-700 leading-relaxed">{dashboard.summary}</p>
-              </div>
-            )}
-
-            {/* Go/No-Go — prominent verdict */}
-            {/* One-Line Verdict — prominent */}
-            {dashboard.verdict && (
-              <div className="mb-6 p-4 rounded-2xl bg-indigo-50 border-l-4 border-indigo-500">
-                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">One-Line Verdict</p>
-                <p className="text-slate-800 font-medium text-lg">{dashboard.verdict}</p>
-              </div>
-            )}
-
-            {dashboard.goNoGo && (
-              <div className="bg-white rounded-2xl shadow-lg border-2 border-indigo-200/60 p-6 mb-6">
-                <h3 className="text-base font-bold text-slate-900 mb-3">Go/No-Go Recommendation</h3>
-                <div className="markdown-content text-slate-700 prose prose-slate prose-base max-w-none prose-p:my-2">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo}</ReactMarkdown>
-                </div>
-              </div>
-            )}
-
-            {/* Key Recommendations */}
-            {dashboard.recommendations.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-md border border-slate-200/50 p-6 mb-6">
-                <h3 className="text-base font-bold text-slate-900 mb-4">Key Recommendations</h3>
-                <ol className="space-y-3">
-                  {dashboard.recommendations.map((rec, i) => (
-                    <li key={i} className="flex gap-3 text-slate-700">
-                      <span className="shrink-0 w-6 h-6 rounded-lg bg-violet-100 text-violet-700 font-semibold flex items-center justify-center text-sm">{i + 1}</span>
-                      <span>{rec}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            )}
-
-            {/* Key Strengths | Areas of Concern */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200/60 p-6">
-                <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <Check className="w-5 h-5 text-emerald-600" /> Key Strengths
-                </h3>
-                <ul className="space-y-3">
-                  {dashboard.strengths.length > 0 ? dashboard.strengths.map((s, i) => (
-                    <li key={i} className="flex gap-2.5 text-sm text-slate-700">
-                      <Check className="w-4 h-4 shrink-0 text-emerald-500 mt-0.5" />
-                      <span>{s}</span>
-                    </li>
-                  )) : <li className="text-slate-500 italic">See validation report</li>}
-                </ul>
-              </div>
-              <div className="bg-white rounded-2xl shadow-lg border-2 border-red-200/60 p-6">
-                <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <X className="w-5 h-5 text-red-600" /> Areas of Concern
-                </h3>
-                <ul className="space-y-3">
-                  {dashboard.risks.length > 0 ? dashboard.risks.map((r, i) => (
-                    <li key={i} className="flex gap-2.5 text-sm text-slate-700">
-                      <X className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
-                      <span>{r}</span>
-                    </li>
-                  )) : <li className="text-slate-500 italic">See validation report</li>}
-                </ul>
-              </div>
-            </div>
-
-            {/* Deep-dive analysis grid — Problem-Solution, Customer, Value Prop, Business Model */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              {dashboard.problemSolution && (
-                <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-lg border border-amber-200/50 p-6">
-                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-amber-100"><Lightbulb className="w-5 h-5 text-amber-600" /></div>
-                    Problem-Solution Fit
-                  </h3>
-                  <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-2 prose-li:my-1">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.problemSolution}</ReactMarkdown>
-                  </div>
-                </div>
-              )}
-              {dashboard.targetCustomer && (
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-lg border border-blue-200/50 p-6">
-                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-blue-100"><Users className="w-5 h-5 text-blue-600" /></div>
-                    Target Customer & ICP
-                  </h3>
-                  <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-2 prose-li:my-1">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.targetCustomer}</ReactMarkdown>
-                  </div>
-                </div>
-              )}
-              {dashboard.valueProposition && (
-                <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-2xl shadow-lg border border-violet-200/50 p-6">
-                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-violet-100"><MessageSquare className="w-5 h-5 text-violet-600" /></div>
-                    Value Proposition
-                  </h3>
-                  <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-2 prose-li:my-1">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.valueProposition}</ReactMarkdown>
-                  </div>
-                </div>
-              )}
-              {dashboard.businessModel && (
-                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl shadow-lg border border-emerald-200/50 p-6">
-                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-emerald-100"><Layout className="w-5 h-5 text-emerald-600" /></div>
-                    Business Model
-                  </h3>
-                  <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-2 prose-li:my-1">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.businessModel}</ReactMarkdown>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Market Opportunity | Competitive Landscape — full width cards */}
-            {dashboard.marketSummary && (
-              <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 mb-6">
-                <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-sky-100"><BarChart3 className="w-5 h-5 text-sky-600" /></div>
-                  Market Opportunity
-                </h3>
-                <div className="markdown-content text-slate-700 prose prose-slate prose-base max-w-none prose-p:my-2 prose-li:my-1">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.marketSummary}</ReactMarkdown>
-                </div>
-              </div>
-            )}
-            {dashboard.competitiveSummary && (
-              <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 mb-6">
-                <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-rose-100"><Target className="w-5 h-5 text-rose-600" /></div>
-                  Competitive Landscape
-                </h3>
-                <div className="markdown-content text-slate-700 prose prose-slate prose-base max-w-none prose-p:my-2 prose-li:my-1">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.competitiveSummary}</ReactMarkdown>
-                </div>
-              </div>
-            )}
-
-            {/* Key Assumptions | Timeline — 2-col */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              {dashboard.keyAssumptions && (
-                <div className="bg-white rounded-2xl shadow-lg border-l-4 border-amber-500 p-6">
-                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                    <HelpCircle className="w-5 h-5 text-amber-600" /> Key Assumptions to Validate
-                  </h3>
-                  <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-2 prose-li:my-1">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.keyAssumptions}</ReactMarkdown>
-                  </div>
-                </div>
-              )}
-              {dashboard.timelineToLaunch && (
-                <div className="bg-white rounded-2xl shadow-lg border-l-4 border-indigo-500 p-6">
-                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-indigo-600" /> Timeline to Launch
-                  </h3>
-                  <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-2 prose-li:my-1">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.timelineToLaunch}</ReactMarkdown>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Scores & Analysis - Market Factors | Execution Factors */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <div className="bg-white rounded-2xl shadow-md border border-slate-200/50 p-6">
-                <h3 className="text-base font-bold text-slate-900 mb-4">Market Factors</h3>
-                <div className="space-y-4">
-                  {marketFactors.map((f, i) => (
-                    <div key={i}>
-                      <div className="flex justify-between text-sm mb-1.5">
-                        <span className="text-slate-600">{f.label}</span>
-                        <span className="font-semibold text-slate-900">{f.value}/100</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                        <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${f.value}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="bg-white rounded-2xl shadow-md border border-slate-200/50 p-6">
-                <h3 className="text-base font-bold text-slate-900 mb-4">Execution Factors</h3>
-                <div className="space-y-4">
-                  {executionFactors.map((f, i) => (
-                    <div key={i}>
-                      <div className="flex justify-between text-sm mb-1.5">
-                        <span className="text-slate-600">{f.label}</span>
-                        <span className="font-semibold text-slate-900">{f.value}/100</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                        <div className="h-full bg-violet-500 rounded-full transition-all" style={{ width: `${f.value}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Financial Snapshot */}
-            {dashboard.financialSummary && (
-              <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl shadow-lg border border-slate-200/50 p-6 mb-6">
-                <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-slate-200"><BarChart3 className="w-5 h-5 text-slate-600" /></div>
-                  Financial Snapshot
-                </h3>
-                <div className="markdown-content text-slate-700 prose prose-slate prose-base max-w-none prose-p:my-2 prose-li:my-1">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.financialSummary}</ReactMarkdown>
-                </div>
-              </div>
-            )}
-
-            {/* Business Plan CTA */}
-            <div className="bg-gradient-to-br from-indigo-50 to-violet-50 rounded-2xl border-2 border-indigo-200/60 p-6 mb-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-indigo-100">
-                    <Briefcase className="w-8 h-8 text-indigo-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-900">Business Plan</h3>
-                    <p className="text-sm text-slate-600">Formalize your idea with financials, GTM and projections.</p>
-                  </div>
-                </div>
+            {/* Tabs — divide content, reduce scroll */}
+            <div className="flex gap-1 overflow-x-auto pb-2 mb-6 scrollbar-hide">
+              {["Overview", "Customer & Market", "Strategy", "Financials"].map((label, i) => (
                 <button
-                  onClick={generateBusinessPlan}
-                  disabled={isGeneratingBusinessPlan}
-                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors shrink-0"
+                  key={label}
+                  onClick={() => setActiveTab(i)}
+                  className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    activeTab === i ? "bg-slate-900 text-white shadow-md" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                  }`}
                 >
-                  {isGeneratingBusinessPlan ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><Briefcase className="w-4 h-4" /> Generate Business Plan</>}
+                  {label}
                 </button>
-              </div>
+              ))}
             </div>
 
-            {/* Business Plan content when generated */}
-            {businessPlanContent && (
-              <div className="bg-white rounded-2xl shadow-md border border-slate-200/50 p-6 mb-6">
-                <h3 className="text-base font-bold text-slate-900 mb-4">Business Plan</h3>
-                <div className="markdown-content text-slate-700 prose prose-slate max-w-none prose-headings:text-slate-900">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{businessPlanContent}</ReactMarkdown>
-                </div>
-              </div>
-            )}
+            {/* Tab content — side-by-side panels, fixed height with scroll */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 min-h-[420px]">
+              {activeTab === 0 && (
+                <>
+                  <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-5 overflow-y-auto max-h-[480px]">
+                    <h3 className="text-sm font-bold text-slate-900 mb-3">Summary & Verdict</h3>
+                    {dashboard.summary && <p className="text-slate-700 text-sm mb-3">{dashboard.summary}</p>}
+                    {dashboard.verdict && <p className="text-indigo-700 font-medium text-sm mb-3">{dashboard.verdict}</p>}
+                    {dashboard.goNoGo && <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo}</ReactMarkdown></div>}
+                  </div>
+                  <div className="space-y-4 overflow-y-auto max-h-[480px]">
+                    <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-5">
+                      <h3 className="text-sm font-bold text-slate-900 mb-3">Key Recommendations</h3>
+                      {dashboard.recommendations.length > 0 ? (
+                        <ol className="space-y-2 text-sm text-slate-700">
+                          {dashboard.recommendations.map((rec, i) => <li key={i} className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded bg-violet-100 text-violet-700 text-xs font-semibold flex items-center justify-center">{i + 1}</span><span>{rec}</span></li>)}
+                        </ol>
+                      ) : <p className="text-slate-500 italic text-sm">—</p>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white rounded-xl shadow-md border-2 border-emerald-200/60 p-4">
+                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-600" /> Strengths</h3>
+                        <ul className="space-y-1.5 text-xs text-slate-700">{dashboard.strengths.slice(0, 4).map((s, i) => <li key={i} className="flex gap-1.5"><Check className="w-3 h-3 shrink-0 text-emerald-500 mt-0.5" /><span>{s}</span></li>)}</ul>
+                      </div>
+                      <div className="bg-white rounded-xl shadow-md border-2 border-red-200/60 p-4">
+                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><X className="w-4 h-4 text-red-600" /> Concerns</h3>
+                        <ul className="space-y-1.5 text-xs text-slate-700">{dashboard.risks.slice(0, 4).map((r, i) => <li key={i} className="flex gap-1.5"><X className="w-3 h-3 shrink-0 text-red-500 mt-0.5" /><span>{r}</span></li>)}</ul>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+              {activeTab === 1 && (
+                <>
+                  <div className="space-y-4 overflow-y-auto max-h-[480px]">
+                    {dashboard.problemSolution && (
+                      <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl shadow-md border border-amber-200/50 p-4">
+                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><Lightbulb className="w-4 h-4 text-amber-600" /> Problem-Solution Fit</h3>
+                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.problemSolution}</ReactMarkdown></div>
+                      </div>
+                    )}
+                    {dashboard.targetCustomer && (
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-md border border-blue-200/50 p-4">
+                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><Users className="w-4 h-4 text-blue-600" /> Target Customer</h3>
+                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.targetCustomer}</ReactMarkdown></div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-4 overflow-y-auto max-h-[480px]">
+                    {dashboard.valueProposition && (
+                      <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl shadow-md border border-violet-200/50 p-4">
+                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><MessageSquare className="w-4 h-4 text-violet-600" /> Value Proposition</h3>
+                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.valueProposition}</ReactMarkdown></div>
+                      </div>
+                    )}
+                    {dashboard.businessModel && (
+                      <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl shadow-md border border-emerald-200/50 p-4">
+                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><Layout className="w-4 h-4 text-emerald-600" /> Business Model</h3>
+                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.businessModel}</ReactMarkdown></div>
+                      </div>
+                    )}
+                    {dashboard.marketSummary && (
+                      <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><BarChart3 className="w-4 h-4 text-sky-600" /> Market Opportunity</h3>
+                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.marketSummary}</ReactMarkdown></div>
+                      </div>
+                    )}
+                    {dashboard.competitiveSummary && (
+                      <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><Target className="w-4 h-4 text-rose-600" /> Competitive Landscape</h3>
+                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.competitiveSummary}</ReactMarkdown></div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+              {activeTab === 2 && (
+                <>
+                  <div className="space-y-4 overflow-y-auto max-h-[480px]">
+                    {dashboard.keyAssumptions && (
+                      <div className="bg-white rounded-xl shadow-md border-l-4 border-amber-500 p-4">
+                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><HelpCircle className="w-4 h-4 text-amber-600" /> Key Assumptions</h3>
+                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.keyAssumptions}</ReactMarkdown></div>
+                      </div>
+                    )}
+                    {dashboard.timelineToLaunch && (
+                      <div className="bg-white rounded-xl shadow-md border-l-4 border-indigo-500 p-4">
+                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><Calendar className="w-4 h-4 text-indigo-600" /> Timeline to Launch</h3>
+                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.timelineToLaunch}</ReactMarkdown></div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[480px]">
+                    <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+                      <h3 className="text-sm font-bold text-slate-900 mb-3">Market Factors</h3>
+                      <div className="space-y-3">{marketFactors.map((f, i) => (
+                        <div key={i}><div className="flex justify-between text-xs mb-1"><span className="text-slate-600">{f.label}</span><span className="font-semibold">{f.value}/100</span></div><div className="h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-indigo-500 rounded-full" style={{ width: `${f.value}%` }} /></div></div>
+                      ))}</div>
+                    </div>
+                    <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+                      <h3 className="text-sm font-bold text-slate-900 mb-3">Execution Factors</h3>
+                      <div className="space-y-3">{executionFactors.map((f, i) => (
+                        <div key={i}><div className="flex justify-between text-xs mb-1"><span className="text-slate-600">{f.label}</span><span className="font-semibold">{f.value}/100</span></div><div className="h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-violet-500 rounded-full" style={{ width: `${f.value}%` }} /></div></div>
+                      ))}</div>
+                    </div>
+                  </div>
+                </>
+              )}
+              {activeTab === 3 && (
+                <>
+                  <div className="space-y-4 overflow-y-auto max-h-[480px]">
+                    {dashboard.financialSummary && (
+                      <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+                        <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><BarChart3 className="w-4 h-4 text-slate-600" /> Financial Snapshot</h3>
+                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5"><ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.financialSummary}</ReactMarkdown></div>
+                      </div>
+                    )}
+                    <div className="bg-gradient-to-br from-indigo-50 to-violet-50 rounded-xl border-2 border-indigo-200/60 p-4">
+                      <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5"><Briefcase className="w-4 h-4 text-indigo-600" /> Business Plan</h3>
+                      <p className="text-slate-600 text-xs mb-3">Formalize with financials, GTM and projections.</p>
+                      <button onClick={generateBusinessPlan} disabled={isGeneratingBusinessPlan} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50">
+                        {isGeneratingBusinessPlan ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><Briefcase className="w-4 h-4" /> Generate Business Plan</>}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="overflow-y-auto max-h-[480px]">
+                    {businessPlanContent ? (
+                      <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
+                        <h3 className="text-sm font-bold text-slate-900 mb-3">Business Plan</h3>
+                        <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-headings:text-slate-900 prose-h2:text-base prose-h3:text-sm"><ReactMarkdown remarkPlugins={[remarkGfm]}>{businessPlanContent}</ReactMarkdown></div>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 p-8 text-center">
+                        <Briefcase className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                        <p className="text-slate-500 text-sm">Generate a business plan to see it here.</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* CTA card */}
             <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-2xl p-6 sm:p-8 shadow-xl">
