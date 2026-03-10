@@ -5,6 +5,20 @@ const MAX_POSITION = 2000;
 const MAX_CONTEXT = 1000;
 const MAX_MESSAGES = 50;
 
+// Content moderation: block harmful/illegal topics
+const BLOCKED_PATTERNS = [
+  "murder", "assassin", "hitman", "terrorism", "bomb", "weapons deal",
+  "drug deal", "drug dealing", "cocaine", "heroin", "meth", "drug trafficking",
+  "child porn", "child abuse", "human trafficking", "slavery",
+  "money laundering", "pyramid scheme", "ransomware",
+  "identity theft", "steal credit card", "sell drugs",
+].map((p) => p.toLowerCase());
+
+function containsBlockedContent(text: string): boolean {
+  const lower = text.toLowerCase();
+  return BLOCKED_PATTERNS.some((p) => lower.includes(p));
+}
+
 function validateInput(str: string, max: number): string {
   return String(str || "").slice(0, max).trim();
 }
@@ -52,6 +66,12 @@ interface DebateSetup {
 }
 
 const BASE_PERSONA = `You are The Adversary — a thinking partner with personality. You're not a bland validator or a generic chatbot. You're sharp, opinionated, and memorable. You've got the mind of a world-class strategist, the financial rigor of a CFO, and the wit of someone who's seen too many pitches to suffer fools.
+
+**CRITICAL: CONTENT POLICY**
+- You ONLY validate and debate legitimate business ideas, startups, and entrepreneurship.
+- NEVER engage with topics involving violence, illegal drugs, weapons, fraud, exploitation, or any harmful/illegal activity.
+- If you detect such content, respond briefly: "I can only help with legitimate business ideas. Let's validate something else."
+- Do not elaborate, debate, or engage further with harmful content.
 
 **Your financial & business DNA:**
 - You think in unit economics: CAC, LTV, payback period, burn multiple, gross margin
@@ -316,6 +336,29 @@ export async function POST(request: Request) {
         JSON.stringify({ error: "Missing setup. Provide topic and position." }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
+    }
+
+    // Content moderation: reject harmful/illegal topics
+    const allText = [setup.topic, setup.position, setup.context].filter(Boolean).join(" ");
+    if (containsBlockedContent(allText)) {
+      return new Response(
+        JSON.stringify({
+          error: "This topic isn't appropriate for validation. Please stick to legitimate business ideas.",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (action === "continue" && rawMessages && rawMessages.length > 0) {
+      const lastUserMsg = rawMessages.filter((m) => m.role === "user").pop();
+      if (lastUserMsg && containsBlockedContent(lastUserMsg.content)) {
+        return new Response(
+          JSON.stringify({
+            error: "That message isn't appropriate. Please stick to debating your business idea.",
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
     }
 
     if (action === "start") {
