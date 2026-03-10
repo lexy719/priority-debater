@@ -6,7 +6,8 @@ import remarkGfm from "remark-gfm";
 import {
   Loader2, Send, RotateCcw, ArrowRight, ArrowLeft,
   Sparkles, FileText, Swords, Eye, Clipboard, Check, Zap, FlaskConical,
-  Copy, Wand2, Download, BarChart3, AlertTriangle, Target, X, Briefcase
+  Copy, Wand2, Download, BarChart3, AlertTriangle, Target, X, Briefcase,
+  Lightbulb, Users, MessageSquare, Layout, HelpCircle, Calendar
 } from "lucide-react";
 
 interface Message {
@@ -129,42 +130,41 @@ function parseValidationSections(content: string): { id: string; title: string; 
   return sections;
 }
 
-// Extract score, strengths, risks, and more for dashboard display
+// Extract all sections for comprehensive dashboard
+function extractSection(content: string, header: string | RegExp): string | null {
+  const pattern = typeof header === "string" ? new RegExp(`### ${header}\\s*\\n([\\s\\S]*?)(?=### |---|$)`, "i") : header;
+  const match = content.match(pattern);
+  return match ? match[1].trim() : null;
+}
+
 function extractDashboardData(content: string) {
   const scoreMatch = content.match(/(?:viability score|score)[:\s]*\[?(\d+)\]?\/10/i) || content.match(/(\d+)\/10/);
   const score = scoreMatch ? parseInt(scoreMatch[1]) : null;
 
-  const strengthsSection = content.match(/### Strengths\s*\n([\s\S]*?)(?=### |---|$)/i);
-  const risksSection = content.match(/### Risk Flags?\s*\n([\s\S]*?)(?=### |---|$)/i);
-
   const parseListItems = (text: string) =>
     text.split(/\n/).filter((l) => /^\d+\.|^[-*]/.test(l.trim())).map((l) => l.replace(/^\d+\.\s*|^[-*]\s*/, "").trim()).filter(Boolean);
 
-  const strengths = strengthsSection ? parseListItems(strengthsSection[1]) : [];
-  const risks = risksSection ? parseListItems(risksSection[1]) : [];
+  const strengths = parseListItems(extractSection(content, "Strengths") || "");
+  const risks = parseListItems(extractSection(content, "Risk Flags?") || "");
 
-  const summarySection = content.match(/### Idea Summary\s*\n([\s\S]*?)(?=### |---|$)/i);
-  const summary = summarySection ? summarySection[1].trim() : null;
-
-  const verdictSection = content.match(/### One-Line Verdict\s*\n([\s\S]*?)(?=### |---|$)/i);
-  const verdict = verdictSection ? verdictSection[1].trim() : null;
-
-  const recommendationSection = content.match(/### Go\/No-Go[\s\S]*?\n([\s\S]*?)(?=### |---|$)/i);
-  const goNoGo = recommendationSection ? recommendationSection[1].trim() : null;
-
-  const stepsSection = content.match(/### Top 3[^\n]*\n([\s\S]*?)(?=### |---|$)/i);
-  const recommendations = stepsSection ? parseListItems(stepsSection[1]) : [];
-
-  const marketSection = content.match(/### Market Opportunity\s*\n([\s\S]*?)(?=### |---|$)/i);
-  const marketSummary = marketSection ? marketSection[1].trim() : null;
-
-  const competitiveSection = content.match(/### Competitive Landscape\s*\n([\s\S]*?)(?=### |---|$)/i);
-  const competitiveSummary = competitiveSection ? competitiveSection[1].trim() : null;
-
-  const financialSection = content.match(/### Financial Snapshot\s*\n([\s\S]*?)(?=### |---|$)/i);
-  const financialSummary = financialSection ? financialSection[1].trim() : null;
-
-  return { score, strengths, risks, summary, verdict, goNoGo, recommendations, marketSummary, competitiveSummary, financialSummary };
+  return {
+    score,
+    strengths,
+    risks,
+    summary: extractSection(content, "Idea Summary"),
+    verdict: extractSection(content, "One-Line Verdict"),
+    goNoGo: extractSection(content, "Go/No-Go"),
+    recommendations: parseListItems(extractSection(content, "Top \\d") || ""),
+    marketSummary: extractSection(content, "Market Opportunity"),
+    competitiveSummary: extractSection(content, "Competitive Landscape"),
+    financialSummary: extractSection(content, "Financial Snapshot"),
+    problemSolution: extractSection(content, "Problem-Solution Fit"),
+    targetCustomer: extractSection(content, "Target Customer & ICP") || extractSection(content, "Target Customer"),
+    valueProposition: extractSection(content, "Value Proposition"),
+    businessModel: extractSection(content, "Business Model"),
+    keyAssumptions: extractSection(content, "Key Assumptions"),
+    timelineToLaunch: extractSection(content, "Timeline to Launch"),
+  };
 }
 
 const TYPING_PHRASES = [
@@ -808,56 +808,74 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Score row - IdeaProof 4 circles */}
-            <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-6">
-              <div className="flex items-center gap-3">
+            {/* Score row — prominent metrics */}
+            <div className="relative rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-indigo-950 p-6 sm:p-8 mb-8 overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.2)_0%,_transparent_50%)]" />
+              <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                <div className="flex-1">
+                  {(dashboard.summary || dashboard.verdict) && (
+                    <p className="text-slate-200 text-base sm:text-lg leading-relaxed max-w-2xl">
+                      {dashboard.verdict || dashboard.summary}
+                    </p>
+                  )}
+                </div>
                 {dashboard.score != null && (
-                  <>
+                  <div className="flex items-center gap-4 sm:gap-6 shrink-0">
                     <div className="flex flex-col items-center">
-                      <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold ${scoreColor} bg-white/10`}>
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-red-400 bg-white/5 border border-white/10">
                         {riskPct}
                       </div>
-                      <span className="text-xs text-slate-400 mt-1">RISK</span>
+                      <span className="text-xs text-slate-400 mt-1.5 font-medium">RISK</span>
                     </div>
                     <div className="flex flex-col items-center">
-                      <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-blue-400 bg-white/10">
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-blue-400 bg-white/5 border border-white/10">
                         {diffPct}
                       </div>
-                      <span className="text-xs text-slate-400 mt-1">DIFF</span>
+                      <span className="text-xs text-slate-400 mt-1.5 font-medium">DIFF</span>
                     </div>
                     <div className="flex flex-col items-center">
-                      <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-amber-400 bg-white/10">
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-amber-400 bg-white/5 border border-white/10">
                         {compPct}
                       </div>
-                      <span className="text-xs text-slate-400 mt-1">COMP</span>
+                      <span className="text-xs text-slate-400 mt-1.5 font-medium">COMP</span>
                     </div>
-                    <div className="flex flex-col items-center">
-                      <div className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold border-2 ${scoreColor} bg-white/10`}>
+                    <div className={`flex flex-col items-center`}>
+                      <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold border-2 ${scoreColor} bg-white/10`}>
                         {score100}
                       </div>
-                      <span className="text-xs text-slate-400 mt-1">SCORE</span>
+                      <span className="text-xs text-slate-400 mt-1.5 font-medium">SCORE</span>
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
-              {(dashboard.summary || dashboard.verdict) && (
-                <p className="text-slate-600 text-sm sm:text-base max-w-xl flex-1">
-                  {dashboard.verdict || dashboard.summary}
-                </p>
-              )}
+            </div>
+
+            {/* Section divider */}
+            <div className="flex items-center gap-4 mb-8">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
+              <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Comprehensive Analysis</span>
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
             </div>
 
             {/* Executive Summary */}
             {dashboard.summary && (
-              <div className="bg-white rounded-2xl shadow-md border border-slate-200/50 p-6 mb-6">
+              <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 mb-6">
                 <h3 className="text-base font-bold text-slate-900 mb-3">Executive Summary</h3>
                 <p className="text-slate-700 leading-relaxed">{dashboard.summary}</p>
               </div>
             )}
 
-            {/* Go/No-Go Recommendation - IdeaProof prominent */}
+            {/* Go/No-Go — prominent verdict */}
+            {/* One-Line Verdict — prominent */}
+            {dashboard.verdict && (
+              <div className="mb-6 p-4 rounded-2xl bg-indigo-50 border-l-4 border-indigo-500">
+                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">One-Line Verdict</p>
+                <p className="text-slate-800 font-medium text-lg">{dashboard.verdict}</p>
+              </div>
+            )}
+
             {dashboard.goNoGo && (
-              <div className="bg-white rounded-2xl shadow-md border-2 border-indigo-200/60 p-6 mb-6">
+              <div className="bg-white rounded-2xl shadow-lg border-2 border-indigo-200/60 p-6 mb-6">
                 <h3 className="text-base font-bold text-slate-900 mb-3">Go/No-Go Recommendation</h3>
                 <div className="markdown-content text-slate-700 prose prose-slate prose-base max-w-none prose-p:my-2">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo}</ReactMarkdown>
@@ -880,9 +898,9 @@ export default function Home() {
               </div>
             )}
 
-            {/* Key Strengths | Areas of Concern - 2-col IdeaProof style */}
+            {/* Key Strengths | Areas of Concern */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <div className="bg-white rounded-2xl shadow-md border-2 border-emerald-200/60 p-6">
+              <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200/60 p-6">
                 <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
                   <Check className="w-5 h-5 text-emerald-600" /> Key Strengths
                 </h3>
@@ -895,7 +913,7 @@ export default function Home() {
                   )) : <li className="text-slate-500 italic">See validation report</li>}
                 </ul>
               </div>
-              <div className="bg-white rounded-2xl shadow-md border-2 border-red-200/60 p-6">
+              <div className="bg-white rounded-2xl shadow-lg border-2 border-red-200/60 p-6">
                 <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
                   <X className="w-5 h-5 text-red-600" /> Areas of Concern
                 </h3>
@@ -908,6 +926,102 @@ export default function Home() {
                   )) : <li className="text-slate-500 italic">See validation report</li>}
                 </ul>
               </div>
+            </div>
+
+            {/* Deep-dive analysis grid — Problem-Solution, Customer, Value Prop, Business Model */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {dashboard.problemSolution && (
+                <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-lg border border-amber-200/50 p-6">
+                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-amber-100"><Lightbulb className="w-5 h-5 text-amber-600" /></div>
+                    Problem-Solution Fit
+                  </h3>
+                  <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-2 prose-li:my-1">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.problemSolution}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
+              {dashboard.targetCustomer && (
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-lg border border-blue-200/50 p-6">
+                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-blue-100"><Users className="w-5 h-5 text-blue-600" /></div>
+                    Target Customer & ICP
+                  </h3>
+                  <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-2 prose-li:my-1">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.targetCustomer}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
+              {dashboard.valueProposition && (
+                <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-2xl shadow-lg border border-violet-200/50 p-6">
+                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-violet-100"><MessageSquare className="w-5 h-5 text-violet-600" /></div>
+                    Value Proposition
+                  </h3>
+                  <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-2 prose-li:my-1">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.valueProposition}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
+              {dashboard.businessModel && (
+                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl shadow-lg border border-emerald-200/50 p-6">
+                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-emerald-100"><Layout className="w-5 h-5 text-emerald-600" /></div>
+                    Business Model
+                  </h3>
+                  <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-2 prose-li:my-1">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.businessModel}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Market Opportunity | Competitive Landscape — full width cards */}
+            {dashboard.marketSummary && (
+              <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 mb-6">
+                <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-sky-100"><BarChart3 className="w-5 h-5 text-sky-600" /></div>
+                  Market Opportunity
+                </h3>
+                <div className="markdown-content text-slate-700 prose prose-slate prose-base max-w-none prose-p:my-2 prose-li:my-1">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.marketSummary}</ReactMarkdown>
+                </div>
+              </div>
+            )}
+            {dashboard.competitiveSummary && (
+              <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-6 mb-6">
+                <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-rose-100"><Target className="w-5 h-5 text-rose-600" /></div>
+                  Competitive Landscape
+                </h3>
+                <div className="markdown-content text-slate-700 prose prose-slate prose-base max-w-none prose-p:my-2 prose-li:my-1">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.competitiveSummary}</ReactMarkdown>
+                </div>
+              </div>
+            )}
+
+            {/* Key Assumptions | Timeline — 2-col */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {dashboard.keyAssumptions && (
+                <div className="bg-white rounded-2xl shadow-lg border-l-4 border-amber-500 p-6">
+                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <HelpCircle className="w-5 h-5 text-amber-600" /> Key Assumptions to Validate
+                  </h3>
+                  <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-2 prose-li:my-1">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.keyAssumptions}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
+              {dashboard.timelineToLaunch && (
+                <div className="bg-white rounded-2xl shadow-lg border-l-4 border-indigo-500 p-6">
+                  <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-indigo-600" /> Timeline to Launch
+                  </h3>
+                  <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-2 prose-li:my-1">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.timelineToLaunch}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Scores & Analysis - Market Factors | Execution Factors */}
@@ -945,6 +1059,19 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
+            {/* Financial Snapshot */}
+            {dashboard.financialSummary && (
+              <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl shadow-lg border border-slate-200/50 p-6 mb-6">
+                <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-slate-200"><BarChart3 className="w-5 h-5 text-slate-600" /></div>
+                  Financial Snapshot
+                </h3>
+                <div className="markdown-content text-slate-700 prose prose-slate prose-base max-w-none prose-p:my-2 prose-li:my-1">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.financialSummary}</ReactMarkdown>
+                </div>
+              </div>
+            )}
 
             {/* Business Plan CTA */}
             <div className="bg-gradient-to-br from-indigo-50 to-violet-50 rounded-2xl border-2 border-indigo-200/60 p-6 mb-6">

@@ -628,8 +628,8 @@ You are the FUTURE STRATEGIST. Lead with your sharpest future-risk observation. 
 
 Be direct, specific, and actionable. Give them one concrete thing they could do NOW to make their plan more resilient. End with the future scenario that should keep them up at night.`;
       } else {
-        // IdeaProof-style structured validation report for first response
-        openingPrompt = `You are an AI startup idea validator with deep financial and business expertise. Generate a COMPLETE VALIDATION REPORT in the style of IdeaProof. Be thorough, structured, and investor-ready. Use realistic numbers where possible.
+        // Comprehensive business idea analysis — every step to help founders
+        openingPrompt = `You are an expert startup advisor and investor. Generate a COMPREHENSIVE, INTRICATE BUSINESS IDEA ANALYSIS that guides founders through every step of validating and building their idea. Be thorough, specific, and actionable. Use realistic numbers. Structure everything with markdown headers.
 
 **Idea to validate:** "${setup.topic}"
 
@@ -638,56 +638,95 @@ ${setup.position}
 
 ${setup.context ? `**Context:** ${setup.context}` : ""}
 
-Generate a full validation report with these EXACT sections (use markdown headers and formatting):
+Generate a complete analysis with these EXACT sections. Each section should be substantive (2-5 bullet points or short paragraphs):
 
-## VALIDATION REPORT
+## COMPREHENSIVE IDEA ANALYSIS
 
 ### Idea Summary
-[One-line summary of the idea]
+[One-line summary. Then 1-2 sentences on the core value proposition.]
 
 ### Viability Score: [X]/10
-[One sentence: GO / CAUTION / NO-GO with confidence level. Be specific about why.]
+[One sentence: GO / CAUTION / NO-GO. Be specific about why. Include confidence level.]
+
+### Problem-Solution Fit
+- **The Problem:** [Describe the pain point — who feels it, how acute, how often]
+- **Current Alternatives:** [What do people do today? Why are they inadequate?]
+- **Your Solution:** [How you solve it differently. The "10x better" angle]
+- **Evidence of Fit:** [What would prove problem-solution fit? Early signals to look for]
+
+### Target Customer & ICP
+- **Primary segment:** [Who is the ideal first customer? Be specific — role, company size, industry]
+- **Jobs to be done:** [What job are they hiring your product for?]
+- **Buying triggers:** [What makes them open their wallet? Pain threshold?]
+- **Channels to reach them:** [Where do they congregate? How to get in front of them]
+
+### Value Proposition
+- **Headline:** [One sentence that captures the value — "X helps Y do Z by W"]
+- **Key benefits:** [3 concrete benefits with "so that" outcomes]
+- **Differentiation:** [Why you, not the alternative? Unique angle]
+- **Proof points needed:** [What evidence would make this credible?]
+
+### Business Model
+- **Revenue model:** [Subscription / usage / take rate / one-time — be specific]
+- **Pricing strategy:** [Value-based, cost-plus, competitive — and why]
+- **Key metrics:** [MRR, CAC, LTV, churn — what to track from day one]
+- **Unit economics target:** [LTV:CAC ratio, payback period, gross margin]
+
+### Market Opportunity
+- **TAM/SAM/SOM:** [Ballpark figures with reasoning. TAM $XBn, SAM $XM, SOM $XM in year 3]
+- **Market timing:** [Why now? What changed in last 12-24 months?]
+- **Growth drivers:** [Tailwinds. What could accelerate adoption?]
+- **Headwinds:** [What could slow or kill adoption?]
+
+### Competitive Landscape
+- **Direct competitors:** [3-5 with 1-line positioning each]
+- **Indirect competitors:** [Do nothing, substitutes, incumbents]
+- **Positioning gap:** [Where you fit. The wedge. Blue ocean angle if any]
+- **Defensibility:** [Moat potential. Network effects, data, brand, switching costs]
+- **Competitive response:** [How might incumbents react? In 6 months? 2 years?]
 
 ### Strengths
 1. [Specific strength with why it matters]
 2. [Another strength]
 3. [Third strength]
+4. [Fourth strength if relevant]
 
 ### Risk Flags
-1. [Highest risk — and how to mitigate]
+1. [Highest risk — likelihood, impact, and how to mitigate]
 2. [Second risk]
 3. [Third risk]
+4. [Fourth risk if relevant]
 
-### Market Opportunity
-- **TAM/SAM/SOM:** Provide ballpark figures (e.g. TAM $XBn, SAM $XM, SOM $XM in year 3) with brief reasoning. Flag if numbers seem inflated or conservative.
-- **Market timing:** Why now? What's changed?
-- **Growth drivers:** What could accelerate or slow adoption?
+### Key Assumptions to Validate
+[List 3-5 critical assumptions that must be true for this to work. For each: the assumption, how to test it, and what "pass" looks like. Order by importance.]
 
-### Competitive Landscape
-- **Direct competitors:** Name 3-5 real or analogous competitors with 1-line positioning each
-- **Indirect competitors:** "Do nothing," substitutes, incumbents
-- **Positioning gap:** Where does this idea fit? What's the wedge?
-- **Defensibility:** What could be a moat? How easily copied?
+### Timeline to Launch
+- **Pre-build (weeks 1-4):** [Validation activities, customer interviews, landing page]
+- **Build (weeks 5-12):** [MVP scope, key features, tech choices]
+- **Launch (weeks 13-16):** [Beta, first customers, iteration]
+- **Post-launch (months 4-6):** [Scale, metrics, next milestones]
 
 ### Financial Snapshot
-- **Revenue model:** How do you make money? (subscription, usage, take rate, etc.)
-- **Unit economics (estimated):** CAC range, LTV assumption, target LTV:CAC ratio
-- **Path to profitability:** Rough timeline or key milestone (e.g. "Break-even at X customers")
-- **Funding need:** Ballpark if relevant (bootstrapped vs seed vs Series A)
+- **Revenue model:** [How you make money — specific]
+- **Unit economics:** [CAC range, LTV, target LTV:CAC, gross margin]
+- **Path to profitability:** [Break-even at X. Key milestone]
+- **Funding need:** [Bootstrapped vs seed vs Series A. Use of funds if relevant]
 
 ### Go/No-Go Recommendation
-[Clear recommendation: GO (with conditions) / CAUTION (validate X first) / NO-GO (reason)]
+[Clear recommendation: GO (with conditions) / CAUTION (validate X first) / NO-GO (reason). 2-3 sentences.]
 
-### Top 3 Validation Steps Before Building
+### Top 5 Validation Steps Before Building
 1. [Specific, actionable validation step]
 2. [Second step]
 3. [Third step]
+4. [Fourth step]
+5. [Fifth step]
 
 ### One-Line Verdict
 [The single most important insight about this idea]
 
 ---
-**Then add 1-2 short paragraphs** of your sharpest adversarial challenge — the question they need to answer, the flaw you'd push on in a debate. End with: "Want to debate this? Defend your position below."`;
+**Then add 1-2 short paragraphs** of your sharpest adversarial challenge — the question they need to answer, the flaw you'd push on. End with: "Want to debate this? Defend your position below."`;
       }
 
       const stream = await openai.chat.completions.create({
@@ -697,7 +736,7 @@ Generate a full validation report with these EXACT sections (use markdown header
           { role: "user", content: openingPrompt },
         ],
         temperature: 0.8,
-        max_tokens: 1200,
+        max_tokens: 4000,
         stream: true,
       });
 
