@@ -21,6 +21,9 @@ import {
   Target,
   Briefcase,
   Loader2,
+  AlertTriangle,
+  ArrowLeft,
+  Shield,
 } from "lucide-react";
 import { loadSession, clearSession } from "@/lib/session";
 import { extractDashboardData } from "@/lib/parse";
@@ -48,6 +51,7 @@ export default function ResultsPage() {
   const [session, setSession] = useState<ValidationSession | null>(null);
   const [activeTab, setActiveTab] = useState(0);
   const [businessPlanContent, setBusinessPlanContent] = useState("");
+  const [businessPlanStreaming, setBusinessPlanStreaming] = useState("");
   const [isGeneratingBusinessPlan, setIsGeneratingBusinessPlan] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,10 +66,10 @@ export default function ResultsPage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 animate-spin text-slate-400" />
-          <p className="text-slate-500">Loading...</p>
+          <div className="w-12 h-12 rounded-2xl bg-slate-200 animate-pulse" />
+          <div className="h-4 w-32 bg-slate-200 rounded animate-pulse" />
         </div>
       </div>
     );
@@ -74,38 +78,41 @@ export default function ResultsPage() {
   const { setup, validationContent, messages } = session;
   const dashboard = extractDashboardData(validationContent);
 
+  const score = dashboard.score;
   const scoreColor =
-    dashboard.score != null
-      ? dashboard.score >= 7
-        ? "text-emerald-500"
-        : dashboard.score >= 5
-          ? "text-amber-500"
-          : "text-red-500"
-      : "text-slate-600";
+    score != null
+      ? score >= 7
+        ? "text-emerald-400"
+        : score >= 5
+          ? "text-amber-400"
+          : "text-red-400"
+      : "text-slate-400";
 
-  const s = dashboard.score ?? 5;
-  const score100 = Math.round((s / 10) * 100);
-  const riskPct = Math.round((1 - s / 10) * 100);
-  const diffPct = Math.min(100, Math.round((s / 10) * 85 + 15));
-  const compPct = Math.min(100, Math.round(100 - (s / 10) * 60));
+  const scoreBorderColor =
+    score != null
+      ? score >= 7
+        ? "border-emerald-400/50"
+        : score >= 5
+          ? "border-amber-400/50"
+          : "border-red-400/50"
+      : "border-slate-400/50";
 
-  const marketFactors = [
-    { label: "Target Market Clarity", value: Math.min(100, Math.round((s / 10) * 70 + 20)) },
-    { label: "Market Timing", value: Math.min(100, Math.round((s / 10) * 80 + 10)) },
-    { label: "Market Entry Barriers", value: Math.min(100, Math.round((s / 10) * 50 + 30)) },
-    { label: "Competition Level", value: Math.min(100, Math.round(100 - (s / 10) * 50)) },
-    { label: "Problem-Solution Fit", value: Math.min(100, Math.round((s / 10) * 90 + 5)) },
-  ];
-  const executionFactors = [
-    { label: "MVP Viability", value: Math.min(100, Math.round((s / 10) * 75 + 15)) },
-    { label: "Value Proposition", value: Math.min(100, Math.round((s / 10) * 85 + 10)) },
-    { label: "Initial Feasibility", value: Math.min(100, Math.round((s / 10) * 70 + 20)) },
-    { label: "Resource Requirements", value: Math.min(100, Math.round(100 - (s / 10) * 40)) },
-  ];
+  const goNoGoLabel =
+    dashboard.goNoGoType === "go" ? "GO" :
+    dashboard.goNoGoType === "caution" ? "CAUTION" :
+    dashboard.goNoGoType === "nogo" ? "NO-GO" :
+    score != null ? (score >= 7 ? "GO" : score >= 5 ? "CAUTION" : "NO-GO") : null;
+
+  const goNoGoColor =
+    goNoGoLabel === "GO" ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" :
+    goNoGoLabel === "CAUTION" ? "bg-amber-500/20 text-amber-300 border-amber-500/30" :
+    goNoGoLabel === "NO-GO" ? "bg-red-500/20 text-red-300 border-red-500/30" :
+    "bg-slate-500/20 text-slate-300 border-slate-500/30";
 
   const handleGenerateBusinessPlan = async () => {
     setIsGeneratingBusinessPlan(true);
     setError(null);
+    setBusinessPlanStreaming("");
     try {
       const response = await fetch("/api/debate", {
         method: "POST",
@@ -132,7 +139,10 @@ export default function ResultsPage() {
             if (data === "[DONE]") break;
             try {
               const parsed = JSON.parse(data);
-              if (parsed.content) content += parsed.content;
+              if (parsed.content) {
+                content += parsed.content;
+                setBusinessPlanStreaming(content);
+              }
             } catch {
               // skip
             }
@@ -140,6 +150,7 @@ export default function ResultsPage() {
         }
       }
       setBusinessPlanContent(content);
+      setBusinessPlanStreaming("");
     } catch {
       setError("Failed to generate business plan.");
     } finally {
@@ -152,440 +163,401 @@ export default function ResultsPage() {
     router.push("/validate");
   };
 
-  return (
-    <div className="min-h-screen min-h-[100dvh] flex bg-slate-100">
-      <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-slate-900 text-white">
-        <div className="p-5 border-b border-slate-700">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center">
-              <Zap className="w-5 h-5" />
-            </div>
-            <span className="font-bold text-lg">Priority Debater</span>
-          </Link>
-        </div>
-        <div className="p-4">
-          <button
-            onClick={handleValidateNew}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-medium text-sm transition-colors"
-          >
-            <span>+</span> Validate new idea
-          </button>
-        </div>
-        <div className="flex-1 px-4 pt-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4">
-            Journey
-          </h3>
-          <div className="space-y-1">
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-indigo-600/20 border border-indigo-500/30">
-              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-              <div className="min-w-0">
-                <span className="font-medium text-sm block">Idea Validation</span>
-                <span className="text-xs text-slate-400">Complete</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400">
-              <div className="w-4 h-4 rounded-full border-2 border-slate-500 shrink-0" />
-              <span className="text-sm">Market Analysis</span>
-            </div>
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400">
-              <div className="w-4 h-4 rounded-full border-2 border-slate-500 shrink-0" />
-              <span className="text-sm">Business Plan</span>
-            </div>
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400">
-              <div className="w-4 h-4 rounded-full border-2 border-slate-500 shrink-0" />
-              <span className="text-sm">Debate & Refine</span>
-            </div>
-          </div>
-        </div>
-      </aside>
+  const displayBusinessPlan = businessPlanContent || businessPlanStreaming;
 
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <div className="min-w-0">
-              <h2 className="text-lg font-semibold text-slate-900 truncate">{setup.topic}</h2>
-              <p className="text-sm text-slate-500 mt-0.5">Validation Report · Step 1 of 3</p>
-            </div>
+  const tabIcons = [
+    <BarChart3 key="o" className="w-4 h-4" />,
+    <Users key="c" className="w-4 h-4" />,
+    <Target key="s" className="w-4 h-4" />,
+    <Briefcase key="f" className="w-4 h-4" />,
+  ];
+
+  return (
+    <div className="min-h-screen min-h-[100dvh] bg-slate-50">
+      {/* Top bar */}
+      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-slate-200">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link href="/" className="flex items-center gap-2 text-slate-900 font-bold hover:opacity-80 transition-opacity shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
+                <Zap className="w-4 h-4 text-white" />
+              </div>
+              <span className="hidden sm:inline">Priority Debater</span>
+            </Link>
+            <span className="text-slate-300 hidden sm:inline">/</span>
+            <span className="text-sm text-slate-500 truncate hidden sm:inline">{setup.topic}</span>
+          </div>
+          <div className="flex items-center gap-2">
             <button
               onClick={() => downloadReport(setup, messages)}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg bg-white border border-slate-200 shrink-0"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-all"
             >
-              <Download className="w-4 h-4" /> Download
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Download</span>
+            </button>
+            <button
+              onClick={handleValidateNew}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-all"
+            >
+              + New
             </button>
           </div>
+        </div>
+      </div>
 
-          <div className="relative rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-indigo-950 p-6 sm:p-8 mb-8 overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.2)_0%,_transparent_50%)]" />
-            <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-              <div className="flex-1">
-                {(dashboard.summary || dashboard.verdict) && (
-                  <p className="text-slate-200 text-base sm:text-lg leading-relaxed max-w-2xl">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        {/* Hero score card */}
+        <div className="relative rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 p-6 sm:p-8 mb-8 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.15)_0%,_transparent_50%)]" />
+          <div className="relative">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg sm:text-xl font-bold text-white mb-2 truncate">{setup.topic}</h1>
+                {(dashboard.verdict || dashboard.summary) && (
+                  <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl mb-4">
                     {dashboard.verdict || dashboard.summary}
                   </p>
                 )}
+                {goNoGoLabel && (
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${goNoGoColor}`}>
+                    {goNoGoLabel === "GO" && <Check className="w-3 h-3" />}
+                    {goNoGoLabel === "CAUTION" && <AlertTriangle className="w-3 h-3" />}
+                    {goNoGoLabel === "NO-GO" && <X className="w-3 h-3" />}
+                    {goNoGoLabel}
+                  </span>
+                )}
               </div>
-                {dashboard.score != null && (
-                  <div className="flex items-center gap-4 sm:gap-6 shrink-0">
-                    <div className="flex flex-col items-center">
-                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-red-400 bg-white/5 border border-white/10">
-                        {riskPct}
-                      </div>
-                      <span className="text-xs text-slate-400 mt-1.5 font-medium">RISK</span>
+
+              {score != null && (
+                <div className="flex items-center gap-5 shrink-0">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl font-bold ${scoreColor} bg-white/5 border-2 ${scoreBorderColor}`}>
+                      {score}
                     </div>
-                    <div className="flex flex-col items-center">
-                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-blue-400 bg-white/5 border border-white/10">
-                        {diffPct}
-                      </div>
-                      <span className="text-xs text-slate-400 mt-1.5 font-medium">DIFF</span>
+                    <span className="text-xs text-slate-400 font-medium tracking-wide">/ 10</span>
+                  </div>
+                  <div className="flex flex-col gap-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span className="text-slate-300">{dashboard.strengths.length} strengths</span>
                     </div>
-                    <div className="flex flex-col items-center">
-                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-amber-400 bg-white/5 border border-white/10">
-                        {compPct}
-                      </div>
-                      <span className="text-xs text-slate-400 mt-1.5 font-medium">COMP</span>
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span className="text-slate-300">{dashboard.risks.length} risks</span>
                     </div>
-                    <div className="flex flex-col items-center">
-                      <div
-                        className={`w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold border-2 ${scoreColor} bg-white/10`}
-                      >
-                        {score100}
-                      </div>
-                      <span className="text-xs text-slate-400 mt-1.5 font-medium">SCORE</span>
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-blue-400 shrink-0" />
+                      <span className="text-slate-300">{dashboard.recommendations.length} actions</span>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
             </div>
           </div>
+        </div>
 
-          <div className="flex gap-1 overflow-x-auto pb-2 mb-6 scrollbar-hide">
-            {["Overview", "Customer & Market", "Strategy", "Financials"].map((label, i) => (
-              <button
-                key={label}
-                onClick={() => setActiveTab(i)}
-                className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  activeTab === i
-                    ? "bg-slate-900 text-white shadow-md"
-                    : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+        {/* Tabs */}
+        <div className="flex gap-1 overflow-x-auto pb-2 mb-6 scrollbar-hide">
+          {["Overview", "Customer & Market", "Strategy", "Financials"].map((label, i) => (
+            <button
+              key={label}
+              onClick={() => setActiveTab(i)}
+              className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeTab === i
+                  ? "bg-slate-900 text-white shadow-md"
+                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+              }`}
+            >
+              {tabIcons[i]}
+              {label}
+            </button>
+          ))}
+        </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 min-h-[420px]">
-            {activeTab === 0 && (
-              <>
-                <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-5 overflow-y-auto max-h-[480px]">
-                  <h3 className="text-sm font-bold text-slate-900 mb-3">Summary & Verdict</h3>
-                  {dashboard.summary && (
-                    <p className="text-slate-700 text-sm mb-3">{dashboard.summary}</p>
-                  )}
-                  {dashboard.verdict && (
-                    <p className="text-indigo-700 font-medium text-sm mb-3">{dashboard.verdict}</p>
-                  )}
-                  {dashboard.goNoGo && (
+        {/* Tab content */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+          {activeTab === 0 && (
+            <>
+              <div className="space-y-4">
+                {dashboard.summary && (
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <h3 className="text-sm font-bold text-slate-900 mb-3">Summary</h3>
+                    <p className="text-slate-700 text-sm leading-relaxed">{dashboard.summary}</p>
+                  </div>
+                )}
+                {dashboard.goNoGo && (
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <h3 className="text-sm font-bold text-slate-900 mb-3">Go/No-Go Recommendation</h3>
                     <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo}</ReactMarkdown>
                     </div>
+                  </div>
+                )}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                  <h3 className="text-sm font-bold text-slate-900 mb-3">Validation Steps</h3>
+                  {dashboard.recommendations.length > 0 ? (
+                    <ol className="space-y-2.5 text-sm text-slate-700">
+                      {dashboard.recommendations.map((rec, i) => (
+                        <li key={i} className="flex gap-3">
+                          <span className="shrink-0 w-6 h-6 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">
+                            {i + 1}
+                          </span>
+                          <span className="leading-relaxed">{rec}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="text-slate-400 text-sm italic">No specific steps parsed.</p>
                   )}
                 </div>
-                <div className="space-y-4 overflow-y-auto max-h-[480px]">
-                  <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-5">
-                    <h3 className="text-sm font-bold text-slate-900 mb-3">Key Recommendations</h3>
-                    {dashboard.recommendations.length > 0 ? (
-                      <ol className="space-y-2 text-sm text-slate-700">
-                        {dashboard.recommendations.map((rec, i) => (
-                          <li key={i} className="flex gap-2">
-                            <span className="shrink-0 w-5 h-5 rounded bg-violet-100 text-violet-700 text-xs font-semibold flex items-center justify-center">
-                              {i + 1}
-                            </span>
-                            <span>{rec}</span>
-                          </li>
-                        ))}
-                      </ol>
+              </div>
+              <div className="space-y-4">
+                <div className="bg-white rounded-xl shadow-sm border-2 border-emerald-200/60 p-5">
+                  <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-1.5">
+                    <Check className="w-4 h-4 text-emerald-600" /> Strengths ({dashboard.strengths.length})
+                  </h3>
+                  {dashboard.strengths.length > 0 ? (
+                    <ul className="space-y-2 text-sm text-slate-700">
+                      {dashboard.strengths.map((s, i) => (
+                        <li key={i} className="flex gap-2">
+                          <Check className="w-4 h-4 shrink-0 text-emerald-500 mt-0.5" />
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-slate-400 text-sm italic">None identified.</p>
+                  )}
+                </div>
+                <div className="bg-white rounded-xl shadow-sm border-2 border-red-200/60 p-5">
+                  <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-red-500" /> Risk Flags ({dashboard.risks.length})
+                  </h3>
+                  {dashboard.risks.length > 0 ? (
+                    <ul className="space-y-2 text-sm text-slate-700">
+                      {dashboard.risks.map((r, i) => (
+                        <li key={i} className="flex gap-2">
+                          <X className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
+                          <span>{r}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-slate-400 text-sm italic">None identified.</p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+          {activeTab === 1 && (
+            <>
+              <div className="space-y-4">
+                {dashboard.problemSolution && (
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                      <Lightbulb className="w-4 h-4 text-amber-600" /> Problem-Solution Fit
+                    </h3>
+                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {dashboard.problemSolution}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+                {dashboard.targetCustomer && (
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-blue-600" /> Target Customer
+                    </h3>
+                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {dashboard.targetCustomer}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-4">
+                {dashboard.valueProposition && (
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                      <MessageSquare className="w-4 h-4 text-violet-600" /> Value Proposition
+                    </h3>
+                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {dashboard.valueProposition}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+                {dashboard.businessModel && (
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                      <Layout className="w-4 h-4 text-emerald-600" /> Business Model
+                    </h3>
+                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {dashboard.businessModel}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+                {dashboard.marketSummary && (
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                      <BarChart3 className="w-4 h-4 text-sky-600" /> Market Opportunity
+                    </h3>
+                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {dashboard.marketSummary}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+                {dashboard.competitiveSummary && (
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                      <Target className="w-4 h-4 text-rose-600" /> Competitive Landscape
+                    </h3>
+                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {dashboard.competitiveSummary}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+          {activeTab === 2 && (
+            <>
+              <div className="space-y-4">
+                {dashboard.keyAssumptions && (
+                  <div className="bg-white rounded-xl shadow-sm border-l-4 border-amber-500 p-5">
+                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                      <HelpCircle className="w-4 h-4 text-amber-600" /> Key Assumptions
+                    </h3>
+                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {dashboard.keyAssumptions}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+                {dashboard.timelineToLaunch && (
+                  <div className="bg-white rounded-xl shadow-sm border-l-4 border-indigo-500 p-5">
+                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-indigo-600" /> Timeline to Launch
+                    </h3>
+                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {dashboard.timelineToLaunch}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-4">
+                {dashboard.financialSummary && (
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                      <BarChart3 className="w-4 h-4 text-slate-600" /> Financial Snapshot
+                    </h3>
+                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {dashboard.financialSummary}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+          {activeTab === 3 && (
+            <>
+              <div className="space-y-4">
+                <div className="bg-gradient-to-br from-indigo-50 to-violet-50 rounded-xl border-2 border-indigo-200/60 p-5">
+                  <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                    <Briefcase className="w-4 h-4 text-indigo-600" /> Business Plan Generator
+                  </h3>
+                  <p className="text-slate-600 text-sm mb-4">
+                    Generate an investor-ready business plan with financials, GTM strategy, and projections.
+                  </p>
+                  <button
+                    onClick={handleGenerateBusinessPlan}
+                    disabled={isGeneratingBusinessPlan || !!businessPlanContent}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                  >
+                    {isGeneratingBusinessPlan ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" /> Generating...
+                      </>
+                    ) : businessPlanContent ? (
+                      <>
+                        <Check className="w-4 h-4" /> Generated
+                      </>
                     ) : (
-                      <p className="text-slate-500 italic text-sm">—</p>
+                      <>
+                        <Briefcase className="w-4 h-4" /> Generate Business Plan
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div>
+                {displayBusinessPlan ? (
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 max-h-[600px] overflow-y-auto">
+                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-headings:text-slate-900 prose-h2:text-base prose-h3:text-sm">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {displayBusinessPlan}
+                      </ReactMarkdown>
+                    </div>
+                    {isGeneratingBusinessPlan && (
+                      <div className="flex items-center gap-2 mt-4 text-slate-400 text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Writing...
+                      </div>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white rounded-xl shadow-md border-2 border-emerald-200/60 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                        <Check className="w-4 h-4 text-emerald-600" /> Strengths
-                      </h3>
-                      <ul className="space-y-1.5 text-xs text-slate-700">
-                        {dashboard.strengths.slice(0, 4).map((s, i) => (
-                          <li key={i} className="flex gap-1.5">
-                            <Check className="w-3 h-3 shrink-0 text-emerald-500 mt-0.5" />
-                            <span>{s}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="bg-white rounded-xl shadow-md border-2 border-red-200/60 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                        <X className="w-4 h-4 text-red-600" /> Concerns
-                      </h3>
-                      <ul className="space-y-1.5 text-xs text-slate-700">
-                        {dashboard.risks.slice(0, 4).map((r, i) => (
-                          <li key={i} className="flex gap-1.5">
-                            <X className="w-3 h-3 shrink-0 text-red-500 mt-0.5" />
-                            <span>{r}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                ) : (
+                  <div className="bg-slate-100 rounded-xl border-2 border-dashed border-slate-200 p-8 text-center">
+                    <Briefcase className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-500 text-sm">Click generate to create your business plan.</p>
                   </div>
-                </div>
-              </>
-            )}
-            {activeTab === 1 && (
-              <>
-                <div className="space-y-4 overflow-y-auto max-h-[480px]">
-                  {dashboard.problemSolution && (
-                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl shadow-md border border-amber-200/50 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                        <Lightbulb className="w-4 h-4 text-amber-600" /> Problem-Solution Fit
-                      </h3>
-                      <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {dashboard.problemSolution}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
-                  {dashboard.targetCustomer && (
-                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-md border border-blue-200/50 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                        <Users className="w-4 h-4 text-blue-600" /> Target Customer
-                      </h3>
-                      <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {dashboard.targetCustomer}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-4 overflow-y-auto max-h-[480px]">
-                  {dashboard.valueProposition && (
-                    <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl shadow-md border border-violet-200/50 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                        <MessageSquare className="w-4 h-4 text-violet-600" /> Value Proposition
-                      </h3>
-                      <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {dashboard.valueProposition}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
-                  {dashboard.businessModel && (
-                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl shadow-md border border-emerald-200/50 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                        <Layout className="w-4 h-4 text-emerald-600" /> Business Model
-                      </h3>
-                      <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {dashboard.businessModel}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
-                  {dashboard.marketSummary && (
-                    <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                        <BarChart3 className="w-4 h-4 text-sky-600" /> Market Opportunity
-                      </h3>
-                      <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {dashboard.marketSummary}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
-                  {dashboard.competitiveSummary && (
-                    <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                        <Target className="w-4 h-4 text-rose-600" /> Competitive Landscape
-                      </h3>
-                      <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {dashboard.competitiveSummary}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-            {activeTab === 2 && (
-              <>
-                <div className="space-y-4 overflow-y-auto max-h-[480px]">
-                  {dashboard.keyAssumptions && (
-                    <div className="bg-white rounded-xl shadow-md border-l-4 border-amber-500 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                        <HelpCircle className="w-4 h-4 text-amber-600" /> Key Assumptions
-                      </h3>
-                      <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {dashboard.keyAssumptions}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
-                  {dashboard.timelineToLaunch && (
-                    <div className="bg-white rounded-xl shadow-md border-l-4 border-indigo-500 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4 text-indigo-600" /> Timeline to Launch
-                      </h3>
-                      <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {dashboard.timelineToLaunch}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[480px]">
-                  <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-                    <h3 className="text-sm font-bold text-slate-900 mb-3">Market Factors</h3>
-                    <div className="space-y-3">
-                      {marketFactors.map((f, i) => (
-                        <div key={i}>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="text-slate-600">{f.label}</span>
-                            <span className="font-semibold">{f.value}/100</span>
-                          </div>
-                          <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                            <div
-                              className="h-full bg-indigo-500 rounded-full"
-                              style={{ width: `${f.value}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-                    <h3 className="text-sm font-bold text-slate-900 mb-3">Execution Factors</h3>
-                    <div className="space-y-3">
-                      {executionFactors.map((f, i) => (
-                        <div key={i}>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="text-slate-600">{f.label}</span>
-                            <span className="font-semibold">{f.value}/100</span>
-                          </div>
-                          <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                            <div
-                              className="h-full bg-violet-500 rounded-full"
-                              style={{ width: `${f.value}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-            {activeTab === 3 && (
-              <>
-                <div className="space-y-4 overflow-y-auto max-h-[480px]">
-                  {dashboard.financialSummary && (
-                    <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                        <BarChart3 className="w-4 h-4 text-slate-600" /> Financial Snapshot
-                      </h3>
-                      <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {dashboard.financialSummary}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
-                  <div className="bg-gradient-to-br from-indigo-50 to-violet-50 rounded-xl border-2 border-indigo-200/60 p-4">
-                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                      <Briefcase className="w-4 h-4 text-indigo-600" /> Business Plan
-                    </h3>
-                    <p className="text-slate-600 text-xs mb-3">
-                      Formalize with financials, GTM and projections.
-                    </p>
-                    <button
-                      onClick={handleGenerateBusinessPlan}
-                      disabled={isGeneratingBusinessPlan}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
-                    >
-                      {isGeneratingBusinessPlan ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" /> Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Briefcase className="w-4 h-4" /> Generate Business Plan
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-                <div className="overflow-y-auto max-h-[480px]">
-                  {businessPlanContent ? (
-                    <div className="bg-white rounded-xl shadow-md border border-slate-200/50 p-4">
-                      <h3 className="text-sm font-bold text-slate-900 mb-3">Business Plan</h3>
-                      <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-headings:text-slate-900 prose-h2:text-base prose-h3:text-sm">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {businessPlanContent}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 p-8 text-center">
-                      <Briefcase className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                      <p className="text-slate-500 text-sm">Generate a business plan to see it here.</p>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-
-          {error && (
-            <div className="mb-6 p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
-              {error}
-            </div>
+                )}
+              </div>
+            </>
           )}
+        </div>
 
-          <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-2xl p-6 sm:p-8 shadow-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-              <div className="flex items-center gap-5">
-                <div className="p-4 rounded-2xl bg-white/20 shrink-0">
-                  <Swords className="w-10 h-10 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white">
-                    Ready to stress-test your logic?
-                  </h3>
-                  <p className="text-violet-100 text-base mt-2">
-                    Defend your position. Find blind spots. Refine before you build.
-                  </p>
-                </div>
+        {error && (
+          <div className="mb-6 p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
+            {error}
+          </div>
+        )}
+
+        {/* Debate CTA */}
+        <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-2xl p-6 sm:p-8 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-white/20 shrink-0">
+                <Swords className="w-8 h-8 text-white" />
               </div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Link
-                  href="/debate"
-                  className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-white text-violet-700 font-bold hover:bg-violet-50 transition-colors shadow-lg text-base"
-                >
-                  <Swords className="w-5 h-5" />
-                  Debate this idea
-                </Link>
-                <button
-                  onClick={handleValidateNew}
-                  className="px-6 py-4 rounded-xl border-2 border-white/40 text-white font-semibold hover:bg-white/10 transition-colors"
-                >
-                  Validate another
-                </button>
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-white">
+                  Ready to stress-test your logic?
+                </h3>
+                <p className="text-violet-100 text-sm mt-1">
+                  Defend your position. Find blind spots. Refine before you build.
+                </p>
               </div>
             </div>
+            <Link
+              href="/debate"
+              className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-white text-violet-700 font-bold hover:bg-violet-50 transition-colors shadow-lg text-base shrink-0"
+            >
+              <Swords className="w-5 h-5" />
+              Debate this idea
+            </Link>
           </div>
         </div>
       </main>

@@ -1,23 +1,11 @@
 import OpenAI from "openai";
+import { shouldBlock, sanitizeForDisplay } from "@/lib/contentModeration";
 
 const MAX_TOPIC = 500;
 const MAX_POSITION = 2000;
 const MAX_CONTEXT = 1000;
 const MAX_MESSAGES = 50;
-
-// Content moderation: block harmful/illegal topics
-const BLOCKED_PATTERNS = [
-  "murder", "assassin", "hitman", "terrorism", "bomb", "weapons deal",
-  "drug deal", "drug dealing", "cocaine", "heroin", "meth", "drug trafficking",
-  "child porn", "child abuse", "human trafficking", "slavery",
-  "money laundering", "pyramid scheme", "ransomware",
-  "identity theft", "steal credit card", "sell drugs",
-].map((p) => p.toLowerCase());
-
-function containsBlockedContent(text: string): boolean {
-  const lower = text.toLowerCase();
-  return BLOCKED_PATTERNS.some((p) => lower.includes(p));
-}
+const MAX_MESSAGE_LENGTH = 2000;
 
 function validateInput(str: string, max: number): string {
   return String(str || "").slice(0, max).trim();
@@ -34,7 +22,7 @@ function getClientId(request: Request): string {
 // Simple in-memory rate limit (resets on cold start; for production consider Upstash Redis)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX = 10; // 10 requests per minute per IP
+const RATE_LIMIT_MAX = 15; // 15 requests per minute per IP
 
 function checkRateLimit(clientId: string): boolean {
   const now = Date.now();
@@ -68,10 +56,11 @@ interface DebateSetup {
 const BASE_PERSONA = `You are The Adversary — a thinking partner with personality. You're not a bland validator or a generic chatbot. You're sharp, opinionated, and memorable. You've got the mind of a world-class strategist, the financial rigor of a CFO, and the wit of someone who's seen too many pitches to suffer fools.
 
 **CRITICAL: CONTENT POLICY**
-- You ONLY validate and debate legitimate business ideas, startups, and entrepreneurship.
-- NEVER engage with topics involving violence, illegal drugs, weapons, fraud, exploitation, or any harmful/illegal activity.
-- If you detect such content, respond briefly: "I can only help with legitimate business ideas. Let's validate something else."
-- Do not elaborate, debate, or engage further with harmful content.
+- You validate and debate business ideas. Academic discussion of controversial topics (regulation, ethics, market impact) is allowed.
+- ALLOW: "Should drug trafficking penalties be harsher?" "Is insider trading harmful to markets?" — debate, analysis, policy discussion.
+- BLOCK: "How do I traffic drugs?" "Where to buy cocaine?" — operational requests, instructions, or facilitation of harm.
+- If someone asks for instructions or help with illegal/harmful activities, respond: "I can help you debate ideas and analyze markets, but I can't provide instructions for harmful or illegal activities."
+- Do not give how-to advice, step-by-step guides, or operational information for illegal activities.
 
 **Your financial & business DNA:**
 - You think in unit economics: CAC, LTV, payback period, burn multiple, gross margin
@@ -338,27 +327,44 @@ export async function POST(request: Request) {
       );
     }
 
-    // Content moderation: reject harmful/illegal topics
+    // Content moderation: block operational requests for harm, allow debate/analysis
     const allText = [setup.topic, setup.position, setup.context].filter(Boolean).join(" ");
-    if (containsBlockedContent(allText)) {
+    if (shouldBlock(allText)) {
       return new Response(
         JSON.stringify({
-          error: "This topic isn't appropriate for validation. Please stick to legitimate business ideas.",
+          error: "I can help you debate ideas, but I can't provide instructions for harmful or illegal activities.",
         }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
     if (action === "continue" && rawMessages && rawMessages.length > 0) {
-      const lastUserMsg = rawMessages.filter((m) => m.role === "user").pop();
-      if (lastUserMsg && containsBlockedContent(lastUserMsg.content)) {
-        return new Response(
-          JSON.stringify({
-            error: "That message isn't appropriate. Please stick to debating your business idea.",
-          }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
-        );
+      const userMessages = rawMessages.filter((m) => m.role === "user");
+      for (const msg of userMessages) {
+        if (shouldBlock(msg.content)) {
+          return new Response(
+            JSON.stringify({
+              error: "I can help you debate ideas, but I can't provide instructions for harmful or illegal activities.",
+            }),
+            { status: 400, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        if (msg.content.length > MAX_MESSAGE_LENGTH) {
+          return new Response(
+            JSON.stringify({ error: "Message too long. Keep it under 2000 characters." }),
+            { status: 400, headers: { "Content-Type": "application/json" } }
+          );
+        }
       }
+    }
+
+    if (action === "business-plan" && validationContent && shouldBlock(validationContent)) {
+      return new Response(
+        JSON.stringify({
+          error: "I can help with business plans for legitimate ideas, but not for harmful or illegal activities.",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     if (action === "start") {
@@ -928,10 +934,11 @@ Continue challenging them through your lens. Track the evolution of their argume
     ];
 
     for (const msg of messages) {
+      const safeContent = sanitizeForDisplay(msg.content);
       if (msg.role === "opponent") {
-        conversationHistory.push({ role: "assistant", content: msg.content });
+        conversationHistory.push({ role: "assistant", content: safeContent });
       } else {
-        conversationHistory.push({ role: "user", content: msg.content });
+        conversationHistory.push({ role: "user", content: safeContent });
       }
     }
 
