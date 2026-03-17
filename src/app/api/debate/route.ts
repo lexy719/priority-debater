@@ -297,6 +297,26 @@ export async function POST(request: Request) {
       );
     }
 
+    // TEST_MODE: mock response for UI testing
+    if (process.env.TEST_MODE === "true") {
+      const mockReport = `## COMPREHENSIVE IDEA ANALYSIS\n\n### Idea Summary\nAn AI-powered personal finance app that uses voice agents to negotiate lower rates on recurring bills. The core value proposition is saving users money on autopilot.\n\n### Viability Score: 7/10\n**GO with caution.** Strong market demand and proven business model, but execution risk around AI voice reliability.\n\n### Category Scores\n- Problem-Solution Fit: 8/10\n- Market Opportunity: 7/10\n- Competitive Edge: 6/10\n- Business Model: 8/10\n- Team & Execution: 7/10\n- Timing & Trends: 9/10\n\n### Problem-Solution Fit\n- **The Problem:** Average US household overpays $400-800/year on negotiable bills. 85% avoid calling providers.\n- **Current Alternatives:** Manual negotiation (painful), Trim/Billshark (human agents, slow, expensive).\n- **Your Solution:** AI voice agents that handle negotiation calls in minutes, not days.\n- **Evidence of Fit:** Trim processed $1B+ in savings. The demand is proven.\n\n### Target Customer & ICP\n- **Primary segment:** Tech-savvy millennials (25-40), income $50-120k, 3+ recurring bills.\n- **Jobs to be done:** "Save me money without me having to do anything."\n- **Buying triggers:** Seeing a specific dollar amount they could save.\n- **Channels to reach them:** TikTok/Instagram financial content, personal finance subreddits.\n\n### Value Proposition\n- **Headline:** "BillBot saves you hundreds on bills — without a single phone call."\n- **Key benefits:** (1) Average $400/year savings, (2) Zero effort, (3) Only pay when you save.\n- **Differentiation:** AI-first = faster, cheaper, scalable.\n- **Proof points needed:** Success rate vs human agents, average savings per user.\n\n### Business Model\n- **Revenue model:** 25-30% of verified savings (success-fee only)\n- **Pricing strategy:** Value-based — users only pay when they save\n- **Key metrics:** MRR, negotiation success rate, average savings per user, churn\n- **Unit economics target:** LTV ~$300, CAC <$30, LTV:CAC >10x\n\n### Market Opportunity\n- **TAM/SAM/SOM:** TAM $25B, SAM $8B, SOM $200M in year 3\n- **Market timing:** AI voice tech matured in 2024-2025, rising cost of living\n- **Growth drivers:** AI costs decreasing, consumer fintech adoption at all-time high\n- **Headwinds:** Provider pushback on AI callers, regulatory uncertainty\n\n### Competitive Landscape\n| Player | Approach | Weakness |\n|--------|----------|----------|\n| Trim | Human + automation | Slow (days), limited categories |\n| Billshark | Human agents | Expensive (40% commission) |\n| Rocket Money | Bill tracking + cancellation | Doesn't negotiate, just cancels |\n| Your App | Full AI voice agents | Unproven tech |\n\n### Strengths\n1. Proven market demand ($1B+ saved by competitors)\n2. Superior unit economics vs human-agent model\n3. Strong founding team (AI + product design)\n4. Success-fee model eliminates user risk\n5. AI costs decreasing while capabilities improve\n\n### Risk Flags\n1. AI reliability: Voice agents may fail on complex negotiations\n2. Provider pushback: Companies may block or detect AI callers\n3. Regulatory risk: FTC rules on automated calling\n4. Trust barrier: Users must share account details\n5. Churn: After bills are negotiated, users may not return for 12 months\n\n### Key Assumptions to Validate\n- AI voice agents can achieve 60%+ success rate\n- Providers won't systematically block AI callers\n- Users will trust the app with billing account access\n- CAC stays below $30 through organic growth\n\n### Timeline to Launch\n- **Pre-build (weeks 1-4):** Customer interviews, landing page, waitlist\n- **Build (weeks 5-12):** MVP with internet bill negotiation\n- **Launch (weeks 13-16):** Closed beta with 100 users\n- **Post-launch (months 4-6):** Add insurance, phone categories\n\n### Financial Snapshot\n- **Revenue model:** Success fee (25-30% of savings)\n- **Unit economics:** CAC $20-30, LTV $300, gross margin 85%\n- **Path to profitability:** Break-even at 5k users (~month 14)\n- **Funding need:** Bootstrappable to PMF with $80k\n\n### Lean Canvas\n- **Problem:** People overpay $400-800/yr on bills; 85% hate calling providers; existing solutions use expensive human agents\n- **Solution:** AI voice agents negotiate bills automatically; instant results; success-fee pricing\n- **Key Metrics:** Negotiation success rate, avg savings/user, CAC, MRR, churn rate\n- **Unique Value Proposition:** Save hundreds on bills without making a single phone call\n- **Unfair Advantage:** Proprietary negotiation AI trained on thousands of real calls\n- **Channels:** Fintech app stores, TikTok/Instagram, personal finance communities, referral program\n- **Customer Segments:** US millennials (25-40) with 3+ recurring bills, income $50-120k\n- **Cost Structure:** AI API costs, cloud infrastructure, customer acquisition, compliance/legal\n- **Revenue Streams:** Success fee (25-30% of verified savings), premium tier for proactive monitoring\n\n### Go/No-Go Recommendation\n**GO** — The market is proven, the economics work, and AI is ready enough for an MVP. Validate with 100 real negotiations before scaling.\n\n### Top 5 Validation Steps Before Building\n1. Run 50 manual bill negotiations to understand provider responses and success patterns\n2. Build a landing page and measure conversion from "see savings" to "sign up"\n3. Interview 20 target customers about trust barriers and willingness to share bill info\n4. Test AI voice agent on 10 real calls with internet providers\n5. Calculate actual unit economics from the manual negotiation data\n\n### One-Line Verdict\nA well-timed AI play in a proven market — execute fast, nail the voice agent, and you could build the Trim-killer.`;
+      const encoder = new TextEncoder();
+      const words = mockReport.split(/(\s+)/);
+      const readable = new ReadableStream({
+        async start(controller) {
+          for (let i = 0; i < words.length; i++) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: words[i] })}\n\n`));
+            if (i % 8 === 0) await new Promise(r => setTimeout(r, 10));
+          }
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        },
+      });
+      return new Response(readable, {
+        headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+      });
+    }
+
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -791,6 +811,14 @@ Generate a complete analysis with these EXACT sections. Each section should be s
 ### Viability Score: [X]/10
 [One sentence: GO / CAUTION / NO-GO. Be specific about why. Include confidence level.]
 
+### Category Scores
+- Problem-Solution Fit: [X]/10
+- Market Opportunity: [X]/10
+- Competitive Edge: [X]/10
+- Business Model: [X]/10
+- Team & Execution: [X]/10
+- Timing & Trends: [X]/10
+
 ### Problem-Solution Fit
 - **The Problem:** [Describe the pain point — who feels it, how acute, how often]
 - **Current Alternatives:** [What do people do today? Why are they inadequate?]
@@ -864,6 +892,17 @@ Generate a complete analysis with these EXACT sections. Each section should be s
 3. [Third step]
 4. [Fourth step]
 5. [Fifth step]
+
+### Lean Canvas
+- **Problem:** [Top 3 problems, one line each]
+- **Solution:** [Top 3 solutions matching the problems]
+- **Key Metrics:** [3-5 numbers to track]
+- **Unique Value Proposition:** [Single clear compelling message]
+- **Unfair Advantage:** [Something that cannot be easily copied]
+- **Channels:** [Path to customers]
+- **Customer Segments:** [Target customers]
+- **Cost Structure:** [Key costs]
+- **Revenue Streams:** [Sources of revenue]
 
 ### One-Line Verdict
 [The single most important insight about this idea]
