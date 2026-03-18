@@ -354,7 +354,7 @@ export default function Home() {
           {/* Trust */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
             className="flex flex-wrap justify-center gap-5 text-[11px] text-white/25">
-            {["Powered by GPT-5", "100% private", "No credit card", "Results in 2 min"].map((t) => (
+            {["Powered by GPT-4o", "100% private", "No credit card", "Results in 2 min"].map((t) => (
               <span key={t} className="flex items-center gap-1.5">
                 <Check className="w-3 h-3 text-emerald-500/60" />{t}
               </span>
@@ -403,7 +403,7 @@ export default function Home() {
 
             {[
               { n: "01", title: "Describe", desc: "Tell us your idea, why you think it works, and your situation. Takes 30 seconds.", badge: "30 SECONDS • FREE", icon: <FileText className="w-5 h-5" />, accent: "border-blue-500/30 bg-blue-500/[0.06]", badgeColor: "bg-blue-500/10 text-blue-400 border-blue-500/20", dotColor: "bg-blue-500" },
-              { n: "02", title: "Analyze", desc: "GPT-5 evaluates viability, market size, competitors, risks, and generates a full dashboard with radar chart and lean canvas.", badge: "15+ CRITERIA • RADAR CHART", icon: <BarChart3 className="w-5 h-5" />, accent: "border-violet-500/30 bg-violet-500/[0.06]", badgeColor: "bg-violet-500/10 text-violet-400 border-violet-500/20", dotColor: "bg-violet-500" },
+              { n: "02", title: "Analyze", desc: "GPT-4o evaluates viability, market size, competitors, risks, and generates a full dashboard with radar chart and lean canvas.", badge: "15+ CRITERIA • RADAR CHART", icon: <BarChart3 className="w-5 h-5" />, accent: "border-violet-500/30 bg-violet-500/[0.06]", badgeColor: "bg-violet-500/10 text-violet-400 border-violet-500/20", dotColor: "bg-violet-500" },
               { n: "03", title: "Debate", desc: "Defend your position against an AI adversary that uses inversion, base rate analysis, and pre-mortem thinking to find every flaw.", badge: "AI ADVERSARY • 6 QUICK ACTIONS", icon: <Swords className="w-5 h-5" />, accent: "border-emerald-500/30 bg-emerald-500/[0.06]", badgeColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", dotColor: "bg-emerald-500" },
               { n: "04", title: "Launch", desc: "Export your report as PDF, generate a business plan, share with co-founders, and start building with confidence.", badge: "PDF EXPORT • SHARE LINK", icon: <Zap className="w-5 h-5" />, accent: "border-amber-500/30 bg-amber-500/[0.06]", badgeColor: "bg-amber-500/10 text-amber-400 border-amber-500/20", dotColor: "bg-amber-500" },
             ].map((item, i) => {
