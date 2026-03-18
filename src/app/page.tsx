@@ -33,7 +33,6 @@ import {
   Download,
   Share2,
   ChevronDown,
-  Play,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -116,11 +115,15 @@ function StaggerItem({ children, className = "" }: { children: React.ReactNode; 
 
 // ── Typing animation ────────────────────────────────────────────────────
 function TypingText({ texts, className = "" }: { texts: string[]; className?: string }) {
+  const [mounted, setMounted] = useState(false);
   const [idx, setIdx] = useState(0);
-  const [displayText, setDisplayText] = useState("");
+  const [displayText, setDisplayText] = useState(texts[0]);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  useEffect(() => { setMounted(true); }, []);
+
   useEffect(() => {
+    if (!mounted) return;
     const current = texts[idx];
     const speed = isDeleting ? 30 : 60;
 
@@ -140,12 +143,13 @@ function TypingText({ texts, className = "" }: { texts: string[]; className?: st
       );
     }, speed);
     return () => clearTimeout(timer);
-  }, [displayText, isDeleting, idx, texts]);
+  }, [displayText, isDeleting, idx, texts, mounted]);
 
+  // Server and initial render: show first text statically to avoid hydration mismatch
   return (
-    <span className={className}>
+    <span className={className} suppressHydrationWarning>
       {displayText}
-      <span className="animate-pulse">|</span>
+      {mounted && <span className="animate-pulse">|</span>}
     </span>
   );
 }
@@ -170,17 +174,21 @@ function DotGrid() {
 
 // ── Live demo mockup ────────────────────────────────────────────────────
 function LiveDemoPreview() {
-  const [activeStep, setActiveStep] = useState(0);
+  const [activeStep, setActiveStep] = useState(-1);
   const [showScore, setShowScore] = useState(false);
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-50px" });
 
   useEffect(() => {
+    if (!inView) return;
     const timers = [
-      setTimeout(() => setActiveStep(1), 800),
-      setTimeout(() => setActiveStep(2), 2000),
-      setTimeout(() => { setActiveStep(3); setShowScore(true); }, 3200),
+      setTimeout(() => setActiveStep(0), 300),
+      setTimeout(() => setActiveStep(1), 1100),
+      setTimeout(() => setActiveStep(2), 2300),
+      setTimeout(() => { setActiveStep(3); setShowScore(true); }, 3500),
     ];
     return () => timers.forEach(clearTimeout);
-  }, []);
+  }, [inView]);
 
   const steps = [
     { label: "Analyzing market...", color: "text-blue-400" },
@@ -190,7 +198,7 @@ function LiveDemoPreview() {
   ];
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 p-5 sm:p-7 overflow-hidden relative">
+    <div ref={ref} className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 p-5 sm:p-7 overflow-hidden relative">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.12)_0%,_transparent_50%)]" />
       <div className="relative">
         {/* Mock header */}
