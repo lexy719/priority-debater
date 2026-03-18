@@ -791,9 +791,39 @@ You are the FUTURE STRATEGIST. Lead with your sharpest future-risk observation. 
 
 Be direct, specific, and actionable. Give them one concrete thing they could do NOW to make their plan more resilient. End with the future scenario that should keep them up at night.`;
       } else {
-        // Comprehensive business idea analysis — every step to help founders
-        openingPrompt = `You are an expert startup advisor and investor. Generate a COMPREHENSIVE, INTRICATE BUSINESS IDEA ANALYSIS that guides founders through every step of validating and building their idea. Be thorough, specific, and actionable. Use realistic numbers. Structure everything with markdown headers.
+        // Detect industry for tailored analysis
+        const ideaLower = (setup.topic + " " + setup.position).toLowerCase();
+        let industryContext = "";
+        if (/saas|software|app|platform|tool|dashboard/i.test(ideaLower)) {
+          industryContext = `\n**INDUSTRY-SPECIFIC FOCUS: SaaS/Software**\nAnalyze with SaaS-specific metrics: MRR/ARR, churn rate, NDR (net dollar retention), CAC payback period, gross margin (target >70%), Rule of 40, magic number. Compare to SaaS benchmarks. Consider PLG vs sales-led growth. Evaluate API/integration moat potential.\n`;
+        } else if (/marketplace|two.?sided|buyer.*seller|supply.*demand/i.test(ideaLower)) {
+          industryContext = `\n**INDUSTRY-SPECIFIC FOCUS: Marketplace**\nAnalyze marketplace dynamics: chicken-and-egg problem, take rate (benchmark 10-20%), liquidity, GMV vs revenue, supply vs demand constraints, disintermediation risk, geographic density requirements, trust/safety costs. Reference Uber, Airbnb, or relevant marketplace patterns.\n`;
+        } else if (/e.?commerce|shop|store|retail|brand|d2c|dtc/i.test(ideaLower)) {
+          industryContext = `\n**INDUSTRY-SPECIFIC FOCUS: E-commerce/D2C**\nAnalyze with e-commerce metrics: AOV, repeat purchase rate, ROAS, contribution margin, inventory risk, fulfillment costs, CAC by channel (Meta/Google/TikTok benchmarks), brand defensibility, subscription vs one-time purchase dynamics.\n`;
+        } else if (/ai|machine learning|ml|gpt|llm|model|neural|automat/i.test(ideaLower)) {
+          industryContext = `\n**INDUSTRY-SPECIFIC FOCUS: AI/ML**\nAnalyze AI-specific risks: commoditization as foundation models improve, data moat vs model moat, inference costs at scale, hallucination/reliability for the use case, regulatory risk (EU AI Act), differentiation beyond "wrapper" criticism. Consider build vs buy for the AI layer.\n`;
+        } else if (/fintech|payment|bank|lend|insur|invest|crypto|defi/i.test(ideaLower)) {
+          industryContext = `\n**INDUSTRY-SPECIFIC FOCUS: Fintech**\nAnalyze with fintech lens: regulatory requirements (licenses, compliance costs), trust barriers, capital requirements, unit economics at scale, fraud/risk management costs, incumbent partnerships vs disruption, money transmission laws.\n`;
+        } else if (/health|medical|patient|clinic|pharma|biotech|wellness|fitness/i.test(ideaLower)) {
+          industryContext = `\n**INDUSTRY-SPECIFIC FOCUS: Healthcare/Healthtech**\nAnalyze healthcare-specific factors: regulatory path (FDA if applicable), HIPAA compliance costs, sales cycle length (enterprise health), reimbursement landscape, clinical validation requirements, provider vs patient adoption barriers, evidence requirements.\n`;
+        } else if (/hardware|device|physical|manufactur|iot|sensor|robot/i.test(ideaLower)) {
+          industryContext = `\n**INDUSTRY-SPECIFIC FOCUS: Hardware/IoT**\nAnalyze hardware-specific challenges: BOM cost and margins (target >50% gross margin), manufacturing complexity, minimum order quantities, supply chain risk, certification requirements, firmware update strategy, return/warranty costs, channel strategy (D2C vs retail).\n`;
+        }
 
+        openingPrompt = `You are an expert startup advisor and investor who has evaluated 10,000+ ideas. Generate a COMPREHENSIVE BUSINESS IDEA ANALYSIS. Be brutally honest — most first-time ideas score 4-6/10, not 7-8. Only truly exceptional ideas with clear evidence deserve 7+.
+
+**SCORING CALIBRATION — THIS IS CRITICAL:**
+- **1-3/10 (NO-GO):** Fundamental flaws. No clear problem, saturated market with no differentiation, or unworkable business model.
+- **4-5/10 (CAUTION):** Decent intuition but major gaps. Most first-time startup ideas land here. Needs significant validation.
+- **6/10 (CAUTION+):** Good idea with real potential but meaningful risks. Needs specific validation before building.
+- **7/10 (GO with conditions):** Strong idea with clear market pull. Only give this if there's real evidence of demand, clear differentiation, AND viable economics.
+- **8-9/10 (STRONG GO):** Exceptional. Reserved for ideas with proven demand signals, defensible moat, strong timing, AND realistic path to scale. Very rare for unvalidated ideas.
+- **10/10:** Essentially never. Even the best ideas have risks.
+
+**Do NOT inflate scores to be encouraging.** An honest 4/10 with clear improvement steps is more valuable than a flattering 7/10. Founders need truth, not comfort.
+
+For each category score, provide specific reasoning. Don't give >7 unless you can cite concrete evidence.
+${industryContext}
 **Idea to validate:** "${setup.topic}"
 
 **Founder's reasoning:**
@@ -801,7 +831,7 @@ ${setup.position}
 
 ${setup.context ? `**Context:** ${setup.context}` : ""}
 
-Generate a complete analysis with these EXACT sections. Each section should be substantive (2-5 bullet points or short paragraphs):
+Generate a complete analysis with these EXACT section headers (the parser depends on exact formatting):
 
 ## COMPREHENSIVE IDEA ANALYSIS
 
@@ -809,7 +839,7 @@ Generate a complete analysis with these EXACT sections. Each section should be s
 [One-line summary. Then 1-2 sentences on the core value proposition.]
 
 ### Viability Score: [X]/10
-[One sentence: GO / CAUTION / NO-GO. Be specific about why. Include confidence level.]
+[GO / CAUTION / NO-GO. Be specific about why. Include confidence level. Remember: most unvalidated ideas are 4-6.]
 
 ### Category Scores
 - Problem-Solution Fit: [X]/10
@@ -820,41 +850,41 @@ Generate a complete analysis with these EXACT sections. Each section should be s
 - Timing & Trends: [X]/10
 
 ### Problem-Solution Fit
-- **The Problem:** [Describe the pain point — who feels it, how acute, how often]
+- **The Problem:** [Who feels it, how acute, how often, willingness to pay]
 - **Current Alternatives:** [What do people do today? Why are they inadequate?]
 - **Your Solution:** [How you solve it differently. The "10x better" angle]
 - **Evidence of Fit:** [What would prove problem-solution fit? Early signals to look for]
 
 ### Target Customer & ICP
-- **Primary segment:** [Who is the ideal first customer? Be specific — role, company size, industry]
+- **Primary segment:** [Specific: role, company size, industry, geography]
 - **Jobs to be done:** [What job are they hiring your product for?]
 - **Buying triggers:** [What makes them open their wallet? Pain threshold?]
-- **Channels to reach them:** [Where do they congregate? How to get in front of them]
+- **Channels to reach them:** [Where do they congregate? Specific channels with estimated CAC]
 
 ### Value Proposition
-- **Headline:** [One sentence that captures the value — "X helps Y do Z by W"]
+- **Headline:** [One sentence: "X helps Y do Z by W"]
 - **Key benefits:** [3 concrete benefits with "so that" outcomes]
-- **Differentiation:** [Why you, not the alternative? Unique angle]
+- **Differentiation:** [Why you, not the alternative?]
 - **Proof points needed:** [What evidence would make this credible?]
 
 ### Business Model
-- **Revenue model:** [Subscription / usage / take rate / one-time — be specific]
-- **Pricing strategy:** [Value-based, cost-plus, competitive — and why]
+- **Revenue model:** [Subscription / usage / take rate / one-time — be specific with price points]
+- **Pricing strategy:** [Value-based, cost-plus, competitive — and why. Suggest specific price range]
 - **Key metrics:** [MRR, CAC, LTV, churn — what to track from day one]
-- **Unit economics target:** [LTV:CAC ratio, payback period, gross margin]
+- **Unit economics target:** [LTV:CAC ratio, payback period, gross margin with specific numbers]
 
 ### Market Opportunity
-- **TAM/SAM/SOM:** [Ballpark figures with reasoning. TAM $XBn, SAM $XM, SOM $XM in year 3]
+- **TAM/SAM/SOM:** [Specific figures with calculation methodology. TAM $XBn, SAM $XM, SOM $XM in year 3]
 - **Market timing:** [Why now? What changed in last 12-24 months?]
-- **Growth drivers:** [Tailwinds. What could accelerate adoption?]
+- **Growth drivers:** [Tailwinds that could accelerate adoption]
 - **Headwinds:** [What could slow or kill adoption?]
 
 ### Competitive Landscape
-- **Direct competitors:** [3-5 with 1-line positioning each]
+- **Direct competitors:** [3-5 real companies with 1-line positioning each]
 - **Indirect competitors:** [Do nothing, substitutes, incumbents]
-- **Positioning gap:** [Where you fit. The wedge. Blue ocean angle if any]
+- **Positioning gap:** [Where you fit. The wedge.]
 - **Defensibility:** [Moat potential. Network effects, data, brand, switching costs]
-- **Competitive response:** [How might incumbents react? In 6 months? 2 years?]
+- **Competitive response:** [How might incumbents react? Timeline]
 
 ### Strengths
 1. [Specific strength with why it matters]
@@ -863,31 +893,31 @@ Generate a complete analysis with these EXACT sections. Each section should be s
 4. [Fourth strength if relevant]
 
 ### Risk Flags
-1. [Highest risk — likelihood, impact, and how to mitigate]
-2. [Second risk]
-3. [Third risk]
+1. [Highest risk — likelihood, impact, and specific mitigation]
+2. [Second risk — likelihood, impact, and specific mitigation]
+3. [Third risk — likelihood, impact, and specific mitigation]
 4. [Fourth risk if relevant]
 
 ### Key Assumptions to Validate
-[List 3-5 critical assumptions that must be true for this to work. For each: the assumption, how to test it, and what "pass" looks like. Order by importance.]
+[3-5 critical assumptions. For each: the assumption, a specific test, what "pass" looks like, and estimated cost/time to test.]
 
 ### Timeline to Launch
-- **Pre-build (weeks 1-4):** [Validation activities, customer interviews, landing page]
-- **Build (weeks 5-12):** [MVP scope, key features, tech choices]
-- **Launch (weeks 13-16):** [Beta, first customers, iteration]
-- **Post-launch (months 4-6):** [Scale, metrics, next milestones]
+- **Pre-build (weeks 1-4):** [Validation: customer interviews, landing page test, competitor analysis]
+- **Build (weeks 5-12):** [MVP scope, key features only, tech choices]
+- **Launch (weeks 13-16):** [Beta, first paying customers, iteration]
+- **Post-launch (months 4-6):** [Scale signals, metrics targets, next milestones]
 
 ### Financial Snapshot
-- **Revenue model:** [How you make money — specific]
-- **Unit economics:** [CAC range, LTV, target LTV:CAC, gross margin]
-- **Path to profitability:** [Break-even at X. Key milestone]
-- **Funding need:** [Bootstrapped vs seed vs Series A. Use of funds if relevant]
+- **Revenue model:** [How you make money — specific price points]
+- **Unit economics:** [CAC $X, LTV $Y, LTV:CAC Xr, gross margin X%]
+- **Path to profitability:** [Break-even at X customers/revenue. Key milestone]
+- **Funding need:** [Bootstrappable? Seed amount? Use of funds]
 
 ### Go/No-Go Recommendation
-[Clear recommendation: GO (with conditions) / CAUTION (validate X first) / NO-GO (reason). 2-3 sentences.]
+[Clear recommendation: GO (with conditions) / CAUTION (validate X first) / NO-GO (reason). 2-3 sentences with specific next action.]
 
 ### Top 5 Validation Steps Before Building
-1. [Specific, actionable validation step]
+1. [Specific, actionable — include estimated time and cost]
 2. [Second step]
 3. [Third step]
 4. [Fourth step]
@@ -901,11 +931,11 @@ Generate a complete analysis with these EXACT sections. Each section should be s
 - **Unfair Advantage:** [Something that cannot be easily copied]
 - **Channels:** [Path to customers]
 - **Customer Segments:** [Target customers]
-- **Cost Structure:** [Key costs]
-- **Revenue Streams:** [Sources of revenue]
+- **Cost Structure:** [Key costs with rough estimates]
+- **Revenue Streams:** [Sources of revenue with pricing]
 
 ### One-Line Verdict
-[The single most important insight about this idea]
+[The single most important insight — be memorable and specific]
 
 ---
 **Then add 1-2 short paragraphs** of your sharpest adversarial challenge — the question they need to answer, the flaw you'd push on. End with: "Want to debate this? Defend your position below."`;
@@ -960,15 +990,22 @@ Generate a complete analysis with these EXACT sections. Each section should be s
       { role: "system", content: systemPrompt },
       {
         role: "user",
-        content: `We're in an active debate:
+        content: `We're in an active debate. Here is the full context:
 
-Topic: "${setup.topic}"
-Type: ${templateContext}
-Your Lens: ${lensName}
-Their original reasoning: ${setup.position}
-${setup.context ? `Context: ${setup.context}` : ""}
+**Topic:** "${setup.topic}"
+**Type:** ${templateContext}
+**Your Lens:** ${lensName}
+**Their original reasoning:** ${setup.position}
+${setup.context ? `**Context:** ${setup.context}` : ""}
 
-Continue challenging them through your lens. Track the evolution of their argument — acknowledge when they improve a point, but keep pushing on remaining weaknesses. Reference their earlier statements when relevant. Stay sharp, stay specific.`,
+**DEBATE CONTINUITY RULES — CRITICAL:**
+1. **Track argument evolution:** Reference what they said earlier. Note when they've strengthened a point vs when they're repeating themselves.
+2. **Don't repeat yourself:** If you've already made a challenge and they addressed it, move on to the next weakness. Don't re-ask what's been answered.
+3. **Escalate depth:** As the debate progresses, go deeper. Early = broad challenges. Later = specific, targeted pressure on remaining gaps.
+4. **Acknowledge progress:** When they make a genuinely good point, say so explicitly: "That addresses my concern about X. Now let's look at Y."
+5. **Keep a mental scorecard:** Mentally track which challenges are resolved vs open. Focus on the open ones.
+6. **Be conversational:** This is a back-and-forth, not a lecture. React to what they actually said, not a generic template.
+7. **End with ONE sharp question** — the single biggest remaining gap in their argument.`,
       },
     ];
 

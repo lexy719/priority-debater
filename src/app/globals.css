@@ -297,6 +297,49 @@ body {
   background: rgba(255, 255, 255, 0.05);
 }
 
+/* ========================================
+   Dark markdown content (for dark bg pages)
+   ======================================== */
+.markdown-content-dark {
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.5);
+}
+.markdown-content-dark p { margin-bottom: 0.75rem; }
+.markdown-content-dark p:last-child { margin-bottom: 0; }
+.markdown-content-dark strong { font-weight: 700; color: rgba(255, 255, 255, 0.8); }
+.markdown-content-dark em { font-style: italic; }
+.markdown-content-dark h1, .markdown-content-dark h2, .markdown-content-dark h3 {
+  font-weight: 700; margin-top: 1rem; margin-bottom: 0.5rem; color: rgba(255, 255, 255, 0.85);
+}
+.markdown-content-dark h1 { font-size: 1.25rem; }
+.markdown-content-dark h2 { font-size: 1.1rem; }
+.markdown-content-dark h3 { font-size: 1rem; }
+.markdown-content-dark ul, .markdown-content-dark ol { margin-left: 1.25rem; margin-bottom: 0.75rem; }
+.markdown-content-dark ul { list-style-type: disc; }
+.markdown-content-dark ol { list-style-type: decimal; }
+.markdown-content-dark li { margin-bottom: 0.25rem; }
+.markdown-content-dark li > p { margin-bottom: 0.25rem; }
+.markdown-content-dark blockquote {
+  border-left: 3px solid rgba(99, 102, 241, 0.4); padding-left: 0.75rem;
+  margin-left: 0; margin-bottom: 0.75rem; color: rgba(255, 255, 255, 0.35); font-style: italic;
+}
+.markdown-content-dark code {
+  background: rgba(255, 255, 255, 0.08); padding: 0.15rem 0.35rem; border-radius: 0.25rem;
+  font-size: 0.875em; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+.markdown-content-dark pre {
+  background: rgba(255, 255, 255, 0.04); padding: 0.75rem; border-radius: 0.5rem;
+  overflow-x: auto; margin-bottom: 0.75rem;
+}
+.markdown-content-dark pre code { background: none; padding: 0; }
+.markdown-content-dark hr { border: none; border-top: 1px solid rgba(255, 255, 255, 0.06); margin: 1rem 0; }
+.markdown-content-dark a { color: #818cf8; text-decoration: underline; }
+.markdown-content-dark table { width: 100%; border-collapse: collapse; margin-bottom: 0.75rem; font-size: 0.875rem; }
+.markdown-content-dark th, .markdown-content-dark td {
+  border: 1px solid rgba(255, 255, 255, 0.06); padding: 0.375rem 0.625rem; text-align: left;
+}
+.markdown-content-dark th { background: rgba(255, 255, 255, 0.04); font-weight: 600; color: rgba(255, 255, 255, 0.7); }
+
 /* Progress bar animation */
 @keyframes progressFill {
   from { width: 0; }

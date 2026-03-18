@@ -5,43 +5,42 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ArrowLeft, ArrowRight, Loader2, FlaskConical, Wand2, CheckCircle2 } from "lucide-react";
-import { Header } from "@/components/Header";
+import { ArrowLeft, ArrowRight, Loader2, FlaskConical, Wand2, CheckCircle2, Zap, Sparkles } from "lucide-react";
 import { saveSession } from "@/lib/session";
 import { shouldBlock } from "@/lib/contentModeration";
 import type { DebateSetup, Message } from "@/lib/types";
 
 const ideaValidatorTemplate = {
   id: "validate",
-  icon: <FlaskConical className="w-6 h-6" />,
-  title: "Startup Idea Validator",
-  subtitle: "Complete viability report in ~2 minutes",
+  icon: <FlaskConical className="w-5 h-5" />,
+  title: "Validate Your Idea",
+  subtitle: "Full viability report with scores, risks, and market analysis",
   placeholder: {
     topic: "e.g. AI-powered meeting summarizer for remote teams",
     position: "Why it will work: market timing, your edge, business model...",
     context: "Your situation: team size, runway, target market (optional)",
   },
   labels: {
-    topic: "Describe your startup idea",
-    position: "Why do you think it will work?",
-    context: "Your resources & context (optional)",
+    topic: "What's your startup idea?",
+    position: "Why do you believe it will work?",
+    context: "Your resources & context",
   },
 };
 
 const generateTemplate = {
   id: "generate",
-  icon: <Wand2 className="w-6 h-6" />,
-  title: "Idea Generator",
-  subtitle: "No idea yet? Generate one",
+  icon: <Wand2 className="w-5 h-5" />,
+  title: "Generate an Idea",
+  subtitle: "Tell us about yourself and we'll generate ideas that fit",
   placeholder: {
     topic: "AI, B2B SaaS, healthcare, or leave blank",
     position: "Problems I've experienced. Technical background. Prefer B2B.",
     context: "Solo founder, 12 months runway",
   },
   labels: {
-    topic: "Industries or themes? (optional)",
-    position: "What problems have you experienced? Skills, preferences?",
-    context: "Your situation (optional)",
+    topic: "Industries or themes you like",
+    position: "Your background, skills & problems you've seen",
+    context: "Your situation",
   },
 };
 
@@ -50,14 +49,14 @@ const MAX_POSITION_LENGTH = 2000;
 const MAX_CONTEXT_LENGTH = 1000;
 
 const PROGRESS_STEPS = [
-  "Analyzing your idea...",
-  "Evaluating problem-solution fit...",
-  "Sizing the market (TAM/SAM/SOM)...",
-  "Scanning competitive landscape...",
-  "Assessing risk factors...",
-  "Building financial snapshot...",
-  "Generating recommendations...",
-  "Finalizing report...",
+  { label: "Analyzing idea", icon: "🔍" },
+  { label: "Problem-solution fit", icon: "🎯" },
+  { label: "Sizing the market", icon: "📊" },
+  { label: "Scanning competitors", icon: "⚔️" },
+  { label: "Assessing risks", icon: "⚠️" },
+  { label: "Financial snapshot", icon: "💰" },
+  { label: "Recommendations", icon: "✅" },
+  { label: "Finalizing report", icon: "📋" },
 ];
 
 function sanitize(text: string, maxLen: number): string {
@@ -128,7 +127,6 @@ function ValidateForm() {
     setStreamingContent("");
     setProgressStep(0);
 
-    // Rotate progress steps while streaming
     progressInterval.current = setInterval(() => {
       setProgressStep((prev) => Math.min(prev + 1, PROGRESS_STEPS.length - 1));
     }, 8000);
@@ -165,7 +163,6 @@ function ValidateForm() {
                 accumulated += parsed.content;
                 setStreamingContent(accumulated);
 
-                // Auto-advance progress based on content sections
                 if (accumulated.includes("### Problem-Solution") && progressStep < 1) setProgressStep(1);
                 if (accumulated.includes("### Market Opportunity") && progressStep < 2) setProgressStep(2);
                 if (accumulated.includes("### Competitive") && progressStep < 3) setProgressStep(3);
@@ -209,43 +206,59 @@ function ValidateForm() {
     }
   };
 
-  // Show streaming view when loading
+  // Streaming view
   if (isLoading || streamingContent) {
     return (
-      <div className="min-h-screen min-h-[100dvh] bg-gradient-to-b from-slate-50 to-white flex flex-col">
-        <Header />
-        <div className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 rounded-xl bg-slate-900 text-white">
-                <FlaskConical className="w-6 h-6" />
+      <div className="min-h-screen min-h-[100dvh] bg-[#08080e] flex flex-col">
+        {/* Minimal header */}
+        <div className="border-b border-white/[0.06] bg-[#08080e]/80 backdrop-blur-xl sticky top-0 z-10">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-sm font-semibold text-white">Generating Report</span>
+          </div>
+        </div>
+
+        <div className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-8">
+          {/* Progress header */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="relative">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#08080e] flex items-center justify-center">
+                  <span className="text-[8px] font-bold text-white">{progressStep + 1}</span>
+                </div>
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Generating your report</h1>
-                <p className="text-sm text-slate-500">{setup.topic}</p>
+                <h1 className="text-lg font-bold text-white">Analyzing your idea</h1>
+                <p className="text-sm text-white/40 truncate max-w-md">{setup.topic}</p>
               </div>
             </div>
 
-            {/* Progress steps */}
-            <div className="flex flex-wrap gap-2 mb-6">
+            {/* Progress steps - horizontal pill bar */}
+            <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide">
               {PROGRESS_STEPS.map((step, i) => (
                 <div
                   key={i}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-500 ${
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-500 ${
                     i < progressStep
-                      ? "bg-emerald-100 text-emerald-700"
+                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
                       : i === progressStep
-                        ? "bg-slate-900 text-white"
-                        : "bg-slate-100 text-slate-400"
+                        ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
+                        : "bg-white/[0.03] text-white/20 border border-white/[0.05]"
                   }`}
                 >
                   {i < progressStep ? (
                     <CheckCircle2 className="w-3 h-3" />
                   ) : i === progressStep ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : null}
-                  <span className="hidden sm:inline">{step.replace("...", "")}</span>
-                  <span className="sm:hidden">{step.replace("...", "").split(" ").slice(0, 2).join(" ")}</span>
+                  ) : (
+                    <span className="text-[10px]">{step.icon}</span>
+                  )}
+                  <span className="hidden sm:inline">{step.label}</span>
                 </div>
               ))}
             </div>
@@ -254,12 +267,12 @@ function ValidateForm() {
           {/* Live streaming content */}
           <div
             ref={streamRef}
-            className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-8 overflow-y-auto max-h-[60vh] markdown-content prose prose-slate prose-sm max-w-none"
+            className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-5 sm:p-8 overflow-y-auto max-h-[60vh] markdown-content-dark"
           >
             {streamingContent ? (
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown>
             ) : (
-              <div className="flex items-center gap-3 text-slate-400">
+              <div className="flex items-center gap-3 text-white/30">
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span>Starting analysis...</span>
               </div>
@@ -267,7 +280,7 @@ function ValidateForm() {
           </div>
 
           {error && (
-            <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
+            <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
               {error}
             </div>
           )}
@@ -277,30 +290,64 @@ function ValidateForm() {
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-gradient-to-b from-slate-50 to-white flex flex-col">
-      <Header />
-      <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 mb-6 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back
-        </Link>
-
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2.5 rounded-xl bg-slate-900 text-white">{template.icon}</div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{template.title}</h1>
-              <p className="text-sm text-slate-500">{template.subtitle}</p>
+    <div className="min-h-screen min-h-[100dvh] bg-[#08080e] flex flex-col">
+      {/* Header */}
+      <div className="border-b border-white/[0.06] bg-[#08080e]/80 backdrop-blur-xl sticky top-0 z-10">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-white" />
             </div>
+            <span className="text-sm font-semibold text-white/70 group-hover:text-white transition-colors">Priority Debater</span>
+          </Link>
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back
+          </Link>
+        </div>
+      </div>
+
+      <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        {/* Title section */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+              {template.icon}
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white">{template.title}</h1>
+              <p className="text-sm text-white/35">{template.subtitle}</p>
+            </div>
+          </div>
+
+          {/* Mode toggle */}
+          <div className="flex gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06] w-fit mt-4">
+            <Link
+              href="/validate"
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                !isGenerate ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/60"
+              }`}
+            >
+              <FlaskConical className="w-3.5 h-3.5" /> Validate
+            </Link>
+            <Link
+              href="/validate?mode=generate"
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                isGenerate ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" /> Generate
+            </Link>
           </div>
         </div>
 
+        {/* Form */}
         <div className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className="block text-sm font-medium text-white/60 mb-2">
               {template.labels.topic}
             </label>
             <input
@@ -309,15 +356,15 @@ function ValidateForm() {
               value={setup.topic}
               onChange={(e) => setSetup({ ...setup, topic: e.target.value })}
               maxLength={MAX_TOPIC_LENGTH}
-              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 transition-colors text-sm sm:text-base"
+              className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all text-sm"
             />
             {setup.topic.length > 0 && (
-              <p className="text-xs text-slate-400 mt-1">{setup.topic.length}/{MAX_TOPIC_LENGTH}</p>
+              <p className="text-xs text-white/20 mt-1.5">{setup.topic.length}/{MAX_TOPIC_LENGTH}</p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className="block text-sm font-medium text-white/60 mb-2">
               {template.labels.position}
             </label>
             <textarea
@@ -326,16 +373,16 @@ function ValidateForm() {
               onChange={(e) => setSetup({ ...setup, position: e.target.value })}
               maxLength={MAX_POSITION_LENGTH}
               rows={4}
-              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 transition-colors resize-none text-sm sm:text-base"
+              className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all resize-none text-sm"
             />
             {setup.position.length > 0 && (
-              <p className="text-xs text-slate-400 mt-1">{setup.position.length}/{MAX_POSITION_LENGTH}</p>
+              <p className="text-xs text-white/20 mt-1.5">{setup.position.length}/{MAX_POSITION_LENGTH}</p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              {template.labels.context}
+            <label className="block text-sm font-medium text-white/60 mb-2">
+              {template.labels.context} <span className="text-white/20">(optional)</span>
             </label>
             <textarea
               placeholder={template.placeholder.context}
@@ -343,26 +390,30 @@ function ValidateForm() {
               onChange={(e) => setSetup({ ...setup, context: e.target.value })}
               maxLength={MAX_CONTEXT_LENGTH}
               rows={2}
-              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 transition-colors resize-none text-sm sm:text-base"
+              className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all resize-none text-sm"
             />
           </div>
 
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
+          {/* Human check */}
+          <label
+            htmlFor="human"
+            className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04] transition-colors"
+          >
             <input
               type="checkbox"
               id="human"
               checked={humanCheck}
               onChange={(e) => setHumanCheck(e.target.checked)}
-              className="mt-1 rounded border-slate-300"
+              className="mt-0.5 rounded border-white/20 bg-white/5 accent-indigo-500"
             />
-            <label htmlFor="human" className="text-sm text-slate-700">
+            <span className="text-sm text-white/40 leading-relaxed">
               I confirm this is my own idea and I&apos;m not a bot. I understand my data is processed
               to generate the validation report.
-            </label>
-          </div>
+            </span>
+          </label>
 
           {error && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
               {error}
             </div>
           )}
@@ -370,13 +421,13 @@ function ValidateForm() {
           <button
             onClick={handleSubmit}
             disabled={!valid || isLoading}
-            className="w-full py-3.5 sm:py-4 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold hover:from-indigo-500 hover:to-violet-500 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm shadow-lg shadow-indigo-500/20"
           >
-            Get My Answer
-            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+            {isGenerate ? "Generate Ideas" : "Validate My Idea"}
+            <ArrowRight className="w-4 h-4" />
           </button>
           {!valid && !isLoading && humanCheck && (
-            <p className="text-xs text-slate-500 text-center mt-2">
+            <p className="text-xs text-white/25 text-center">
               {!isGenerate && setup.topic.trim().length < 3 && "Add at least 3 characters to your idea. "}
               {setup.position.trim().length < 10 && "Add at least 10 characters to your reasoning."}
             </p>
@@ -390,8 +441,8 @@ function ValidateForm() {
 export default function ValidatePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-pulse text-slate-500">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-[#08080e]">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500/50" />
       </div>
     }>
       <ValidateForm />

@@ -26,9 +26,9 @@ import {
   Share2,
   RefreshCw,
   FileText,
-  Copy,
   CheckCircle2,
   Grid3X3,
+  ArrowRight,
 } from "lucide-react";
 import { loadSession, clearSession } from "@/lib/session";
 import { extractDashboardData } from "@/lib/parse";
@@ -37,14 +37,8 @@ import { LeanCanvas } from "@/components/LeanCanvas";
 import { TamSamSomChart } from "@/components/TamSamSom";
 import type { ValidationSession } from "@/lib/types";
 
-// ── PDF Export ──────────────────────────────────────────────────────────
-function generatePDFContent(setup: ValidationSession["setup"], validationContent: string) {
-  const header = `VALIDATION REPORT\n${"=".repeat(50)}\n\nIdea: ${setup.topic}\nYour case: ${setup.position}\n${setup.context ? `Context: ${setup.context}\n` : ""}\n${"=".repeat(50)}\n\n`;
-  return header + validationContent;
-}
-
+// ── PDF Export ──
 function downloadAsPDF(setup: ValidationSession["setup"], validationContent: string) {
-  // Use print-friendly approach: create hidden iframe with styled content
   const printWindow = window.open("", "_blank");
   if (!printWindow) return;
 
@@ -63,7 +57,6 @@ function downloadAsPDF(setup: ValidationSession["setup"], validationContent: str
   th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; }
   th { background: #f8fafc; font-weight: 600; }
   .meta { color: #64748b; font-size: 13px; margin-bottom: 4px; }
-  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; }
   hr { border: none; border-top: 1px solid #e2e8f0; margin: 20px 0; }
   @media print { body { padding: 20px; } }
   .footer { margin-top: 40px; padding-top: 16px; border-top: 2px solid #e2e8f0; color: #94a3b8; font-size: 12px; text-align: center; }
@@ -100,7 +93,7 @@ function downloadAsMarkdown(setup: ValidationSession["setup"], messages: Validat
   URL.revokeObjectURL(url);
 }
 
-// ── Share Link ──────────────────────────────────────────────────────────
+// ── Share Link ──
 function generateShareData(session: ValidationSession): string {
   const data = {
     t: session.setup.topic,
@@ -111,7 +104,7 @@ function generateShareData(session: ValidationSession): string {
   return btoa(encodeURIComponent(JSON.stringify(data)));
 }
 
-// ── Interactive Checklist ───────────────────────────────────────────────
+// ── Validation Checklist ──
 function ValidationChecklist({ items }: { items: string[] }) {
   const [checked, setChecked] = useState<Set<number>>(new Set());
 
@@ -126,30 +119,30 @@ function ValidationChecklist({ items }: { items: string[] }) {
 
   const progress = items.length > 0 ? Math.round((checked.size / items.length) * 100) : 0;
 
-  if (items.length === 0) return <p className="text-slate-400 text-sm italic">No specific steps parsed.</p>;
+  if (items.length === 0) return <p className="text-white/25 text-sm italic">No specific steps parsed.</p>;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-slate-500">{checked.size}/{items.length} completed</span>
-        <span className="text-xs font-bold text-indigo-600">{progress}%</span>
+        <span className="text-xs font-medium text-white/30">{checked.size}/{items.length} completed</span>
+        <span className="text-xs font-bold text-indigo-400">{progress}%</span>
       </div>
-      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-4">
+      <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden mb-4">
         <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
       </div>
-      <ol className="space-y-2">
+      <ol className="space-y-2.5">
         {items.map((item, i) => (
           <li key={i} className="flex gap-3 group cursor-pointer" onClick={() => toggle(i)}>
             <button
               className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold transition-all ${
                 checked.has(i)
                   ? "bg-emerald-500 text-white"
-                  : "bg-indigo-100 text-indigo-700 group-hover:bg-indigo-200"
+                  : "bg-indigo-500/15 text-indigo-400 group-hover:bg-indigo-500/25"
               }`}
             >
               {checked.has(i) ? <Check className="w-3.5 h-3.5" /> : i + 1}
             </button>
-            <span className={`text-sm leading-relaxed transition-all ${checked.has(i) ? "line-through text-slate-400" : "text-slate-700"}`}>
+            <span className={`text-sm leading-relaxed transition-all ${checked.has(i) ? "line-through text-white/20" : "text-white/60"}`}>
               {item}
             </span>
           </li>
@@ -159,7 +152,25 @@ function ValidationChecklist({ items }: { items: string[] }) {
   );
 }
 
-// ── Main Page ───────────────────────────────────────────────────────────
+// ── Card Component ──
+function Card({ children, className = "", accent }: { children: React.ReactNode; className?: string; accent?: string }) {
+  return (
+    <div className={`rounded-xl bg-white/[0.03] border ${accent || "border-white/[0.06]"} p-5 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+function CardTitle({ icon, children, color = "text-white/40" }: { icon: React.ReactNode; children: React.ReactNode; color?: string }) {
+  return (
+    <h3 className="text-sm font-bold text-white/90 mb-3 flex items-center gap-1.5">
+      <span className={color}>{icon}</span>
+      {children}
+    </h3>
+  );
+}
+
+// ── Main Page ──
 export default function ResultsPage() {
   const router = useRouter();
   const [session, setSession] = useState<ValidationSession | null>(null);
@@ -191,11 +202,8 @@ export default function ResultsPage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-slate-200 animate-pulse" />
-          <div className="h-4 w-32 bg-slate-200 rounded animate-pulse" />
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-[#08080e]">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500/50" />
       </div>
     );
   }
@@ -207,12 +215,17 @@ export default function ResultsPage() {
   const scoreColor =
     score != null
       ? score >= 7 ? "text-emerald-400" : score >= 5 ? "text-amber-400" : "text-red-400"
-      : "text-slate-400";
+      : "text-white/30";
 
   const scoreBorderColor =
     score != null
-      ? score >= 7 ? "border-emerald-400/50" : score >= 5 ? "border-amber-400/50" : "border-red-400/50"
-      : "border-slate-400/50";
+      ? score >= 7 ? "border-emerald-500/30" : score >= 5 ? "border-amber-500/30" : "border-red-500/30"
+      : "border-white/10";
+
+  const scoreGlow =
+    score != null
+      ? score >= 7 ? "shadow-emerald-500/10" : score >= 5 ? "shadow-amber-500/10" : "shadow-red-500/10"
+      : "";
 
   const goNoGoLabel =
     dashboard.goNoGoType === "go" ? "GO" :
@@ -221,10 +234,10 @@ export default function ResultsPage() {
     score != null ? (score >= 7 ? "GO" : score >= 5 ? "CAUTION" : "NO-GO") : null;
 
   const goNoGoColor =
-    goNoGoLabel === "GO" ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" :
-    goNoGoLabel === "CAUTION" ? "bg-amber-500/20 text-amber-300 border-amber-500/30" :
-    goNoGoLabel === "NO-GO" ? "bg-red-500/20 text-red-300 border-red-500/30" :
-    "bg-slate-500/20 text-slate-300 border-slate-500/30";
+    goNoGoLabel === "GO" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" :
+    goNoGoLabel === "CAUTION" ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
+    goNoGoLabel === "NO-GO" ? "bg-red-500/15 text-red-400 border-red-500/30" :
+    "bg-white/5 text-white/30 border-white/10";
 
   const handleGenerateBusinessPlan = async () => {
     setIsGeneratingBusinessPlan(true);
@@ -266,7 +279,6 @@ export default function ResultsPage() {
   };
 
   const handleRevalidate = () => {
-    // Pre-fill validate page with the current idea
     sessionStorage.setItem("revalidate", JSON.stringify(setup));
     router.push("/validate");
   };
@@ -287,56 +299,56 @@ export default function ResultsPage() {
   ];
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-slate-50">
+    <div className="min-h-screen min-h-[100dvh] bg-[#08080e]">
       {/* Top bar */}
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-slate-200">
+      <div className="sticky top-0 z-10 bg-[#08080e]/80 backdrop-blur-xl border-b border-white/[0.06]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
           <div className="flex items-center gap-3 min-w-0">
-            <Link href="/" className="flex items-center gap-2 text-slate-900 font-bold hover:opacity-80 transition-opacity shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
+            <Link href="/" className="flex items-center gap-2 group shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
                 <Zap className="w-4 h-4 text-white" />
               </div>
-              <span className="hidden sm:inline">Priority Debater</span>
+              <span className="hidden sm:inline text-sm font-semibold text-white/70 group-hover:text-white transition-colors">Priority Debater</span>
             </Link>
-            <span className="text-slate-300 hidden sm:inline">/</span>
-            <span className="text-sm text-slate-500 truncate hidden sm:inline">{setup.topic}</span>
+            <span className="text-white/10 hidden sm:inline">/</span>
+            <span className="text-sm text-white/30 truncate hidden sm:inline">{setup.topic}</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <button
               onClick={handleCopyShareLink}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-all relative"
-              title="Copy share link"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"
+              title="Share"
             >
-              {shareToast ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Share2 className="w-4 h-4" />}
+              {shareToast ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">{shareToast ? "Copied!" : "Share"}</span>
             </button>
             <button
               onClick={() => downloadAsPDF(setup, validationContent)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-all"
-              title="Export as PDF"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"
+              title="PDF"
             >
-              <FileText className="w-4 h-4" />
+              <FileText className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">PDF</span>
             </button>
             <button
               onClick={() => downloadAsMarkdown(setup, messages)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-all"
-              title="Download Markdown"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"
+              title="Markdown"
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">MD</span>
             </button>
             <button
               onClick={handleRevalidate}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-all"
-              title="Pivot & revalidate"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"
+              title="Pivot"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Pivot</span>
             </button>
             <button
               onClick={handleValidateNew}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-all ml-1"
             >
               + New
             </button>
@@ -346,14 +358,14 @@ export default function ResultsPage() {
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Hero score card */}
-        <div className="relative rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 p-6 sm:p-8 mb-8 overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.15)_0%,_transparent_50%)]" />
+        <div className="relative rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.06] p-6 sm:p-8 mb-8 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.08)_0%,_transparent_50%)]" />
           <div className="relative">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
               <div className="flex-1 min-w-0">
                 <h1 className="text-lg sm:text-xl font-bold text-white mb-2 truncate">{setup.topic}</h1>
                 {(dashboard.verdict || dashboard.summary) && (
-                  <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl mb-4">
+                  <p className="text-white/40 text-sm leading-relaxed max-w-2xl mb-4">
                     {dashboard.verdict || dashboard.summary}
                   </p>
                 )}
@@ -370,23 +382,23 @@ export default function ResultsPage() {
               {score != null && (
                 <div className="flex items-center gap-5 shrink-0">
                   <div className="flex flex-col items-center gap-2">
-                    <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl font-bold ${scoreColor} bg-white/5 border-2 ${scoreBorderColor}`}>
+                    <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl font-bold ${scoreColor} bg-white/[0.03] border-2 ${scoreBorderColor} shadow-lg ${scoreGlow}`}>
                       {score}
                     </div>
-                    <span className="text-xs text-slate-400 font-medium tracking-wide">/ 10</span>
+                    <span className="text-[11px] text-white/20 font-medium tracking-wide">/ 10</span>
                   </div>
-                  <div className="flex flex-col gap-2 text-sm">
+                  <div className="flex flex-col gap-2.5 text-sm">
                     <div className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <span className="text-slate-300">{dashboard.strengths.length} strengths</span>
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="text-white/40 text-xs">{dashboard.strengths.length} strengths</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span className="text-slate-300">{dashboard.risks.length} risks</span>
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span className="text-white/40 text-xs">{dashboard.risks.length} risks</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-blue-400 shrink-0" />
-                      <span className="text-slate-300">{dashboard.recommendations.length} actions</span>
+                      <Shield className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                      <span className="text-white/40 text-xs">{dashboard.recommendations.length} actions</span>
                     </div>
                   </div>
                 </div>
@@ -401,10 +413,10 @@ export default function ResultsPage() {
             <button
               key={tab.label}
               onClick={() => setActiveTab(i)}
-              className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium transition-all ${
                 activeTab === i
-                  ? "bg-slate-900 text-white shadow-md"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                  ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
+                  : "bg-white/[0.02] text-white/30 hover:text-white/50 border border-white/[0.04] hover:border-white/[0.08]"
               }`}
             >
               {tab.icon}
@@ -420,64 +432,52 @@ export default function ResultsPage() {
             <>
               <div className="space-y-4">
                 {dashboard.summary && (
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                    <h3 className="text-sm font-bold text-slate-900 mb-3">Summary</h3>
-                    <p className="text-slate-700 text-sm leading-relaxed">{dashboard.summary}</p>
-                  </div>
+                  <Card>
+                    <CardTitle icon={<Lightbulb className="w-4 h-4" />} color="text-amber-400">Summary</CardTitle>
+                    <p className="text-white/50 text-sm leading-relaxed">{dashboard.summary}</p>
+                  </Card>
                 )}
                 {dashboard.goNoGo && (
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                    <h3 className="text-sm font-bold text-slate-900 mb-3">Go/No-Go Recommendation</h3>
-                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none">
+                  <Card>
+                    <CardTitle icon={<Target className="w-4 h-4" />} color="text-emerald-400">Go/No-Go</CardTitle>
+                    <div className="markdown-content-dark text-sm">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo}</ReactMarkdown>
                     </div>
-                  </div>
+                  </Card>
                 )}
-                {/* Interactive Validation Checklist */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                  <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-indigo-600" /> Validation Checklist
-                  </h3>
+                <Card>
+                  <CardTitle icon={<CheckCircle2 className="w-4 h-4" />} color="text-indigo-400">Validation Checklist</CardTitle>
                   <ValidationChecklist items={dashboard.recommendations} />
-                </div>
+                </Card>
               </div>
               <div className="space-y-4">
-                {/* Radar Chart */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                  <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-1.5">
-                    <Target className="w-4 h-4 text-indigo-600" /> Score Breakdown
-                  </h3>
+                <Card>
+                  <CardTitle icon={<BarChart3 className="w-4 h-4" />} color="text-indigo-400">Score Breakdown</CardTitle>
                   <RadarChart scores={dashboard.categoryScores} />
                   <div className="mt-4">
                     <ScoreBreakdownBars scores={dashboard.categoryScores} />
                   </div>
-                </div>
-                {/* Strengths */}
-                <div className="bg-white rounded-xl shadow-sm border-2 border-emerald-200/60 p-5">
-                  <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-1.5">
-                    <Check className="w-4 h-4 text-emerald-600" /> Strengths ({dashboard.strengths.length})
-                  </h3>
+                </Card>
+                <Card accent="border-emerald-500/15">
+                  <CardTitle icon={<Check className="w-4 h-4" />} color="text-emerald-400">Strengths ({dashboard.strengths.length})</CardTitle>
                   {dashboard.strengths.length > 0 ? (
-                    <ul className="space-y-2 text-sm text-slate-700">
+                    <ul className="space-y-2 text-sm">
                       {dashboard.strengths.map((s, i) => (
-                        <li key={i} className="flex gap-2"><Check className="w-4 h-4 shrink-0 text-emerald-500 mt-0.5" /><span>{s}</span></li>
+                        <li key={i} className="flex gap-2"><Check className="w-4 h-4 shrink-0 text-emerald-500/60 mt-0.5" /><span className="text-white/50">{s}</span></li>
                       ))}
                     </ul>
-                  ) : <p className="text-slate-400 text-sm italic">None identified.</p>}
-                </div>
-                {/* Risk Flags */}
-                <div className="bg-white rounded-xl shadow-sm border-2 border-red-200/60 p-5">
-                  <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4 text-red-500" /> Risk Flags ({dashboard.risks.length})
-                  </h3>
+                  ) : <p className="text-white/20 text-sm italic">None identified.</p>}
+                </Card>
+                <Card accent="border-red-500/15">
+                  <CardTitle icon={<AlertTriangle className="w-4 h-4" />} color="text-red-400">Risk Flags ({dashboard.risks.length})</CardTitle>
                   {dashboard.risks.length > 0 ? (
-                    <ul className="space-y-2 text-sm text-slate-700">
+                    <ul className="space-y-2 text-sm">
                       {dashboard.risks.map((r, i) => (
-                        <li key={i} className="flex gap-2"><X className="w-4 h-4 shrink-0 text-red-500 mt-0.5" /><span>{r}</span></li>
+                        <li key={i} className="flex gap-2"><X className="w-4 h-4 shrink-0 text-red-500/60 mt-0.5" /><span className="text-white/50">{r}</span></li>
                       ))}
                     </ul>
-                  ) : <p className="text-slate-400 text-sm italic">None identified.</p>}
-                </div>
+                  ) : <p className="text-white/20 text-sm italic">None identified.</p>}
+                </Card>
               </div>
             </>
           )}
@@ -487,75 +487,60 @@ export default function ResultsPage() {
             <>
               <div className="space-y-4">
                 {dashboard.problemSolution && (
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                      <Lightbulb className="w-4 h-4 text-amber-600" /> Problem-Solution Fit
-                    </h3>
-                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                  <Card>
+                    <CardTitle icon={<Lightbulb className="w-4 h-4" />} color="text-amber-400">Problem-Solution Fit</CardTitle>
+                    <div className="markdown-content-dark text-sm">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.problemSolution}</ReactMarkdown>
                     </div>
-                  </div>
+                  </Card>
                 )}
                 {dashboard.targetCustomer && (
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                      <Users className="w-4 h-4 text-blue-600" /> Target Customer
-                    </h3>
-                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                  <Card>
+                    <CardTitle icon={<Users className="w-4 h-4" />} color="text-sky-400">Target Customer</CardTitle>
+                    <div className="markdown-content-dark text-sm">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.targetCustomer}</ReactMarkdown>
                     </div>
-                  </div>
+                  </Card>
                 )}
-                {/* TAM/SAM/SOM Visual */}
                 {(dashboard.tamSamSom.tam || dashboard.tamSamSom.sam || dashboard.tamSamSom.som) && (
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                    <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-1.5">
-                      <BarChart3 className="w-4 h-4 text-indigo-600" /> Market Size (TAM/SAM/SOM)
-                    </h3>
+                  <Card>
+                    <CardTitle icon={<BarChart3 className="w-4 h-4" />} color="text-indigo-400">Market Size (TAM/SAM/SOM)</CardTitle>
                     <TamSamSomChart data={dashboard.tamSamSom} />
-                  </div>
+                  </Card>
                 )}
               </div>
               <div className="space-y-4">
                 {dashboard.valueProposition && (
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                      <MessageSquare className="w-4 h-4 text-violet-600" /> Value Proposition
-                    </h3>
-                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                  <Card>
+                    <CardTitle icon={<MessageSquare className="w-4 h-4" />} color="text-violet-400">Value Proposition</CardTitle>
+                    <div className="markdown-content-dark text-sm">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.valueProposition}</ReactMarkdown>
                     </div>
-                  </div>
+                  </Card>
                 )}
                 {dashboard.businessModel && (
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                      <Layout className="w-4 h-4 text-emerald-600" /> Business Model
-                    </h3>
-                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                  <Card>
+                    <CardTitle icon={<Layout className="w-4 h-4" />} color="text-emerald-400">Business Model</CardTitle>
+                    <div className="markdown-content-dark text-sm">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.businessModel}</ReactMarkdown>
                     </div>
-                  </div>
+                  </Card>
                 )}
                 {dashboard.marketSummary && (
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                      <BarChart3 className="w-4 h-4 text-sky-600" /> Market Opportunity
-                    </h3>
-                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                  <Card>
+                    <CardTitle icon={<BarChart3 className="w-4 h-4" />} color="text-sky-400">Market Opportunity</CardTitle>
+                    <div className="markdown-content-dark text-sm">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.marketSummary}</ReactMarkdown>
                     </div>
-                  </div>
+                  </Card>
                 )}
                 {dashboard.competitiveSummary && (
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                      <Target className="w-4 h-4 text-rose-600" /> Competitive Landscape
-                    </h3>
-                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                  <Card>
+                    <CardTitle icon={<Swords className="w-4 h-4" />} color="text-rose-400">Competitive Landscape</CardTitle>
+                    <div className="markdown-content-dark text-sm">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.competitiveSummary}</ReactMarkdown>
                     </div>
-                  </div>
+                  </Card>
                 )}
               </div>
             </>
@@ -566,36 +551,30 @@ export default function ResultsPage() {
             <>
               <div className="space-y-4">
                 {dashboard.keyAssumptions && (
-                  <div className="bg-white rounded-xl shadow-sm border-l-4 border-amber-500 p-5">
-                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                      <HelpCircle className="w-4 h-4 text-amber-600" /> Key Assumptions
-                    </h3>
-                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                  <Card accent="border-l-2 border-l-amber-500/50 border-white/[0.06]">
+                    <CardTitle icon={<HelpCircle className="w-4 h-4" />} color="text-amber-400">Key Assumptions</CardTitle>
+                    <div className="markdown-content-dark text-sm">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.keyAssumptions}</ReactMarkdown>
                     </div>
-                  </div>
+                  </Card>
                 )}
                 {dashboard.timelineToLaunch && (
-                  <div className="bg-white rounded-xl shadow-sm border-l-4 border-indigo-500 p-5">
-                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4 text-indigo-600" /> Timeline to Launch
-                    </h3>
-                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                  <Card accent="border-l-2 border-l-indigo-500/50 border-white/[0.06]">
+                    <CardTitle icon={<Calendar className="w-4 h-4" />} color="text-indigo-400">Timeline to Launch</CardTitle>
+                    <div className="markdown-content-dark text-sm">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.timelineToLaunch}</ReactMarkdown>
                     </div>
-                  </div>
+                  </Card>
                 )}
               </div>
               <div className="space-y-4">
                 {dashboard.financialSummary && (
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                    <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                      <BarChart3 className="w-4 h-4 text-slate-600" /> Financial Snapshot
-                    </h3>
-                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-p:my-1 prose-li:my-0.5">
+                  <Card>
+                    <CardTitle icon={<BarChart3 className="w-4 h-4" />} color="text-white/40">Financial Snapshot</CardTitle>
+                    <div className="markdown-content-dark text-sm">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.financialSummary}</ReactMarkdown>
                     </div>
-                  </div>
+                  </Card>
                 )}
               </div>
             </>
@@ -605,16 +584,14 @@ export default function ResultsPage() {
           {activeTab === 3 && (
             <div className="lg:col-span-2">
               {dashboard.leanCanvas ? (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                  <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-1.5">
-                    <Grid3X3 className="w-4 h-4 text-indigo-600" /> Lean Canvas
-                  </h3>
+                <Card>
+                  <CardTitle icon={<Grid3X3 className="w-4 h-4" />} color="text-indigo-400">Lean Canvas</CardTitle>
                   <LeanCanvas canvas={dashboard.leanCanvas} />
-                </div>
+                </Card>
               ) : (
-                <div className="bg-slate-100 rounded-xl border-2 border-dashed border-slate-200 p-8 text-center">
-                  <Grid3X3 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-500 text-sm">Lean Canvas data not available. Generate a new report to include it.</p>
+                <div className="rounded-xl bg-white/[0.02] border-2 border-dashed border-white/[0.06] p-8 text-center">
+                  <Grid3X3 className="w-12 h-12 text-white/10 mx-auto mb-3" />
+                  <p className="text-white/25 text-sm">Lean Canvas data not available. Generate a new report to include it.</p>
                 </div>
               )}
             </div>
@@ -624,17 +601,15 @@ export default function ResultsPage() {
           {activeTab === 4 && (
             <>
               <div className="space-y-4">
-                <div className="bg-gradient-to-br from-indigo-50 to-violet-50 rounded-xl border-2 border-indigo-200/60 p-5">
-                  <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                    <Briefcase className="w-4 h-4 text-indigo-600" /> Business Plan Generator
-                  </h3>
-                  <p className="text-slate-600 text-sm mb-4">
+                <Card accent="border-indigo-500/15">
+                  <CardTitle icon={<Briefcase className="w-4 h-4" />} color="text-indigo-400">Business Plan Generator</CardTitle>
+                  <p className="text-white/35 text-sm mb-4">
                     Generate an investor-ready business plan with financials, GTM strategy, and projections.
                   </p>
                   <button
                     onClick={handleGenerateBusinessPlan}
                     disabled={isGeneratingBusinessPlan || !!businessPlanContent}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500 disabled:opacity-30 transition-colors"
                   >
                     {isGeneratingBusinessPlan ? (
                       <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
@@ -644,24 +619,24 @@ export default function ResultsPage() {
                       <><Briefcase className="w-4 h-4" /> Generate Business Plan</>
                     )}
                   </button>
-                </div>
+                </Card>
               </div>
               <div>
                 {displayBusinessPlan ? (
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 max-h-[600px] overflow-y-auto">
-                    <div className="markdown-content text-slate-700 prose prose-slate prose-sm max-w-none prose-headings:text-slate-900 prose-h2:text-base prose-h3:text-sm">
+                  <Card className="max-h-[600px] overflow-y-auto">
+                    <div className="markdown-content-dark text-sm">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayBusinessPlan}</ReactMarkdown>
                     </div>
                     {isGeneratingBusinessPlan && (
-                      <div className="flex items-center gap-2 mt-4 text-slate-400 text-sm">
+                      <div className="flex items-center gap-2 mt-4 text-white/25 text-sm">
                         <Loader2 className="w-4 h-4 animate-spin" /> Writing...
                       </div>
                     )}
-                  </div>
+                  </Card>
                 ) : (
-                  <div className="bg-slate-100 rounded-xl border-2 border-dashed border-slate-200 p-8 text-center">
-                    <Briefcase className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                    <p className="text-slate-500 text-sm">Click generate to create your business plan.</p>
+                  <div className="rounded-xl bg-white/[0.02] border-2 border-dashed border-white/[0.06] p-8 text-center">
+                    <Briefcase className="w-12 h-12 text-white/10 mx-auto mb-3" />
+                    <p className="text-white/25 text-sm">Click generate to create your business plan.</p>
                   </div>
                 )}
               </div>
@@ -670,28 +645,30 @@ export default function ResultsPage() {
         </div>
 
         {error && (
-          <div className="mb-6 p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
+          <div className="mb-6 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
             {error}
           </div>
         )}
 
         {/* Debate CTA */}
-        <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-2xl p-6 sm:p-8 shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+        <div className="relative rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/15 p-6 sm:p-8 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(139,92,246,0.08)_0%,_transparent_60%)]" />
+          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-2xl bg-white/20 shrink-0">
-                <Swords className="w-8 h-8 text-white" />
+              <div className="p-3 rounded-2xl bg-indigo-500/15 border border-indigo-500/20 shrink-0">
+                <Swords className="w-7 h-7 text-indigo-400" />
               </div>
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-white">Ready to stress-test your logic?</h3>
-                <p className="text-violet-100 text-sm mt-1">Defend your position. Find blind spots. Refine before you build.</p>
+                <h3 className="text-lg font-bold text-white">Ready to stress-test?</h3>
+                <p className="text-white/30 text-sm mt-0.5">Defend your position against The Adversary.</p>
               </div>
             </div>
             <Link
               href="/debate"
-              className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-white text-violet-700 font-bold hover:bg-violet-50 transition-colors shadow-lg text-base shrink-0"
+              className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-lg shadow-indigo-500/20 text-sm shrink-0"
             >
-              <Swords className="w-5 h-5" /> Debate this idea
+              <Swords className="w-4 h-4" /> Debate This Idea
+              <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>

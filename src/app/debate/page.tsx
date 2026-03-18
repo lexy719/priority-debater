@@ -11,7 +11,6 @@ import {
   RotateCcw,
   Zap,
   Download,
-  Clipboard,
   Check,
   Copy,
   Shield,
@@ -22,6 +21,7 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
+  ArrowLeft,
 } from "lucide-react";
 import { loadSession, clearSession, updateSessionMessages } from "@/lib/session";
 import { shouldBlock, hasSensitiveTopic } from "@/lib/contentModeration";
@@ -41,12 +41,12 @@ const TYPING_PHRASES = [
 ];
 
 const QUICK_ACTIONS = [
-  { id: "steelman", label: "Steelman", icon: <Shield className="w-3.5 h-3.5" />, desc: "Best version of your argument" },
-  { id: "devils-advocate", label: "Devil's Advocate", icon: <Swords className="w-3.5 h-3.5" />, desc: "Strongest counter-argument" },
-  { id: "blind-spots", label: "Blind Spots", icon: <Eye className="w-3.5 h-3.5" />, desc: "What you can't see" },
-  { id: "rate", label: "Rate", icon: <BarChart3 className="w-3.5 h-3.5" />, desc: "Score your argument" },
-  { id: "framework", label: "Framework", icon: <Sparkles className="w-3.5 h-3.5" />, desc: "Decision framework" },
-  { id: "summary", label: "Summary", icon: <MessageSquare className="w-3.5 h-3.5" />, desc: "Debate scorecard" },
+  { id: "steelman", label: "Steelman", icon: <Shield className="w-3.5 h-3.5" />, color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20" },
+  { id: "devils-advocate", label: "Devil's Advocate", icon: <Swords className="w-3.5 h-3.5" />, color: "text-red-400 bg-red-500/10 border-red-500/20 hover:bg-red-500/20" },
+  { id: "blind-spots", label: "Blind Spots", icon: <Eye className="w-3.5 h-3.5" />, color: "text-amber-400 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20" },
+  { id: "rate", label: "Rate", icon: <BarChart3 className="w-3.5 h-3.5" />, color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20 hover:bg-indigo-500/20" },
+  { id: "framework", label: "Framework", icon: <Sparkles className="w-3.5 h-3.5" />, color: "text-violet-400 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20" },
+  { id: "summary", label: "Summary", icon: <MessageSquare className="w-3.5 h-3.5" />, color: "text-sky-400 bg-sky-500/10 border-sky-500/20 hover:bg-sky-500/20" },
 ];
 
 export default function DebatePage() {
@@ -59,8 +59,7 @@ export default function DebatePage() {
   const [streamingContent, setStreamingContent] = useState("");
   const [typingPhrase, setTypingPhrase] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [exportCopied, setExportCopied] = useState(false);
-  const [showQuickActions, setShowQuickActions] = useState(false);
+  const [showQuickActions, setShowQuickActions] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -90,8 +89,8 @@ export default function DebatePage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <Loader2 className="w-10 h-10 animate-spin text-slate-400" />
+      <div className="min-h-screen flex items-center justify-center bg-[#08080e]">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500/50" />
       </div>
     );
   }
@@ -114,17 +113,15 @@ export default function DebatePage() {
   const score = getArgumentScore();
 
   const getScoreColor = (s: number) => {
-    if (s <= 3) return "text-red-500";
-    if (s <= 5) return "text-amber-500";
-    if (s <= 7) return "text-yellow-500";
-    return "text-emerald-500";
+    if (s >= 7) return "text-emerald-400";
+    if (s >= 5) return "text-amber-400";
+    return "text-red-400";
   };
 
   const getScoreBg = (s: number) => {
-    if (s <= 3) return "bg-red-50 border-red-200";
-    if (s <= 5) return "bg-amber-50 border-amber-200";
-    if (s <= 7) return "bg-yellow-50 border-yellow-200";
-    return "bg-emerald-50 border-emerald-200";
+    if (s >= 7) return "bg-emerald-500/15 border-emerald-500/30";
+    if (s >= 5) return "bg-amber-500/15 border-amber-500/30";
+    return "bg-red-500/15 border-red-500/30";
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -228,7 +225,6 @@ export default function DebatePage() {
     setError(null);
     setShowQuickActions(false);
 
-    // Add a system-like user message showing which action was triggered
     const actionLabel = QUICK_ACTIONS.find(a => a.id === actionId)?.label || actionId;
     const actionMessage: Message = {
       id: Date.now().toString(),
@@ -270,19 +266,6 @@ export default function DebatePage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const exportDebate = () => {
-    const header = `# Debate: ${setup.topic}\n\n**Your case:** ${setup.position}\n${setup.context ? `**Context:** ${setup.context}\n` : ""}\n---\n\n`;
-    const body = messages
-      .map((m) => {
-        const role = m.role === "user" ? "**You:**" : "**The Adversary:**";
-        return `${role}\n${m.content}\n`;
-      })
-      .join("\n---\n\n");
-    navigator.clipboard.writeText(header + body);
-    setExportCopied(true);
-    setTimeout(() => setExportCopied(false), 2000);
-  };
-
   const downloadReport = () => {
     const header = `# Debate: ${setup.topic}\n\n**Your case:** ${setup.position}\n${setup.context ? `**Context:** ${setup.context}\n` : ""}\n---\n\n`;
     const body = messages
@@ -313,60 +296,48 @@ export default function DebatePage() {
   };
 
   return (
-    <div className="h-screen h-[100dvh] flex flex-col bg-white">
-      {/* Header — compact on mobile */}
-      <div className="flex-shrink-0 border-b border-slate-200 bg-white sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-              <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+    <div className="h-screen h-[100dvh] flex flex-col bg-[#08080e]">
+      {/* Header */}
+      <div className="flex-shrink-0 border-b border-white/[0.06] bg-[#08080e]/80 backdrop-blur-xl sticky top-0 z-10">
+        <div className="max-w-3xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-indigo-400" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold text-slate-900 truncate">The Adversary</p>
+                <p className="text-sm font-semibold text-white">The Adversary</p>
                 {score !== null && (
                   <span
-                    className={`inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full border ${getScoreBg(score)} ${getScoreColor(score)}`}
+                    className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${getScoreBg(score)} ${getScoreColor(score)}`}
                   >
                     {score}/10
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 truncate hidden sm:block">{setup.topic}</p>
+              <p className="text-[11px] text-white/30 truncate max-w-[200px] sm:max-w-none">{setup.topic}</p>
             </div>
           </div>
           <div className="flex items-center gap-0.5">
             {setup.template === "validate" && (
               <Link
                 href="/results"
-                className="flex-shrink-0 p-2 text-xs font-medium text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-all"
-                title="Back to results"
+                className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"
               >
-                <span className="hidden sm:inline">← Results</span>
-                <span className="sm:hidden text-sm">←</span>
+                <ArrowLeft className="w-3 h-3" />
+                <span className="hidden sm:inline">Results</span>
               </Link>
             )}
             <button
               onClick={downloadReport}
-              className="flex-shrink-0 p-2 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-all"
+              className="shrink-0 p-2 text-white/25 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"
               title="Download"
             >
               <Download className="w-4 h-4" />
             </button>
             <button
-              onClick={exportDebate}
-              className="flex-shrink-0 p-2 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-all"
-              title="Copy to clipboard"
-            >
-              {exportCopied ? (
-                <Check className="w-4 h-4 text-emerald-500" />
-              ) : (
-                <Clipboard className="w-4 h-4" />
-              )}
-            </button>
-            <button
               onClick={handleNew}
-              className="flex-shrink-0 p-2 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-all"
+              className="shrink-0 p-2 text-white/25 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"
               title="New idea"
             >
               <RotateCcw className="w-4 h-4" />
@@ -377,55 +348,58 @@ export default function DebatePage() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto overscroll-contain">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-5">
           {messages.map((message) => (
             <div
               key={message.id}
               className={`group flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""} msg-fade-in`}
             >
+              {/* Avatar */}
               <div
-                className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center ${
+                className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center ${
                   message.role === "user"
-                    ? "bg-slate-200"
-                    : "bg-gradient-to-br from-slate-800 to-slate-900"
+                    ? "bg-white/[0.08]"
+                    : "bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/15"
                 }`}
               >
                 {message.role === "user" ? (
-                  <span className="text-xs font-bold text-slate-600">You</span>
+                  <span className="text-[10px] font-bold text-white/50">You</span>
                 ) : (
-                  <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                  <Zap className="w-3.5 h-3.5 text-indigo-400" />
                 )}
               </div>
+
+              {/* Message bubble */}
               <div
                 className={`flex-1 max-w-[85%] sm:max-w-[80%] ${message.role === "user" ? "flex flex-col items-end" : ""}`}
               >
                 {message.role === "opponent" && (
-                  <div className="flex items-center gap-2 mb-1 ml-1">
-                    <span className="text-xs font-medium text-slate-500">The Adversary</span>
+                  <div className="flex items-center gap-2 mb-1.5 ml-1">
+                    <span className="text-[11px] font-medium text-white/25">The Adversary</span>
                     <button
                       onClick={() => copyMessage(message.id, message.content)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-slate-100"
-                      title="Copy message"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/[0.06]"
+                      title="Copy"
                     >
                       {copiedId === message.id ? (
-                        <Check className="w-3 h-3 text-emerald-500" />
+                        <Check className="w-3 h-3 text-emerald-400" />
                       ) : (
-                        <Copy className="w-3 h-3 text-slate-400" />
+                        <Copy className="w-3 h-3 text-white/20" />
                       )}
                     </button>
                   </div>
                 )}
                 <div
-                  className={`inline-block px-4 py-3 rounded-2xl text-sm sm:text-base leading-relaxed ${
+                  className={`inline-block px-4 py-3 rounded-2xl text-sm leading-relaxed ${
                     message.role === "user"
                       ? message.isQuickAction
-                        ? "bg-indigo-600 text-white rounded-tr-md text-xs font-medium px-3 py-2"
-                        : "bg-slate-900 text-white rounded-tr-md"
-                      : "bg-slate-100 text-slate-800 rounded-tl-md"
+                        ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 rounded-tr-md text-xs font-medium px-3 py-2"
+                        : "bg-white/[0.08] text-white/90 rounded-tr-md"
+                      : "bg-white/[0.03] text-white/70 border border-white/[0.06] rounded-tl-md"
                   }`}
                 >
                   {message.role === "opponent" ? (
-                    <div className="markdown-content">
+                    <div className="markdown-content-dark">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                     </div>
                   ) : (
@@ -436,17 +410,16 @@ export default function DebatePage() {
             </div>
           ))}
 
+          {/* Streaming message */}
           {isLoading && streamingContent && (
             <div className="flex gap-3 msg-fade-in">
-              <div className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              <div className="shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/15 flex items-center justify-center">
+                <Zap className="w-3.5 h-3.5 text-indigo-400" />
               </div>
               <div className="flex-1 max-w-[85%] sm:max-w-[80%]">
-                <span className="text-xs font-medium text-slate-500 mb-1 ml-1 block">
-                  The Adversary
-                </span>
-                <div className="inline-block px-4 py-3 rounded-2xl rounded-tl-md bg-slate-100 text-slate-800 text-sm sm:text-base leading-relaxed">
-                  <div className="markdown-content">
+                <span className="text-[11px] font-medium text-white/25 mb-1.5 ml-1 block">The Adversary</span>
+                <div className="inline-block px-4 py-3 rounded-2xl rounded-tl-md bg-white/[0.03] border border-white/[0.06] text-white/70 text-sm leading-relaxed">
+                  <div className="markdown-content-dark">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown>
                   </div>
                 </div>
@@ -454,22 +427,21 @@ export default function DebatePage() {
             </div>
           )}
 
+          {/* Typing indicator */}
           {isLoading && !streamingContent && (
             <div className="flex gap-3 msg-fade-in">
-              <div className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              <div className="shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/15 flex items-center justify-center">
+                <Zap className="w-3.5 h-3.5 text-indigo-400" />
               </div>
               <div>
-                <span className="text-xs font-medium text-slate-500 mb-1 ml-1 block">
-                  The Adversary
-                </span>
-                <div className="flex items-center gap-3 px-4 py-3 rounded-2xl rounded-tl-md bg-slate-100">
+                <span className="text-[11px] font-medium text-white/25 mb-1.5 ml-1 block">The Adversary</span>
+                <div className="flex items-center gap-3 px-4 py-3 rounded-2xl rounded-tl-md bg-white/[0.03] border border-white/[0.06]">
                   <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    <span className="w-1.5 h-1.5 bg-indigo-400/60 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 bg-indigo-400/60 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 bg-indigo-400/60 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                   </div>
-                  <span className="text-xs text-slate-500 italic">{typingPhrase}</span>
+                  <span className="text-xs text-white/25 italic">{typingPhrase}</span>
                 </div>
               </div>
             </div>
@@ -481,8 +453,8 @@ export default function DebatePage() {
 
       {/* Error */}
       {error && (
-        <div className="flex-shrink-0 px-4 sm:px-6 pb-2">
-          <div className="max-w-3xl mx-auto p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
+        <div className="shrink-0 px-4 sm:px-6 pb-2">
+          <div className="max-w-3xl mx-auto p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
             {error}
           </div>
         </div>
@@ -490,27 +462,27 @@ export default function DebatePage() {
 
       {/* Sensitive topic warning */}
       {input.trim() && hasSensitiveTopic(input) && !shouldBlock(input) && (
-        <div className="flex-shrink-0 px-4 sm:px-6 pb-2">
-          <div className="max-w-3xl mx-auto p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+        <div className="shrink-0 px-4 sm:px-6 pb-2">
+          <div className="max-w-3xl mx-auto p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
             Sensitive topic detected. Debate allowed for academic discussion. Operational advice will be blocked.
           </div>
         </div>
       )}
 
-      {/* Quick actions bar */}
+      {/* Quick actions */}
       {showQuickActions && (
-        <div className="flex-shrink-0 border-t border-slate-100 bg-slate-50 px-3 sm:px-6 py-2">
+        <div className="shrink-0 border-t border-white/[0.04] bg-[#08080e]/50 px-3 sm:px-6 py-2.5">
           <div className="max-w-3xl mx-auto">
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
               {QUICK_ACTIONS.map((action) => (
                 <button
                   key={action.id}
                   onClick={() => handleQuickAction(action.id)}
                   disabled={isLoading}
-                  className="flex flex-col items-center gap-1 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${action.color}`}
                 >
-                  <span className="text-slate-600">{action.icon}</span>
-                  <span className="text-xs font-medium text-slate-700">{action.label}</span>
+                  {action.icon}
+                  <span className="text-[10px] font-medium">{action.label}</span>
                 </button>
               ))}
             </div>
@@ -518,22 +490,21 @@ export default function DebatePage() {
         </div>
       )}
 
-      {/* Input area */}
-      <div className="flex-shrink-0 border-t border-slate-200 bg-white p-3 sm:p-4 safe-area-bottom">
+      {/* Input */}
+      <div className="shrink-0 border-t border-white/[0.06] bg-[#0a0a12] p-3 sm:p-4 safe-area-bottom">
         <div className="max-w-3xl mx-auto">
-          {/* Quick actions toggle */}
           <div className="flex items-center justify-center mb-2">
             <button
               onClick={() => setShowQuickActions(!showQuickActions)}
               disabled={isLoading}
-              className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all disabled:opacity-50"
+              className="flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-medium text-white/20 hover:text-white/40 hover:bg-white/[0.04] transition-all disabled:opacity-30"
             >
               {showQuickActions ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
               Quick actions
             </button>
           </div>
 
-          <div className="flex gap-2 sm:gap-3 items-end">
+          <div className="flex gap-2 items-end">
             <div className="flex-1 relative">
               <textarea
                 ref={inputRef}
@@ -543,25 +514,26 @@ export default function DebatePage() {
                 placeholder="Defend your position..."
                 rows={1}
                 maxLength={MAX_MESSAGE_LENGTH}
-                className="w-full px-4 py-3 pr-12 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 focus:bg-white transition-all resize-none text-sm sm:text-base"
+                className="w-full px-4 py-3 pr-12 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/40 focus:bg-white/[0.06] transition-all resize-none text-sm"
                 style={{ minHeight: "48px", maxHeight: "120px" }}
               />
               <button
                 onClick={sendMessage}
                 disabled={isLoading || !input.trim()}
-                className="absolute right-2 bottom-2 p-2.5 rounded-lg bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="absolute right-2 bottom-2 p-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
               >
                 <Send className="w-4 h-4" />
               </button>
             </div>
           </div>
-          <p className="text-center text-xs text-slate-400 mt-2">
-            {input.length > 0 && (
-              <span className={input.length > MAX_MESSAGE_LENGTH - 100 ? "text-amber-600" : ""}>
+          <p className="text-center text-[10px] text-white/15 mt-2">
+            {input.length > 0 ? (
+              <span className={input.length > MAX_MESSAGE_LENGTH - 100 ? "text-amber-400/60" : ""}>
                 {input.length}/{MAX_MESSAGE_LENGTH}
               </span>
+            ) : (
+              "Enter to send · Shift+Enter for new line"
             )}
-            {input.length === 0 && "Enter to send · Shift+Enter for new line"}
           </p>
         </div>
       </div>

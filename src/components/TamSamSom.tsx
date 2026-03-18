@@ -42,7 +42,7 @@ export function TamSamSomChart({ data }: { data: TamSamSomType }) {
             <div key={c.label} className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-full border-2" style={{ backgroundColor: c.color, borderColor: c.border }} />
               <span className="font-bold" style={{ color: c.textColor }}>{c.label}</span>
-              <span className="text-slate-600">{c.value}</span>
+              <span className="text-white/40">{c.value}</span>
             </div>
           )
         ))}
