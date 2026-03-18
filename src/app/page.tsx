@@ -354,7 +354,7 @@ export default function Home() {
           {/* Trust */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
             className="flex flex-wrap justify-center gap-5 text-[11px] text-white/25">
-            {["Powered by GPT-4o", "100% private", "No credit card", "Results in 2 min"].map((t) => (
+            {["Powered by GPT-4.1", "100% private", "No credit card", "Results in 2 min"].map((t) => (
               <span key={t} className="flex items-center gap-1.5">
                 <Check className="w-3 h-3 text-emerald-500/60" />{t}
               </span>
@@ -403,7 +403,7 @@ export default function Home() {
 
             {[
               { n: "01", title: "Describe", desc: "Tell us your idea, why you think it works, and your situation. Takes 30 seconds.", badge: "30 SECONDS • FREE", icon: <FileText className="w-5 h-5" />, accent: "border-blue-500/30 bg-blue-500/[0.06]", badgeColor: "bg-blue-500/10 text-blue-400 border-blue-500/20", dotColor: "bg-blue-500" },
-              { n: "02", title: "Analyze", desc: "GPT-4o evaluates viability, market size, competitors, risks, and generates a full dashboard with radar chart and lean canvas.", badge: "15+ CRITERIA • RADAR CHART", icon: <BarChart3 className="w-5 h-5" />, accent: "border-violet-500/30 bg-violet-500/[0.06]", badgeColor: "bg-violet-500/10 text-violet-400 border-violet-500/20", dotColor: "bg-violet-500" },
+              { n: "02", title: "Analyze", desc: "GPT-4.1 evaluates viability, market size, competitors, risks, and generates a full dashboard with radar chart and lean canvas.", badge: "15+ CRITERIA • RADAR CHART", icon: <BarChart3 className="w-5 h-5" />, accent: "border-violet-500/30 bg-violet-500/[0.06]", badgeColor: "bg-violet-500/10 text-violet-400 border-violet-500/20", dotColor: "bg-violet-500" },
               { n: "03", title: "Debate", desc: "Defend your position against an AI adversary that uses inversion, base rate analysis, and pre-mortem thinking to find every flaw.", badge: "AI ADVERSARY • 6 QUICK ACTIONS", icon: <Swords className="w-5 h-5" />, accent: "border-emerald-500/30 bg-emerald-500/[0.06]", badgeColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", dotColor: "bg-emerald-500" },
               { n: "04", title: "Launch", desc: "Export your report as PDF, generate a business plan, share with co-founders, and start building with confidence.", badge: "PDF EXPORT • SHARE LINK", icon: <Zap className="w-5 h-5" />, accent: "border-amber-500/30 bg-amber-500/[0.06]", badgeColor: "bg-amber-500/10 text-amber-400 border-amber-500/20", dotColor: "bg-amber-500" },
             ].map((item, i) => {
@@ -610,7 +610,7 @@ export default function Home() {
               { q: "How long does validation take?", a: "About 2 minutes. You get a complete viability report with score, market analysis, risk assessment, competitive landscape, and actionable steps." },
               { q: "Is my idea kept private?", a: "Yes. No database, no logs. Everything is processed in real-time and kept in your browser session only." },
               { q: "What makes this different?", a: "Depth and debate. The validation covers TAM/SAM/SOM to unit economics with a radar chart. Then debate an AI adversary that uses inversion, base rate analysis, and pre-mortem thinking." },
-              { q: "How accurate is the analysis?", a: "GPT-4o analyzes across 15+ criteria. It's a structured thinking partner — the real value is the questions it forces you to answer." },
+              { q: "How accurate is the analysis?", a: "GPT-4.1 analyzes across 15+ criteria. It's a structured thinking partner — the real value is the questions it forces you to answer." },
               { q: "Can I export my report?", a: "Yes. Download as PDF (print-friendly) or Markdown. You can also share a link with co-founders." },
               { q: "What if I don't have an idea?", a: "Use the Idea Generator. Tell us your interests and constraints, and AI will generate tailored startup ideas." },
             ].map((item, i) => (
