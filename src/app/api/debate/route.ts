@@ -474,7 +474,7 @@ Create a complete business plan with these sections. Use markdown headers. Be sp
 
 Be investor-ready. Use realistic numbers. Flag assumptions clearly.`;
       const stream = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: businessPlanPrompt },
@@ -719,7 +719,7 @@ Be incisive. The value here is showing them what they literally cannot see from 
       });
 
       const stream = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5",
         messages: conversationHistory,
         temperature: 0.7,
         max_tokens: 2000,
@@ -912,7 +912,7 @@ Generate a complete analysis with these EXACT sections. Each section should be s
       }
 
       const stream = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: openingPrompt },
@@ -982,7 +982,7 @@ Continue challenging them through your lens. Track the evolution of their argume
     }
 
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5",
       messages: conversationHistory,
       temperature: 0.8,
       max_tokens: 1200,

@@ -276,7 +276,7 @@ export default function Home() {
           {/* Trust */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
             className="flex flex-wrap justify-center gap-5 text-[11px] text-white/25">
-            {["Powered by GPT-4o", "100% private", "No credit card", "Results in 2 min"].map((t) => (
+            {["Powered by GPT-5", "100% private", "No credit card", "Results in 2 min"].map((t) => (
               <span key={t} className="flex items-center gap-1.5">
                 <Check className="w-3 h-3 text-emerald-500/60" />{t}
               </span>
