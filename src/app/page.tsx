@@ -91,20 +91,56 @@ function StaggerChild({ children, className = "" }: { children: React.ReactNode;
 }
 
 // ── Live demo mockup ────────────────────────────────────────────────────
+// ── Mini radar for demo ─────────────────────────────────────────────────
+function MiniRadar() {
+  const scores = [8, 7, 6, 8, 7, 9];
+  const labels = ["Problem", "Market", "Edge", "Model", "Team", "Timing"];
+  const n = 6; const cx = 60; const cy = 60; const maxR = 48;
+  const pt = (r: number, i: number) => {
+    const a = (Math.PI * 2 * i) / n - Math.PI / 2;
+    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+  };
+  const dataPath = scores.map((v, i) => pt((v / 10) * maxR, i)).map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
+  const gridPath = (ring: number) => Array.from({ length: n }, (_, i) => pt((ring / 10) * maxR, i)).map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
+
+  return (
+    <svg viewBox="0 0 120 120" className="w-full h-auto">
+      {[4, 7, 10].map((r) => <path key={r} d={gridPath(r)} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={0.5} />)}
+      {Array.from({ length: n }, (_, i) => { const p = pt(maxR, i); return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(255,255,255,0.06)" strokeWidth={0.5} />; })}
+      <motion.path d={dataPath} fill="rgba(99,102,241,0.15)" stroke="#6366f1" strokeWidth={1.5}
+        initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8, delay: 0.2, type: "spring" }}
+        style={{ transformOrigin: "60px 60px" }} />
+      {scores.map((v, i) => { const p = pt((v / 10) * maxR, i); return <motion.circle key={i} cx={p.x} cy={p.y} r={2.5} fill="#6366f1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 + i * 0.1 }} />; })}
+      {labels.map((l, i) => { const p = pt(maxR + 10, i); return <text key={i} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="central" fill="rgba(255,255,255,0.25)" fontSize={5.5} fontWeight={500}>{l}</text>; })}
+    </svg>
+  );
+}
+
 function DemoPreview() {
   const [step, setStep] = useState(-1);
+  const [typedText, setTypedText] = useState("");
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
+  const fullText = "AI-powered meeting summarizer for remote teams";
 
   useEffect(() => {
     if (!inView) return;
+    // Typing effect
+    let i = 0;
+    const typeInterval = setInterval(() => {
+      i++;
+      setTypedText(fullText.slice(0, i));
+      if (i >= fullText.length) clearInterval(typeInterval);
+    }, 35);
     const t = [
-      setTimeout(() => setStep(0), 400),
-      setTimeout(() => setStep(1), 1200),
-      setTimeout(() => setStep(2), 2200),
-      setTimeout(() => setStep(3), 3400),
+      setTimeout(() => setStep(0), 1800),
+      setTimeout(() => setStep(1), 2800),
+      setTimeout(() => setStep(2), 3800),
+      setTimeout(() => setStep(3), 5000),
+      setTimeout(() => setStep(4), 5800), // radar reveal
     ];
-    return () => t.forEach(clearTimeout);
+    return () => { clearInterval(typeInterval); t.forEach(clearTimeout); };
   }, [inView]);
 
   const steps = [
@@ -122,15 +158,18 @@ function DemoPreview() {
       <div className="relative rounded-2xl border border-white/[0.08] bg-[#0c0c14]/90 backdrop-blur-xl p-6 sm:p-8 shadow-2xl">
         {/* Browser dots */}
         <div className="flex items-center gap-1.5 mb-5">
-          <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
-          <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
-          <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
+          <div className="w-2.5 h-2.5 rounded-full bg-red-500/40" />
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-500/40" />
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/40" />
           <span className="ml-3 text-[10px] text-white/20 font-mono">prioritydebater.com/results</span>
         </div>
 
-        {/* Idea */}
+        {/* Idea with typing effect */}
         <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1">Validating</p>
-        <h3 className="text-white font-semibold text-sm sm:text-base mb-5">AI-powered meeting summarizer for remote teams</h3>
+        <h3 className="text-white font-semibold text-sm sm:text-base mb-5">
+          {typedText}
+          {typedText.length < fullText.length && <span className="inline-block w-[2px] h-[14px] bg-indigo-400 ml-0.5 animate-pulse align-middle" />}
+        </h3>
 
         {/* Steps */}
         <div className="space-y-2.5 mb-6">
@@ -155,37 +194,76 @@ function DemoPreview() {
           ))}
         </div>
 
-        {/* Score */}
+        {/* Score + Radar */}
         {step >= 3 && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: "spring", bounce: 0.35, duration: 0.6 }}
-            className="flex items-center justify-between pt-5 border-t border-white/[0.06]"
+            className="pt-5 border-t border-white/[0.06]"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
-                7
-              </div>
-              <div>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                  <Check className="w-2.5 h-2.5" /> GO
-                </span>
-                <p className="text-[10px] text-white/30 mt-0.5">Viability score</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              {[
-                { n: "4", label: "Strengths", color: "text-emerald-400" },
-                { n: "3", label: "Risks", color: "text-amber-400" },
-                { n: "5", label: "Actions", color: "text-blue-400" },
-              ].map((m) => (
-                <div key={m.label} className="bg-white/[0.04] rounded-lg px-3 py-2 text-center border border-white/[0.06]">
-                  <p className={`font-bold text-sm ${m.color}`}>{m.n}</p>
-                  <p className="text-[9px] text-white/30">{m.label}</p>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                  7
                 </div>
-              ))}
+                <div>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                    <Check className="w-2.5 h-2.5" /> GO
+                  </span>
+                  <p className="text-[10px] text-white/30 mt-0.5">Viability score</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {[
+                  { n: "4", label: "Strengths", color: "text-emerald-400" },
+                  { n: "3", label: "Risks", color: "text-amber-400" },
+                  { n: "5", label: "Actions", color: "text-blue-400" },
+                ].map((m) => (
+                  <div key={m.label} className="bg-white/[0.04] rounded-lg px-3 py-2 text-center border border-white/[0.06]">
+                    <p className={`font-bold text-sm ${m.color}`}>{m.n}</p>
+                    <p className="text-[9px] text-white/30">{m.label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* Mini radar chart reveal */}
+            {step >= 4 && (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="flex items-center gap-4 pt-4 border-t border-white/[0.04]"
+              >
+                <div className="w-28 shrink-0">
+                  <MiniRadar />
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  {[
+                    { label: "Problem-Solution Fit", v: 8, color: "bg-indigo-500" },
+                    { label: "Market Opportunity", v: 7, color: "bg-violet-500" },
+                    { label: "Business Model", v: 8, color: "bg-emerald-500" },
+                    { label: "Timing & Trends", v: 9, color: "bg-amber-500" },
+                  ].map((b) => (
+                    <div key={b.label}>
+                      <div className="flex justify-between mb-0.5">
+                        <span className="text-[8px] text-white/25">{b.label}</span>
+                        <span className="text-[8px] text-white/40 font-bold">{b.v}/10</span>
+                      </div>
+                      <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
+                        <motion.div
+                          className={`h-full rounded-full ${b.color}`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${b.v * 10}%` }}
+                          transition={{ duration: 0.8, delay: 0.3 }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         )}
       </div>
@@ -310,32 +388,51 @@ export default function Home() {
         </Stagger>
       </section>
 
-      {/* ═══ HOW IT WORKS ═══ */}
+      {/* ═══ HOW IT WORKS — Zigzag Timeline ═══ */}
       <section className="py-20 sm:py-28">
-        <div className="max-w-5xl mx-auto px-5">
-          <Reveal className="text-center mb-14">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium mb-3">How it works</p>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Three steps to clarity</h2>
+        <div className="max-w-4xl mx-auto px-5">
+          <Reveal className="text-center mb-16">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium mb-3">Our approach</p>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">From Idea to Clarity in 4 Steps</h2>
           </Reveal>
 
-          <Stagger className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          {/* Zigzag timeline */}
+          <div className="relative">
+            {/* Vertical center line — hidden on mobile */}
+            <div className="hidden sm:block absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-indigo-500/30 via-violet-500/20 to-purple-500/30" style={{ backgroundImage: "repeating-linear-gradient(to bottom, rgba(99,102,241,0.3) 0px, rgba(99,102,241,0.3) 6px, transparent 6px, transparent 12px)" }} />
+
             {[
-              { n: "01", title: "Describe your idea", desc: "What you want to build, why it will work, your situation. 30 seconds.", icon: <FileText className="w-5 h-5" />, accent: "from-blue-500 to-indigo-500" },
-              { n: "02", title: "Get your report", desc: "AI analyzes viability, market, competitors, risks. Full dashboard with scores.", icon: <BarChart3 className="w-5 h-5" />, accent: "from-violet-500 to-purple-500" },
-              { n: "03", title: "Debate & refine", desc: "Stress-test against an AI adversary. Find blind spots. Sharpen your pitch.", icon: <Swords className="w-5 h-5" />, accent: "from-emerald-500 to-teal-500" },
-            ].map((item) => (
-              <StaggerChild key={item.n}>
-                <div className="group relative p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-all duration-300">
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${item.accent} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                    {item.icon}
+              { n: "01", title: "Describe", desc: "Tell us your idea, why you think it works, and your situation. Takes 30 seconds.", badge: "30 SECONDS • FREE", icon: <FileText className="w-5 h-5" />, accent: "border-blue-500/30 bg-blue-500/[0.06]", badgeColor: "bg-blue-500/10 text-blue-400 border-blue-500/20", dotColor: "bg-blue-500" },
+              { n: "02", title: "Analyze", desc: "GPT-5 evaluates viability, market size, competitors, risks, and generates a full dashboard with radar chart and lean canvas.", badge: "15+ CRITERIA • RADAR CHART", icon: <BarChart3 className="w-5 h-5" />, accent: "border-violet-500/30 bg-violet-500/[0.06]", badgeColor: "bg-violet-500/10 text-violet-400 border-violet-500/20", dotColor: "bg-violet-500" },
+              { n: "03", title: "Debate", desc: "Defend your position against an AI adversary that uses inversion, base rate analysis, and pre-mortem thinking to find every flaw.", badge: "AI ADVERSARY • 6 QUICK ACTIONS", icon: <Swords className="w-5 h-5" />, accent: "border-emerald-500/30 bg-emerald-500/[0.06]", badgeColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", dotColor: "bg-emerald-500" },
+              { n: "04", title: "Launch", desc: "Export your report as PDF, generate a business plan, share with co-founders, and start building with confidence.", badge: "PDF EXPORT • SHARE LINK", icon: <Zap className="w-5 h-5" />, accent: "border-amber-500/30 bg-amber-500/[0.06]", badgeColor: "bg-amber-500/10 text-amber-400 border-amber-500/20", dotColor: "bg-amber-500" },
+            ].map((item, i) => {
+              const isRight = i % 2 === 1;
+              return (
+                <Reveal key={item.n} delay={i * 0.1}>
+                  <div className={`relative flex flex-col sm:flex-row ${isRight ? "sm:flex-row-reverse" : ""} items-center gap-6 mb-12 last:mb-0`}>
+                    {/* Card */}
+                    <div className={`w-full sm:w-[calc(50%-32px)] rounded-2xl border p-6 ${item.accent} transition-all hover:scale-[1.02] duration-300`}>
+                      <p className="text-[10px] font-semibold text-indigo-400/60 uppercase tracking-widest mb-1">{item.n}</p>
+                      <h3 className="font-bold text-white text-lg mb-2">{item.title}</h3>
+                      <p className="text-xs text-white/40 leading-relaxed mb-3">{item.desc}</p>
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-semibold uppercase tracking-wider border ${item.badgeColor}`}>
+                        {item.badge}
+                      </span>
+                    </div>
+
+                    {/* Center dot — hidden on mobile */}
+                    <div className="hidden sm:flex absolute left-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-2 border-[#08080e] z-10 items-center justify-center">
+                      <div className={`w-3 h-3 rounded-full ${item.dotColor} shadow-lg`} style={{ boxShadow: `0 0 10px 2px ${item.dotColor === "bg-blue-500" ? "rgba(59,130,246,0.4)" : item.dotColor === "bg-violet-500" ? "rgba(139,92,246,0.4)" : item.dotColor === "bg-emerald-500" ? "rgba(16,185,129,0.4)" : "rgba(245,158,11,0.4)"}` }} />
+                    </div>
+
+                    {/* Spacer for the other side */}
+                    <div className="hidden sm:block w-[calc(50%-32px)]" />
                   </div>
-                  <p className="text-[10px] font-medium text-white/20 uppercase tracking-widest mb-1">{item.n}</p>
-                  <h3 className="font-semibold text-white text-sm mb-2">{item.title}</h3>
-                  <p className="text-xs text-white/35 leading-relaxed">{item.desc}</p>
-                </div>
-              </StaggerChild>
-            ))}
-          </Stagger>
+                </Reveal>
+              );
+            })}
+          </div>
         </div>
       </section>
 
