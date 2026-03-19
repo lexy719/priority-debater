@@ -331,10 +331,22 @@ You are a COO/VP Engineering who's scaled teams from 5 to 500. You think about e
 - Reference build decisions, tradeoffs, and scaling challenges`
 };
 
+const BREVITY_CONSTRAINT = `
+
+CRITICAL RULE — RESPONSE LENGTH:
+Keep every response under 150 words. This is a CONVERSATION, not an essay.
+- 3-5 sentences max. Be punchy, direct, conversational.
+- One key point per reply. Make it count.
+- Ask ONE follow-up question at the end. Never two, never three.
+- Never use more than 2 bullet points in a debate reply.
+- No headers, no markdown formatting in debate responses. Just talk.
+- If you catch yourself writing a fourth paragraph, DELETE IT.
+- Think: sharp text from a smart friend, not a consultant's memo.`;
+
 function getSystemPrompt(lens?: string, personaId?: string): string {
   const lensModifier = lens && LENS_MODIFIERS[lens] ? LENS_MODIFIERS[lens] : "";
   const personaOverlay = personaId && PERSONA_OVERLAYS[personaId] ? PERSONA_OVERLAYS[personaId] : PERSONA_OVERLAYS.adversary;
-  return `${BASE_PERSONA}\n\n${personaOverlay}${lensModifier ? `\n\n${lensModifier}` : ""}`;
+  return `${BASE_PERSONA}\n\n${personaOverlay}${lensModifier ? `\n\n${lensModifier}` : ""}${BREVITY_CONSTRAINT}`;
 }
 
 export async function POST(request: Request) {
@@ -598,7 +610,7 @@ RULES FOR THIS OPENING:
             { role: "user", content: debateOpenPrompt },
           ],
           temperature: 0.85,
-          max_completion_tokens: 250,
+          max_completion_tokens: 200,
           stream: true,
         });
         const encoder = new TextEncoder();
@@ -851,7 +863,7 @@ Be incisive. The value here is showing them what they literally cannot see from 
         model: "gpt-4.1",
         messages: conversationHistory,
         temperature: 0.7,
-        max_completion_tokens: 1000,
+        max_completion_tokens: 500,
         stream: true,
       });
 
@@ -1153,7 +1165,7 @@ ${validationContent ? `\n**Prior validation analysis (for context, don't repeat 
       model: "gpt-4.1",
       messages: conversationHistory,
       temperature: 0.8,
-      max_completion_tokens: 600,
+      max_completion_tokens: 350,
       stream: true,
     });
 

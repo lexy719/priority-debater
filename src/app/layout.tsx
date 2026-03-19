@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
@@ -16,26 +16,38 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://priority-debater.vercel.app"),
   title: {
-    default: "Priority Debater | AI Startup Idea Validator in 2 Minutes",
+    default: "Priority Debater — Stress-Test Your Startup Idea With 5 AI Personas",
     template: "%s | Priority Debater",
   },
   description:
-    "Validate your startup idea in 2 minutes. Get a viability score, TAM/SAM/SOM, competitor analysis, risk flags, and business plan. Then debate to refine. Free, private, no signup.",
-  keywords: ["startup validation", "idea validator", "AI validation", "business plan", "startup idea"],
+    "ChatGPT tells you what you want to hear. We tell you what you need to hear. 5 AI personas rip your startup idea apart from every angle — investor, customer, operator, mentor, adversary. Viability scores, lean canvas, financials, and a brutal debate mode. Free, 2 minutes, no signup.",
+  keywords: ["startup validation", "idea validator", "AI validation", "business plan", "startup idea", "startup stress test", "idea validation tool", "lean canvas generator"],
   openGraph: {
-    title: "Priority Debater | AI Startup Idea Validator",
-    description: "Validate your startup idea in 2 minutes. Get a viability score, debate to refine. Free, private.",
+    title: "Priority Debater — Stress-Test Your Startup Idea",
+    description: "5 AI personas rip your idea apart so the market doesn't have to. Free, 2 minutes, no signup.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Priority Debater | AI Startup Idea Validator",
-    description: "Validate your startup idea in 2 minutes. Free, private.",
+    title: "Priority Debater — Stress-Test Your Startup Idea",
+    description: "5 AI personas rip your idea apart so the market doesn't have to. Free, 2 min.",
   },
   robots: {
     index: true,
     follow: true,
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Priority Debater",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
