@@ -35,6 +35,7 @@ import { extractDashboardData } from "@/lib/parse";
 import { RadarChart, ScoreBreakdownBars } from "@/components/RadarChart";
 import { LeanCanvas } from "@/components/LeanCanvas";
 import { TamSamSomChart } from "@/components/TamSamSom";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import type { ValidationSession } from "@/lib/types";
 
 // ── PDF Export ──
@@ -346,6 +347,7 @@ export default function ResultsPage() {
               <RefreshCw className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Pivot</span>
             </button>
+            <ThemeToggle />
             <button
               onClick={handleValidateNew}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-all ml-1"

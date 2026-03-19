@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { loadSession, clearSession, updateSessionMessages } from "@/lib/session";
 import { shouldBlock, hasSensitiveTopic } from "@/lib/contentModeration";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import type { Message, ValidationSession } from "@/lib/types";
 
 const MAX_MESSAGE_LENGTH = 2000;
@@ -328,6 +329,7 @@ export default function DebatePage() {
                 <span className="hidden sm:inline">Results</span>
               </Link>
             )}
+            <ThemeToggle />
             <button
               onClick={downloadReport}
               className="shrink-0 p-2 text-white/25 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"

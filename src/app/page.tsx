@@ -31,6 +31,7 @@ import {
   ChevronDown,
   AlertTriangle,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 // ── Animated counter ────────────────────────────────────────────────────
 function Counter({ value, suffix = "", duration = 2 }: { value: number; suffix?: string; duration?: number }) {
@@ -276,26 +277,27 @@ export default function Home() {
   const heroRef = useRef(null);
 
   return (
-    <div className="min-h-screen bg-[#08080e] text-white overflow-hidden">
+    <div className="landing-page min-h-screen overflow-hidden" style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
 
       {/* ═══ NAV ═══ */}
-      <nav className="fixed top-0 w-full z-50 border-b border-white/[0.06] bg-[#08080e]/80 backdrop-blur-xl">
+      <nav className="fixed top-0 w-full z-50" style={{ borderBottom: "1px solid var(--border-primary)", background: "color-mix(in srgb, var(--bg-primary) 80%, transparent)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
         <div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 font-semibold text-sm tracking-tight">
+          <Link href="/" className="flex items-center gap-2.5 font-semibold text-sm tracking-tight" style={{ color: "var(--text-primary)" }}>
             <div className="w-7 h-7 rounded-lg bg-indigo-500 flex items-center justify-center">
               <Zap className="w-3.5 h-3.5 text-white" />
             </div>
             Priority Debater
           </Link>
           <div className="flex items-center gap-1">
-            <Link href="/validate" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs text-white/50 hover:text-white transition-colors">
+            <Link href="/validate" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs transition-colors" style={{ color: "var(--text-tertiary)" }}>
               Validate
             </Link>
-            <Link href="/debate" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs text-white/50 hover:text-white transition-colors">
+            <Link href="/debate" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs transition-colors" style={{ color: "var(--text-tertiary)" }}>
               Debate
             </Link>
+            <ThemeToggle />
             <Link href="/validate"
-              className="ml-2 px-4 py-1.5 rounded-lg bg-white text-[#08080e] text-xs font-semibold hover:bg-white/90 transition-colors">
+              className="ml-1 px-4 py-1.5 rounded-lg text-white text-xs font-semibold hover:opacity-90 transition-all" style={{ background: "var(--accent-primary)" }}>
               Get Started
             </Link>
           </div>
@@ -340,12 +342,12 @@ export default function Home() {
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-7">
             <Link href="/validate"
-              className="group relative inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-[#08080e] font-semibold text-sm hover:bg-white/90 transition-all shadow-lg shadow-white/5 hover:shadow-xl hover:shadow-white/10">
+              className="cta-primary group relative inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-[#08080e] font-semibold text-sm hover:bg-white/90 transition-all shadow-lg shadow-white/5 hover:shadow-xl hover:shadow-white/10">
               Validate My Idea
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
             <Link href="/validate?mode=generate"
-              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/[0.06] text-white/70 font-medium text-sm hover:bg-white/[0.1] transition-all border border-white/[0.08]">
+              className="cta-secondary inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/[0.06] text-white/70 font-medium text-sm hover:bg-white/[0.1] transition-all border border-white/[0.08]">
               <Wand2 className="w-4 h-4" />
               Generate an Idea
             </Link>
@@ -647,12 +649,12 @@ export default function Home() {
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                   <Link href="/validate"
-                    className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-[#08080e] font-semibold text-sm hover:bg-white/90 transition-all shadow-lg shadow-white/5">
+                    className="cta-primary group inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-[#08080e] font-semibold text-sm hover:bg-white/90 transition-all shadow-lg shadow-white/5">
                     Validate My Idea
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </Link>
                   <Link href="/validate?mode=generate"
-                    className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/[0.06] text-white/70 text-sm font-medium hover:bg-white/[0.1] transition-all border border-white/[0.08]">
+                    className="cta-secondary inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/[0.06] text-white/70 text-sm font-medium hover:bg-white/[0.1] transition-all border border-white/[0.08]">
                     <Wand2 className="w-4 h-4" /> Generate an Idea
                   </Link>
                 </div>

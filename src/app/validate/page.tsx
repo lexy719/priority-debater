@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import { ArrowLeft, ArrowRight, Loader2, FlaskConical, Wand2, CheckCircle2, Zap, Sparkles } from "lucide-react";
 import { saveSession } from "@/lib/session";
 import { shouldBlock } from "@/lib/contentModeration";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import type { DebateSetup, Message } from "@/lib/types";
 
 const ideaValidatorTemplate = {
@@ -217,6 +218,7 @@ function ValidateForm() {
               <Zap className="w-4 h-4 text-white" />
             </div>
             <span className="text-sm font-semibold text-white">Generating Report</span>
+            <ThemeToggle />
           </div>
         </div>
 
@@ -300,13 +302,16 @@ function ValidateForm() {
             </div>
             <span className="text-sm font-semibold text-white/70 group-hover:text-white transition-colors">Priority Debater</span>
           </Link>
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Back
-          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back
+            </Link>
+          </div>
         </div>
       </div>
 
