@@ -33,6 +33,7 @@ import {
   Clock,
   DollarSign,
   Flame,
+  Presentation,
 } from "lucide-react";
 import { loadSession, clearSession } from "@/lib/session";
 import { extractDashboardData } from "@/lib/parse";
@@ -244,11 +245,80 @@ export default function ResultsPage() {
     { label: "Timing", value: cs.timingTrends, icon: <Clock className="w-4 h-4" />, color: "text-rose-400" },
   ].filter(m => m.value != null);
 
+  // ── Refine tab state ──
+  const weakCategories = [
+    { key: "problemSolutionFit", label: "Problem-Solution Fit", value: cs.problemSolutionFit },
+    { key: "marketOpportunity", label: "Market Opportunity", value: cs.marketOpportunity },
+    { key: "competitiveEdge", label: "Competitive Edge", value: cs.competitiveEdge },
+    { key: "businessModel", label: "Business Model", value: cs.businessModel },
+    { key: "teamExecution", label: "Team & Execution", value: cs.teamExecution },
+    { key: "timingTrends", label: "Timing & Trends", value: cs.timingTrends },
+  ].filter(c => c.value != null && c.value < 7);
+
+  const [pivotData, setPivotData] = useState<Record<string, { analysis: string; pivots: { title: string; description: string; estimatedScore: number }[] }>>({});
+  const [pivotLoading, setPivotLoading] = useState<Record<string, boolean>>({});
+  const [pivotErrors, setPivotErrors] = useState<Record<string, string>>({});
+  const [selectedPivots, setSelectedPivots] = useState<Record<string, number | "custom">>({});
+  const [customPivotText, setCustomPivotText] = useState<Record<string, string>>({});
+
+  const handleGeneratePivots = async (categoryKey: string, categoryLabel: string, categoryScore: number) => {
+    setPivotLoading(prev => ({ ...prev, [categoryKey]: true }));
+    setPivotErrors(prev => ({ ...prev, [categoryKey]: "" }));
+    try {
+      const response = await fetch("/api/debate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "refine",
+          setup,
+          validationContent,
+          category: categoryLabel,
+          categoryScore,
+        }),
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.error || `Server error (${response.status})`);
+      }
+      const data = await response.json();
+      setPivotData(prev => ({ ...prev, [categoryKey]: data }));
+    } catch (e) {
+      setPivotErrors(prev => ({ ...prev, [categoryKey]: e instanceof Error ? e.message : "Failed to generate pivots." }));
+    } finally {
+      setPivotLoading(prev => ({ ...prev, [categoryKey]: false }));
+    }
+  };
+
+  const handleRevalidateWithPivots = () => {
+    const pivotDescriptions: string[] = [];
+    for (const cat of weakCategories) {
+      const sel = selectedPivots[cat.key];
+      if (sel === "custom" && customPivotText[cat.key]?.trim()) {
+        pivotDescriptions.push(`[${cat.label} pivot]: ${customPivotText[cat.key].trim()}`);
+      } else if (typeof sel === "number" && pivotData[cat.key]?.pivots[sel]) {
+        const p = pivotData[cat.key].pivots[sel];
+        pivotDescriptions.push(`[${cat.label} pivot]: ${p.title} — ${p.description}`);
+      }
+    }
+    const pivotSuffix = pivotDescriptions.length > 0
+      ? `\n\n--- REFINEMENTS APPLIED ---\n${pivotDescriptions.join("\n")}`
+      : "";
+    const revalidateSetup = {
+      ...setup,
+      context: (setup.context || "") + pivotSuffix,
+    };
+    sessionStorage.setItem("revalidate", JSON.stringify(revalidateSetup));
+    router.push("/validate");
+  };
+
+  const hasAnyPivotSelected = Object.keys(selectedPivots).length > 0;
+
   const tabs = [
     { label: "Overview", icon: <BarChart3 className="w-4 h-4" /> },
     { label: "Deep Dive", icon: <TrendingUp className="w-4 h-4" /> },
     { label: "Action Plan", icon: <Target className="w-4 h-4" /> },
     { label: "Canvas & Plan", icon: <Grid3X3 className="w-4 h-4" /> },
+    ...(weakCategories.length > 0 ? [{ label: "Refine", icon: <RefreshCw className="w-4 h-4" /> }] : []),
   ];
 
   return (
@@ -523,6 +593,176 @@ export default function ResultsPage() {
               </ContentCard>
             </div>
           )}
+
+          {/* ═══ REFINE: Sharpen weak spots ═══ */}
+          {activeTab === 4 && weakCategories.length > 0 && (
+            <div className="lg:col-span-2 space-y-5">
+              {/* Header */}
+              <div className="rounded-xl bg-gradient-to-br from-amber-500/[0.06] to-red-500/[0.04] border border-amber-500/15 p-5 sm:p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 rounded-lg bg-amber-500/15 border border-amber-500/20">
+                    <Lightbulb className="w-5 h-5 text-amber-400" />
+                  </div>
+                  <h2 className="text-lg font-bold text-white">Sharpen Your Weak Spots</h2>
+                </div>
+                <p className="text-sm text-white/40 leading-relaxed">
+                  {weakCategories.length} {weakCategories.length === 1 ? "category scored" : "categories scored"} below 7/10. Generate AI-powered pivots for each weak area, pick the ones that fit, and re-validate your refined idea.
+                </p>
+              </div>
+
+              {/* Weak category cards */}
+              {weakCategories.map((cat) => {
+                const scoreColor = cat.value != null && cat.value < 5 ? "text-red-400" : "text-amber-400";
+                const scoreBg = cat.value != null && cat.value < 5 ? "bg-red-500/10 border-red-500/20" : "bg-amber-500/10 border-amber-500/20";
+                const data = pivotData[cat.key];
+                const isLoading = pivotLoading[cat.key];
+                const errorMsg = pivotErrors[cat.key];
+                const selected = selectedPivots[cat.key];
+
+                return (
+                  <ContentCard
+                    key={cat.key}
+                    icon={<AlertTriangle className="w-4 h-4" />}
+                    title={cat.label}
+                    color={scoreColor}
+                    className={`border-l-2 ${cat.value != null && cat.value < 5 ? "border-l-red-500/40" : "border-l-amber-500/40"}`}
+                  >
+                    {/* Score badge */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${scoreBg} ${scoreColor}`}>
+                        {cat.value}/10
+                      </span>
+                      <span className="text-xs text-white/25">Needs improvement</span>
+                    </div>
+
+                    {/* Generate button or results */}
+                    {!data && !isLoading && (
+                      <button
+                        onClick={() => handleGeneratePivots(cat.key, cat.label, cat.value!)}
+                        disabled={isLoading}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/[0.06] border border-white/[0.08] text-sm font-medium text-white/60 hover:text-white/80 hover:bg-white/[0.08] transition-all"
+                      >
+                        <Zap className="w-3.5 h-3.5" /> Generate Pivots
+                      </button>
+                    )}
+
+                    {isLoading && (
+                      <div className="flex items-center gap-2 py-3 text-white/30 text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Analyzing weakness and generating pivots...
+                      </div>
+                    )}
+
+                    {errorMsg && (
+                      <div className="flex items-center gap-2 py-2 text-red-400 text-sm">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        <span>{errorMsg}</span>
+                        <button onClick={() => handleGeneratePivots(cat.key, cat.label, cat.value!)} className="text-xs underline hover:no-underline ml-1">Retry</button>
+                      </div>
+                    )}
+
+                    {data && (
+                      <div className="space-y-4">
+                        {/* Analysis */}
+                        <div className="rounded-lg bg-white/[0.02] border border-white/[0.04] p-3">
+                          <p className="text-xs font-medium text-white/30 mb-1">Root Cause</p>
+                          <p className="text-sm text-white/50 leading-relaxed">{data.analysis}</p>
+                        </div>
+
+                        {/* Pivots */}
+                        <div className="space-y-3">
+                          {data.pivots.map((pivot, idx) => {
+                            const isSelected = selected === idx;
+                            return (
+                              <div
+                                key={idx}
+                                onClick={() => setSelectedPivots(prev => {
+                                  if (prev[cat.key] === idx) { const next = { ...prev }; delete next[cat.key]; return next; }
+                                  return { ...prev, [cat.key]: idx };
+                                })}
+                                className={`rounded-lg border p-4 cursor-pointer transition-all ${
+                                  isSelected
+                                    ? "bg-indigo-500/10 border-indigo-500/30"
+                                    : "bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12]"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3 mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                                      isSelected ? "border-indigo-400 bg-indigo-500" : "border-white/20"
+                                    }`}>
+                                      {isSelected && <Check className="w-3 h-3 text-white" />}
+                                    </div>
+                                    <h4 className="text-sm font-semibold text-white/80">{pivot.title}</h4>
+                                  </div>
+                                  <span className="shrink-0 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                                    {pivot.estimatedScore}/10
+                                  </span>
+                                </div>
+                                <p className="text-sm text-white/45 leading-relaxed ml-7">{pivot.description}</p>
+                              </div>
+                            );
+                          })}
+
+                          {/* Custom pivot option */}
+                          <div
+                            onClick={() => setSelectedPivots(prev => {
+                              if (prev[cat.key] === "custom") { const next = { ...prev }; delete next[cat.key]; return next; }
+                              return { ...prev, [cat.key]: "custom" };
+                            })}
+                            className={`rounded-lg border p-4 cursor-pointer transition-all ${
+                              selected === "custom"
+                                ? "bg-indigo-500/10 border-indigo-500/30"
+                                : "bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12]"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                                selected === "custom" ? "border-indigo-400 bg-indigo-500" : "border-white/20"
+                              }`}>
+                                {selected === "custom" && <Check className="w-3 h-3 text-white" />}
+                              </div>
+                              <h4 className="text-sm font-semibold text-white/60">Write your own pivot</h4>
+                            </div>
+                            {selected === "custom" && (
+                              <textarea
+                                value={customPivotText[cat.key] || ""}
+                                onChange={(e) => setCustomPivotText(prev => ({ ...prev, [cat.key]: e.target.value }))}
+                                onClick={(e) => e.stopPropagation()}
+                                placeholder="Describe your pivot idea..."
+                                className="w-full mt-2 ml-7 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white/70 placeholder-white/20 focus:outline-none focus:border-indigo-500/40 resize-none"
+                                rows={2}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </ContentCard>
+                );
+              })}
+
+              {/* Re-validate button */}
+              <div className="rounded-xl bg-gradient-to-br from-indigo-500/[0.06] to-violet-500/[0.04] border border-indigo-500/15 p-5 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-white mb-1">Ready to re-validate?</h3>
+                    <p className="text-xs text-white/30">
+                      {hasAnyPivotSelected
+                        ? `${Object.keys(selectedPivots).length} ${Object.keys(selectedPivots).length === 1 ? "pivot" : "pivots"} selected. Your idea will be re-validated with these refinements applied.`
+                        : "Select at least one pivot above, then re-validate to see your updated scores."}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleRevalidateWithPivots}
+                    disabled={!hasAnyPivotSelected}
+                    className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0"
+                  >
+                    <RefreshCw className="w-4 h-4" /> Re-validate with Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -533,20 +773,40 @@ export default function ResultsPage() {
           </div>
         )}
 
-        {/* ── DEBATE CTA ── */}
-        <div className="relative rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/15 p-6 overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(139,92,246,0.08)_0%,_transparent_60%)]" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-indigo-500/15 border border-indigo-500/20 shrink-0"><Swords className="w-6 h-6 text-indigo-400" /></div>
-              <div>
-                <h3 className="text-lg font-bold text-white">Ready to stress-test?</h3>
-                <p className="text-white/30 text-sm">Defend your position against The Adversary and find the blind spots.</p>
+        {/* ── CTAs ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {/* Debate CTA */}
+          <div className="relative rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/15 p-6 overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(139,92,246,0.08)_0%,_transparent_60%)]" />
+            <div className="relative flex flex-col gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-indigo-500/15 border border-indigo-500/20 shrink-0"><Swords className="w-6 h-6 text-indigo-400" /></div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Stress-Test It</h3>
+                  <p className="text-white/30 text-sm">Defend your position against The Adversary and find the blind spots.</p>
+                </div>
               </div>
+              <Link href="/debate" className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-lg shadow-indigo-500/20 text-sm">
+                <Swords className="w-4 h-4" /> Debate This Idea <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
-            <Link href="/debate" className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-lg shadow-indigo-500/20 text-sm shrink-0">
-              <Swords className="w-4 h-4" /> Debate This Idea <ArrowRight className="w-4 h-4" />
-            </Link>
+          </div>
+
+          {/* Pitch Deck CTA */}
+          <div className="relative rounded-2xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/15 p-6 overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(245,158,11,0.08)_0%,_transparent_60%)]" />
+            <div className="relative flex flex-col gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/20 shrink-0"><Presentation className="w-6 h-6 text-amber-400" /></div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Pitch Deck</h3>
+                  <p className="text-white/30 text-sm">Generate a 10-slide investor pitch deck with speaker notes from your data.</p>
+                </div>
+              </div>
+              <Link href="/pitch" className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold transition-all shadow-lg shadow-amber-500/20 text-sm">
+                <Presentation className="w-4 h-4" /> Generate Pitch Deck <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
         </div>
       </main>

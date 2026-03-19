@@ -391,15 +391,17 @@ export async function POST(request: Request) {
     });
 
     const body = (await request.json()) as {
-      action: "start" | "continue" | "quick" | "business-plan" | "debate-open";
+      action: "start" | "continue" | "quick" | "business-plan" | "pitch-deck" | "debate-open" | "refine";
       setup: DebateSetup;
       messages?: Message[];
       quickAction?: string;
       validationContent?: string;
       persona?: string;
+      category?: string;
+      categoryScore?: number;
     };
 
-    const { action, setup: rawSetup, messages: rawMessages, quickAction, validationContent, persona } = body;
+    const { action, setup: rawSetup, messages: rawMessages, quickAction, validationContent, persona, category, categoryScore } = body;
 
     const setup = rawSetup
       ? {
@@ -448,7 +450,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (action === "business-plan" && validationContent && shouldBlock(validationContent)) {
+    if ((action === "business-plan" || action === "pitch-deck") && validationContent && shouldBlock(validationContent)) {
       return new Response(
         JSON.stringify({
           error: "I can help with business plans for legitimate ideas, but not for harmful or illegal activities.",
@@ -579,6 +581,225 @@ Be investor-ready. Use realistic numbers. Flag assumptions clearly.`;
         console.error("Business plan generation error:", bpError);
         return new Response(
           JSON.stringify({ error: "Failed to generate business plan. Please try again." }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Handle idea refinement — generate pivots for weak categories
+    if (action === "refine" && setup?.topic && category && categoryScore != null) {
+      const refinePrompt = `You are an expert startup advisor. A founder's idea has been validated and scored weak in a specific category. Your job is to analyze WHY it scored low and generate exactly 3 concrete, actionable pivots that would improve the score.
+
+**Idea:** "${setup.topic}"
+**Founder's reasoning:** ${setup.position}
+${setup.context ? `**Context:** ${setup.context}` : ""}
+
+**Weak category:** ${category}
+**Current score:** ${categoryScore}/10
+
+${validationContent ? `**Validation report (for context on why it scored low):**\n${validationContent.slice(0, 3000)}` : ""}
+
+Generate exactly 3 pivots. Each pivot must be a specific, actionable change the founder can make to improve the ${category} score. Not vague advice — concrete changes to the idea, positioning, strategy, or approach.
+
+Respond in this EXACT JSON format (no markdown, no code fences, just raw JSON):
+{
+  "analysis": "2-3 sentences explaining WHY this category scored low — the root cause",
+  "pivots": [
+    {
+      "title": "Short pivot name (3-6 words)",
+      "description": "2-3 sentences describing exactly what to change and why it would help. Be specific to this idea.",
+      "estimatedScore": 7
+    },
+    {
+      "title": "Short pivot name (3-6 words)",
+      "description": "2-3 sentences describing exactly what to change and why it would help. Be specific to this idea.",
+      "estimatedScore": 8
+    },
+    {
+      "title": "Short pivot name (3-6 words)",
+      "description": "2-3 sentences describing exactly what to change and why it would help. Be specific to this idea.",
+      "estimatedScore": 7
+    }
+  ]
+}
+
+RULES:
+- estimatedScore must be realistic (typically 6-9, never 10)
+- Each pivot must be DIFFERENT — different strategies, not variations of the same thing
+- Be specific to THIS idea, not generic startup advice
+- JSON only, no other text`;
+
+      try {
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4.1",
+          messages: [
+            { role: "system", content: "You are a startup advisor. Respond ONLY with valid JSON. No markdown, no code fences, no explanations outside the JSON." },
+            { role: "user", content: refinePrompt },
+          ],
+          temperature: 0.7,
+          max_completion_tokens: 600,
+        });
+
+        const raw = completion.choices[0]?.message?.content?.trim() || "";
+        // Strip potential markdown code fences
+        const cleaned = raw.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "").trim();
+        try {
+          const parsed = JSON.parse(cleaned);
+          return new Response(JSON.stringify(parsed), {
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch {
+          console.error("Failed to parse refine JSON:", cleaned);
+          return new Response(
+            JSON.stringify({ error: "Failed to parse AI response. Please try again." }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      } catch (e) {
+        console.error("Refine generation error:", e);
+        return new Response(
+          JSON.stringify({ error: "Failed to generate pivots. Please try again." }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Handle pitch deck generation
+    if (action === "pitch-deck" && setup?.topic) {
+      const pitchDeckPrompt = `Generate a 10-SLIDE INVESTOR PITCH DECK based on this validated idea. Each slide must be compelling, data-driven, and tell a story that builds investor confidence.
+
+**Idea:** "${setup.topic}"
+
+**Founder's reasoning:** ${setup.position}
+
+${setup.context ? `**Context:** ${setup.context}` : ""}
+
+**Validation report (use real numbers from this, do NOT make up data):**
+${validationContent || "No prior validation — generate based on the idea alone."}
+
+Create exactly 10 slides using this EXACT format for each slide. Use --- as the separator between slides.
+
+## Slide 1: The Problem
+
+[3-5 bullet points about the problem. Be specific. Quantify the pain. Make investors feel the urgency.]
+
+**Speaker Notes:** [2-3 sentences on what to say when presenting. What questions VCs might ask about this slide.]
+
+---
+
+## Slide 2: Our Solution
+
+[Value proposition rewritten as a pitch. What you do, how it works, why it's 10x better. Keep it crisp.]
+
+**Speaker Notes:** [How to demo or explain this. Anticipate "why can't [big company] do this?" questions.]
+
+---
+
+## Slide 3: Market Size
+
+[TAM/SAM/SOM with actual numbers from the validation. Show the growth trajectory. Reference real market data.]
+
+**Speaker Notes:** [How to defend these numbers. Common VC pushback on market sizing.]
+
+---
+
+## Slide 4: How It Works
+
+[Product overview. The user journey or key features. What makes it click. Visual description of the product flow.]
+
+**Speaker Notes:** [Walk through the product. Highlight the "aha moment" for users.]
+
+---
+
+## Slide 5: Traction & Validation
+
+[Validation score, key strengths from the report, what's been proven, any early signals. If pre-launch, show validation methodology.]
+
+**Speaker Notes:** [How to frame traction honestly. What milestones are coming next.]
+
+---
+
+## Slide 6: Business Model
+
+[Revenue model, pricing, unit economics (CAC/LTV/margins). How you make money and why it scales.]
+
+**Speaker Notes:** [Be ready for "what are your margins at scale?" and "how does CAC trend over time?"]
+
+---
+
+## Slide 7: Competitive Landscape
+
+[Positioning map or comparison. Name competitors. Show your wedge and why you win. Don't say "no competitors."]
+
+**Speaker Notes:** [How to handle "what if Google does this?" Own your positioning.]
+
+---
+
+## Slide 8: Go-to-Market Strategy
+
+[Customer acquisition channels, sales motion, launch plan. First 1000 customers strategy.]
+
+**Speaker Notes:** [Show you know your customer. VCs want to see a repeatable acquisition engine.]
+
+---
+
+## Slide 9: The Ask
+
+[What you need: funding amount, use of funds, key hires, 18-month milestones. Timeline to next raise.]
+
+**Speaker Notes:** [Be specific on use of funds. Show milestone-based thinking. Know your runway math.]
+
+---
+
+## Slide 10: The Vision
+
+[One-liner vision. Why this matters in 5 years. The big picture. End with energy and conviction.]
+
+**Speaker Notes:** [Leave them inspired. This is the slide they remember. Make it count.]
+
+RULES:
+- Use REAL numbers from the validation report. Do not invent statistics.
+- Keep each slide concise — this is a pitch, not an essay.
+- Be specific, not generic. Reference the actual idea, market, and data.
+- Speaker notes should be practical advice for the presenter.
+- Use markdown formatting (bold, bullet points) for readability.
+- Separate each slide with exactly ---`;
+      try {
+        const stream = await openai.chat.completions.create({
+          model: "gpt-4.1",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: pitchDeckPrompt },
+          ],
+          temperature: 0.7,
+          max_completion_tokens: 4000,
+          stream: true,
+        });
+        const encoder = new TextEncoder();
+        const readable = new ReadableStream({
+          async start(controller) {
+            try {
+              for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content || "";
+                if (content) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+              }
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            } catch (streamError) {
+              console.error("Pitch deck stream error:", streamError);
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`));
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            }
+          },
+        });
+        return new Response(readable, {
+          headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+        });
+      } catch (pdError) {
+        console.error("Pitch deck generation error:", pdError);
+        return new Response(
+          JSON.stringify({ error: "Failed to generate pitch deck. Please try again." }),
           { status: 500, headers: { "Content-Type": "application/json" } }
         );
       }
