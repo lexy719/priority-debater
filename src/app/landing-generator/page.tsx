@@ -239,12 +239,16 @@ export default function LandingGeneratorPage() {
                 <p className="text-white/40 text-sm leading-relaxed mb-4 max-w-md mx-auto">
                   We pull structured data from your validation report (scores, ICP, risks, market sizing)
                   and brief a senior-level layout: editorial typography, real proof points, and CTAs that
-                  match your idea — not generic startup filler. Single HTML file; host anywhere.
+                  match your idea — not generic startup filler. Each run picks a different layout archetype
+                  (split hero, bento, magazine, etc.). With{" "}
+                  <code className="text-white/50 text-[11px]">UNSPLASH_ACCESS_KEY</code> set on the server,
+                  we also fetch on-topic stock photos with proper attribution. Single HTML file; host anywhere.
                 </p>
                 <div className="flex flex-wrap justify-center gap-2 mb-6">
                   {[
                     "Report-informed copy",
-                    "Agency-grade layout",
+                    "5 layout archetypes",
+                    "Ken Burns imagery",
                     "Motion & polish",
                     "SEO meta + OG tags",
                     "Download & deploy",

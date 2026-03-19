@@ -266,6 +266,141 @@ body.lp-page {
 
 /* Reveal — always visible (iframes / sandboxed previews often break IntersectionObserver). Optional subtle hover only. */
 .lp-reveal { opacity: 1; transform: none; }
+
+/* === Layout archetypes (use with body.lp-layout--*) === */
+body.lp-layout--centered-editorial .lp-container { max-width: 720px; }
+body.lp-layout--centered-editorial .lp-nav__inner { max-width: 1120px; }
+
+/* Split hero */
+.lp-hero--split .lp-container { position: relative; z-index: 1; }
+.lp-hero__copy { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.lp-hero__split {
+  display: grid;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: center;
+}
+@media (min-width: 900px) {
+  .lp-hero__split { grid-template-columns: 1fr 1fr; }
+}
+.lp-hero__visual {
+  position: relative;
+  border-radius: var(--lp-radius);
+  overflow: hidden;
+  border: 1px solid var(--lp-border);
+  background: var(--lp-bg-elevated);
+  aspect-ratio: 4/3;
+  max-height: min(520px, 70vh);
+}
+.lp-hero__visual .lp-img { width: 100%; height: 100%; object-fit: cover; }
+.lp-hero__visual::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(7,7,12,0.1) 0%, rgba(7,7,12,0.45) 100%);
+  pointer-events: none;
+}
+.lp-photo-credit {
+  margin-top: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--lp-faint);
+}
+.lp-photo-credit a { color: var(--lp-muted); }
+
+/* Images + Ken Burns (subtle, respects reduced motion) */
+.lp-img { display: block; max-width: 100%; height: auto; }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes lp-kenburns {
+    0% { transform: scale(1) translate(0, 0); }
+    100% { transform: scale(1.08) translate(-1.5%, 1%); }
+  }
+  .lp-img-kenburns { animation: lp-kenburns 22s ease-in-out infinite alternate; }
+}
+
+/* Bento grid */
+.lp-bento {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: minmax(120px, auto);
+}
+@media (max-width: 768px) { .lp-bento { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .lp-bento { grid-template-columns: 1fr; } }
+.lp-bento__item {
+  padding: 1.25rem;
+  border-radius: var(--lp-radius);
+  border: 1px solid var(--lp-border);
+  background: var(--lp-bg-card);
+  min-height: 0;
+}
+.lp-bento__item--wide { grid-column: span 2; }
+.lp-bento__item--tall { grid-row: span 2; }
+@media (max-width: 768px) {
+  .lp-bento__item--wide { grid-column: span 1; }
+  .lp-bento__item--tall { grid-row: span 1; }
+}
+.lp-bento__item .lp-img { width: 100%; height: 100%; object-fit: cover; border-radius: calc(var(--lp-radius) - 4px); }
+
+/* Magazine */
+.lp-section--mag {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+  border-radius: var(--lp-radius);
+  border: 1px solid var(--lp-border);
+}
+.lp-pullquote {
+  font-size: clamp(1.25rem, 2.5vw, 1.65rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  margin: 0;
+  padding: 1.5rem 0;
+  border-left: 3px solid var(--lp-accent);
+  padding-left: 1.25rem;
+  color: var(--lp-text);
+}
+
+/* Magazine: optional side rail for steps */
+.lp-steps--magazine {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+@media (min-width: 900px) {
+  .lp-steps--magazine {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: 2.5rem;
+    align-items: start;
+  }
+}
+
+/* Timeline band hero + horizontal steps */
+.lp-hero--band {
+  padding-top: clamp(4rem, 12vw, 7rem);
+  padding-bottom: clamp(3rem, 8vw, 5rem);
+}
+.lp-hero--band .lp-hero__bg { opacity: 0.9; }
+
+.lp-steps--horizontal {
+  display: grid;
+  gap: 1rem;
+}
+@media (min-width: 900px) {
+  .lp-steps--horizontal {
+    grid-template-columns: repeat(3, 1fr);
+    position: relative;
+    padding-top: 0.5rem;
+  }
+  .lp-steps--horizontal::before {
+    content: "";
+    position: absolute;
+    top: 2.5rem;
+    left: 8%;
+    right: 8%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--lp-accent), var(--lp-accent-2));
+    opacity: 0.35;
+    border-radius: 2px;
+  }
+}
 `.trim();
 
 /** Minimal JS the model should include (vanilla): mobile nav only */

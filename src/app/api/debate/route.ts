@@ -1,5 +1,7 @@
 import OpenAI from "openai";
 import { shouldBlock, sanitizeForDisplay } from "@/lib/contentModeration";
+import { fetchLandingPageImages } from "@/lib/landing-images";
+import { getLayoutVariantInstructions, pickLayoutVariant } from "@/lib/landing-layout";
 import { landingPageSystemPrompt, landingPageUserPrompt } from "@/lib/landing-page-prompt";
 
 const MAX_TOPIC = 500;
@@ -921,14 +923,24 @@ RULES:
     // Handle landing page generation (structured brief from parsed validation + full excerpt)
     if (action === "landing-page" && setup?.topic) {
       const vc = typeof validationContent === "string" ? validationContent : "";
+      const layoutVariant = pickLayoutVariant(setup.topic);
+      const layoutInstructions = getLayoutVariantInstructions(layoutVariant);
+      const landingImages = await fetchLandingPageImages(setup.topic);
       try {
         const stream = await openai.chat.completions.create({
           model: "gpt-4.1",
           messages: [
             { role: "system", content: landingPageSystemPrompt() },
-            { role: "user", content: landingPageUserPrompt(setup, vc) },
+            {
+              role: "user",
+              content: landingPageUserPrompt(setup, vc, {
+                layoutVariant,
+                layoutInstructions,
+                images: landingImages,
+              }),
+            },
           ],
-          temperature: 0.68,
+          temperature: 0.74,
           max_completion_tokens: 16384,
           stream: true,
         });

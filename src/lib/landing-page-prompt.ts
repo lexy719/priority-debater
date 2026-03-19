@@ -1,10 +1,24 @@
 import { extractDashboardData } from "@/lib/parse";
 import type { DebateSetup } from "@/lib/types";
+import type { LandingImageRef } from "@/lib/landing-images";
+import type { LayoutVariantId } from "@/lib/landing-layout";
 import {
   LANDING_PAGE_COPY_SKILL,
   LANDING_PAGE_SCRIPT_KIT,
   LANDING_PAGE_STYLE_KIT,
 } from "@/lib/landing-page-design-kit";
+
+function formatImagesBlock(images: LandingImageRef[]): string {
+  if (!images.length) {
+    return `**Stock photography:** None loaded (set UNSPLASH_ACCESS_KEY on the server to enable). Do **not** invent image URLs — use only CSS gradients, inline SVG, and emoji for visuals.`;
+  }
+  return images
+    .map(
+      (img, i) =>
+        `**Image ${i + 1}**\n- src (use exactly): ${img.url}\n- alt: ${img.suggestedAlt}\n- Under the image, add a visible line (.lp-photo-credit): link “Photo by ${img.photographer} on Unsplash” to ${img.photoPageUrl}.`
+    )
+    .join("\n\n");
+}
 
 function truncate(s: string, max: number): string {
   if (!s) return "";
@@ -73,13 +87,15 @@ ${LANDING_PAGE_STYLE_KIT}
 
 ${LANDING_PAGE_SCRIPT_KIT}
 
-4. Markup MUST use these patterns:
-   - <body class="lp-page">
+4. Markup MUST use these patterns (adapt to the **layout archetype** in the user message — hero may be split, band, or narrow editorial):
+   - <body class="lp-page"> plus the **lp-layout--*** class specified in the user message
    - Sticky nav: <header class="lp-nav" data-lp-nav> with .lp-nav__inner, .lp-nav__logo, .lp-nav__links (anchors #problem, #solution, etc.), .lp-btn.lp-btn--primary for CTA, .lp-nav__toggle + .lp-nav__mobile for mobile
-   - Hero: .lp-hero with .lp-hero__bg and .lp-hero__grain inside; .lp-container; .lp-eyebrow; h1.lp-hero__title.lp-hero__title--gradient; p.lp-hero__lead; .lp-hero__actions with two .lp-btn; .lp-trust for stats
-   - Sections: section.lp-section with id; .lp-section__head, .lp-section__title, .lp-section__lead; .lp-grid.lp-grid--3 and .lp-card for problems/solutions; .lp-steps / .lp-step for how it works; .lp-grid.lp-grid--2 + .lp-card for features
-   - Proof: .lp-proof-bar and/or .lp-quote
-   - FAQ: .lp-faq with <details> using .lp-faq classes
+   - Hero: .lp-hero (optional .lp-hero--split / .lp-hero--band) with .lp-hero__bg and .lp-hero__grain; .lp-container; for split layouts use .lp-hero__split wrapping .lp-hero__copy + .lp-hero__visual; .lp-eyebrow; h1.lp-hero__title (gradient optional); .lp-hero__lead; .lp-hero__actions; .lp-trust
+   - **Images:** if the user message lists image URLs, use <img class="lp-img lp-img-kenburns" loading="lazy" width height> inside .lp-hero__visual and/or .lp-bento; never invent URLs
+   - Sections: section.lp-section with id; .lp-section__head; problem/solution may be .lp-grid.lp-grid--3 + .lp-card OR bento / magazine patterns per archetype; .lp-steps / .lp-step (or .lp-steps--horizontal / .lp-steps--magazine)
+   - Optional bento: .lp-bento with .lp-bento__item (modifiers --wide / --tall)
+   - Proof: .lp-proof-bar and/or .lp-quote; optional .lp-pullquote for magazine
+   - FAQ: .lp-faq with <details>
    - Final: section.lp-cta > .lp-container > .lp-cta__inner with .lp-form (POST to formspree)
    - footer.lp-footer
    - Optional: class "lp-reveal" on major blocks for consistent spacing hooks (content stays visible without JS)
@@ -95,10 +111,23 @@ OUTPUT:
 - Do NOT omit the kit CSS or the kit script. Do NOT replace the kit with custom CSS from scratch.`;
 }
 
-export function landingPageUserPrompt(setup: DebateSetup, validationContent: string): string {
+export function landingPageUserPrompt(
+  setup: DebateSetup,
+  validationContent: string,
+  options: {
+    layoutVariant: LayoutVariantId;
+    layoutInstructions: string;
+    images: LandingImageRef[];
+  }
+): string {
   const brief = buildValidationBriefForLanding(validationContent);
+  const { layoutVariant, layoutInstructions, images } = options;
 
   return `Build a **single-page marketing site** that looks like a top-tier agency product — not a template.
+
+**Layout archetype (mandatory — follow this; it makes each page structurally different):**
+- id: \`${layoutVariant}\`
+${layoutInstructions}
 
 **Product / brand**
 - Name or topic: "${setup.topic}"
@@ -108,16 +137,18 @@ export function landingPageUserPrompt(setup: DebateSetup, validationContent: str
 **Source material (use all of this)**:
 ${brief}
 
-**Section checklist (adapt order only if it improves clarity for THIS idea):**
+${formatImagesBlock(images)}
+
+**Section checklist (adapt order + density to the layout archetype — do not default to the same 3-column card stack every time):**
 1. Sticky nav: logo text, anchors to major sections, primary CTA
-2. Hero: eyebrow, headline (≤10 words), subhead, **two** CTAs, trust row from **real** data above
-3. Problem: 3 pain cards — language from the report / ICP
-4. Solution: mirror those pains with 3 outcomes
-5. How it works: 3 steps — numbered, timeline on desktop
-6. Features: 6 cards max — grounded in the idea + report
-7. Proof: stats from TAM/SAM/SOM or scores + 2–3 short quotes aligned with ICP
+2. Hero: match the archetype (split / band / narrow). Eyebrow, headline (≤12 words), subhead, **two** CTAs, trust row from **real** data
+3. Problem / pain: language from the report / ICP (cards, bento tiles, or editorial blocks per archetype)
+4. Solution: mirror pains (same flexibility)
+5. How it works: 3–4 steps — use horizontal timeline or magazine rail if the archetype says so
+6. Features / value: bento, grid, or sparse 2-col — match archetype
+7. Proof: stats from TAM/SAM/SOM or scores + quotes; place one stock image in hero or bento if URLs provided
 8. Pricing OR waitlist: honest — if pre-launch, lead with waitlist + what they get
-9. FAQ: 5 questions that reflect real objections from risks + category scores
+9. FAQ: 5 questions from risks + category scores
 10. Final CTA + footer with links
 
 **Brand tint (optional):** prepend a tiny \`:root { --lp-accent: …; --lp-accent-2: …; }\` before the kit CSS if the palette should shift; defaults: #6366f1 / #8b5cf6 / success #34d399 (see kit variables).
