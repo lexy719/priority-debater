@@ -237,12 +237,12 @@ function SectionHeader({ icon, children, color = "text-white/40" }: { icon: Reac
 export default function ResultsPage() {
   const router = useRouter();
   const [session, setSession] = useState<ValidationSession | null>(null);
+  const [activeTab, setActiveTab] = useState(0);
   const [businessPlanContent, setBusinessPlanContent] = useState("");
   const [businessPlanStreaming, setBusinessPlanStreaming] = useState("");
   const [isGeneratingBusinessPlan, setIsGeneratingBusinessPlan] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shareToast, setShareToast] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const s = loadSession();
@@ -263,15 +263,6 @@ export default function ResultsPage() {
     });
   }, [session]);
 
-  const toggleSection = (key: string) => {
-    setExpandedSections(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#08080e]">
@@ -284,10 +275,6 @@ export default function ResultsPage() {
   const dashboard = extractDashboardData(validationContent);
 
   const score = dashboard.score;
-  const scoreColor =
-    score != null
-      ? score >= 7 ? "text-emerald-400" : score >= 5 ? "text-amber-400" : "text-red-400"
-      : "text-white/30";
 
   const goNoGoLabel =
     dashboard.goNoGoType === "go" ? "GO" :
@@ -365,12 +352,19 @@ export default function ResultsPage() {
   const cs = dashboard.categoryScores;
   const categoryMetrics = [
     { label: "Problem-Solution", value: cs.problemSolutionFit, icon: <Lightbulb className="w-4 h-4" />, color: "text-amber-400" },
-    { label: "Market Opportunity", value: cs.marketOpportunity, icon: <TrendingUp className="w-4 h-4" />, color: "text-blue-400" },
-    { label: "Competitive Edge", value: cs.competitiveEdge, icon: <Shield className="w-4 h-4" />, color: "text-violet-400" },
+    { label: "Market", value: cs.marketOpportunity, icon: <TrendingUp className="w-4 h-4" />, color: "text-blue-400" },
+    { label: "Competition", value: cs.competitiveEdge, icon: <Shield className="w-4 h-4" />, color: "text-violet-400" },
     { label: "Business Model", value: cs.businessModel, icon: <DollarSign className="w-4 h-4" />, color: "text-emerald-400" },
-    { label: "Team & Execution", value: cs.teamExecution, icon: <Users className="w-4 h-4" />, color: "text-sky-400" },
-    { label: "Timing & Trends", value: cs.timingTrends, icon: <Clock className="w-4 h-4" />, color: "text-rose-400" },
+    { label: "Execution", value: cs.teamExecution, icon: <Users className="w-4 h-4" />, color: "text-sky-400" },
+    { label: "Timing", value: cs.timingTrends, icon: <Clock className="w-4 h-4" />, color: "text-rose-400" },
   ].filter(m => m.value != null);
+
+  const tabs = [
+    { label: "Overview", icon: <BarChart3 className="w-4 h-4" /> },
+    { label: "Market", icon: <TrendingUp className="w-4 h-4" /> },
+    { label: "Strategy", icon: <Target className="w-4 h-4" /> },
+    { label: "Canvas & Plan", icon: <Grid3X3 className="w-4 h-4" /> },
+  ];
 
   return (
     <div className="min-h-screen min-h-[100dvh] bg-[#08080e]">
@@ -388,62 +382,37 @@ export default function ResultsPage() {
             <span className="text-sm text-white/30 truncate hidden sm:inline">{setup.topic}</span>
           </div>
           <div className="flex items-center gap-1">
-            <button
-              onClick={handleCopyShareLink}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"
-              title="Share"
-            >
+            <button onClick={handleCopyShareLink} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all" title="Share">
               {shareToast ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">{shareToast ? "Copied!" : "Share"}</span>
             </button>
-            <button
-              onClick={() => downloadAsPDF(setup, validationContent)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"
-              title="PDF"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">PDF</span>
+            <button onClick={() => downloadAsPDF(setup, validationContent)} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all" title="PDF">
+              <FileText className="w-3.5 h-3.5" /><span className="hidden sm:inline">PDF</span>
             </button>
-            <button
-              onClick={() => downloadAsMarkdown(setup, messages)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"
-              title="Markdown"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">MD</span>
+            <button onClick={() => downloadAsMarkdown(setup, messages)} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all" title="MD">
+              <Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">MD</span>
             </button>
-            <button
-              onClick={handleRevalidate}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"
-              title="Pivot"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Pivot</span>
+            <button onClick={handleRevalidate} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all" title="Pivot">
+              <RefreshCw className="w-3.5 h-3.5" /><span className="hidden sm:inline">Pivot</span>
             </button>
             <ThemeToggle />
-            <button
-              onClick={handleValidateNew}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-all ml-1"
-            >
-              + New
-            </button>
+            <button onClick={handleValidateNew} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-all ml-1">+ New</button>
           </div>
         </div>
       </div>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
-        {/* ── HERO: Score + Verdict + Go/No-Go ── */}
-        <div className="relative rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.06] overflow-hidden">
+        {/* ── HERO: Score ring + title + metric tiles (always visible) ── */}
+        <div className="relative rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.06] overflow-hidden mb-4">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.08)_0%,_transparent_50%)]" />
-          <div className="relative p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-              {/* Score ring */}
+          <div className="relative p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-5">
               {score != null && (
                 <div className="shrink-0 flex flex-col items-center">
-                  <ScoreRing score={score} />
+                  <ScoreRing score={score} size={100} />
                   {goNoGoLabel && (
-                    <span className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${goNoGoColor}`}>
+                    <span className={`mt-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${goNoGoColor}`}>
                       {goNoGoLabel === "GO" && <Check className="w-3 h-3" />}
                       {goNoGoLabel === "CAUTION" && <AlertTriangle className="w-3 h-3" />}
                       {goNoGoLabel === "NO-GO" && <X className="w-3 h-3" />}
@@ -452,345 +421,350 @@ export default function ResultsPage() {
                   )}
                 </div>
               )}
-
-              {/* Title + verdict */}
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">{setup.topic}</h1>
-                {dashboard.verdict && (
-                  <p className="text-white/50 text-sm leading-relaxed">{dashboard.verdict}</p>
+                <h1 className="text-lg sm:text-xl font-bold text-white mb-1">{setup.topic}</h1>
+                {dashboard.verdict && <p className="text-white/40 text-xs leading-relaxed mb-3">{dashboard.verdict}</p>}
+                {/* Inline metric tiles */}
+                {categoryMetrics.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                    {categoryMetrics.map((m, i) => (
+                      <div key={i} className="rounded-lg bg-white/[0.04] border border-white/[0.06] py-2 px-2 text-center">
+                        <div className={`text-base font-bold ${m.color}`}>{m.value}<span className="text-[9px] text-white/15">/10</span></div>
+                        <div className="text-[9px] text-white/25 font-medium leading-tight">{m.label}</div>
+                      </div>
+                    ))}
+                  </div>
                 )}
-
-                {/* Quick stats row */}
-                <div className="flex flex-wrap gap-3 mt-4">
-                  <div className="flex items-center gap-1.5 text-xs text-white/30">
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="font-semibold text-white/50">{dashboard.strengths.length}</span> strengths
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-white/30">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="font-semibold text-white/50">{dashboard.risks.length}</span> risks
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-white/30">
-                    <Shield className="w-3.5 h-3.5 text-indigo-400" />
-                    <span className="font-semibold text-white/50">{dashboard.recommendations.length}</span> actions
-                  </div>
-                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ── CATEGORY SCORES: Visual metric tiles ── */}
-        {categoryMetrics.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-            {categoryMetrics.map((m, i) => (
-              <div key={i} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 text-center hover:bg-white/[0.05] transition-colors">
-                <div className={`${m.color} mx-auto mb-1.5`}>{m.icon}</div>
-                <div className={`text-xl font-bold ${m.color}`}>{m.value}<span className="text-xs text-white/20">/10</span></div>
-                <div className="text-[10px] text-white/25 font-medium mt-0.5 leading-tight">{m.label}</div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ── STRENGTHS & RISKS: Side by side pills ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Strengths */}
-          <div className="rounded-xl bg-white/[0.03] border border-emerald-500/10 p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded-md bg-emerald-500/15 flex items-center justify-center">
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-              </div>
-              <h3 className="text-sm font-bold text-white/80">Strengths</h3>
-              <span className="text-[10px] text-emerald-400/60 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">{dashboard.strengths.length}</span>
-            </div>
-            {dashboard.strengths.length > 0 ? (
-              <ul className="space-y-1.5">
-                {dashboard.strengths.map((s, i) => (
-                  <li key={i} className="flex gap-2 items-start text-xs text-white/45 leading-relaxed">
-                    <div className="w-1 h-1 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                    {s.replace(/^\*\*[^*]+\*\*:?\s*/, "").slice(0, 120)}
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="text-white/20 text-xs italic">None identified.</p>}
-          </div>
-
-          {/* Risks */}
-          <div className="rounded-xl bg-white/[0.03] border border-red-500/10 p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded-md bg-red-500/15 flex items-center justify-center">
-                <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-              </div>
-              <h3 className="text-sm font-bold text-white/80">Risk Flags</h3>
-              <span className="text-[10px] text-red-400/60 font-bold bg-red-500/10 px-1.5 py-0.5 rounded">{dashboard.risks.length}</span>
-            </div>
-            {dashboard.risks.length > 0 ? (
-              <ul className="space-y-1.5">
-                {dashboard.risks.map((r, i) => (
-                  <li key={i} className="flex gap-2 items-start text-xs text-white/45 leading-relaxed">
-                    <div className="w-1 h-1 rounded-full bg-red-400 mt-1.5 shrink-0" />
-                    {r.replace(/^\*\*[^*]+\*\*:?\s*/, "").slice(0, 120)}
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="text-white/20 text-xs italic">None identified.</p>}
-          </div>
-        </div>
-
-        {/* ── RADAR CHART + GO/NO-GO ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <BarChart3 className="w-4 h-4 text-indigo-400" />
-              <h3 className="text-sm font-bold text-white/80">Score Breakdown</h3>
-            </div>
-            <RadarChart scores={dashboard.categoryScores} />
-            <div className="mt-3">
-              <ScoreBreakdownBars scores={dashboard.categoryScores} />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {/* Go/No-Go compact */}
-            {dashboard.goNoGo && (
-              <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Target className="w-4 h-4 text-emerald-400" />
-                  <h3 className="text-sm font-bold text-white/80">Go / No-Go</h3>
-                </div>
-                <div className="markdown-content-dark text-xs leading-relaxed">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo.slice(0, 500)}</ReactMarkdown>
-                </div>
-              </div>
-            )}
-
-            {/* Summary compact */}
-            {dashboard.summary && (
-              <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Lightbulb className="w-4 h-4 text-amber-400" />
-                  <h3 className="text-sm font-bold text-white/80">Summary</h3>
-                </div>
-                <p className="text-white/45 text-xs leading-relaxed">{dashboard.summary.slice(0, 300)}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── MARKET: TAM/SAM/SOM + Customer ── */}
-        {(dashboard.tamSamSom.tam || dashboard.tamSamSom.sam || dashboard.tamSamSom.som || dashboard.targetCustomer || dashboard.marketSummary) && (
-          <>
-            <SectionHeader icon={<TrendingUp className="w-4 h-4" />} color="text-blue-400">Market & Customer</SectionHeader>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {(dashboard.tamSamSom.tam || dashboard.tamSamSom.sam || dashboard.tamSamSom.som) && (
-                <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <BarChart3 className="w-4 h-4 text-blue-400" />
-                    <h3 className="text-sm font-bold text-white/80">Market Size</h3>
-                  </div>
-                  <TamSamSomChart data={dashboard.tamSamSom} />
-                </div>
-              )}
-
-              <div className="space-y-4">
-                {dashboard.targetCustomer && (
-                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Users className="w-4 h-4 text-sky-400" />
-                      <h3 className="text-sm font-bold text-white/80">Target Customer</h3>
-                    </div>
-                    <div className="markdown-content-dark text-xs leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.targetCustomer.slice(0, 400)}</ReactMarkdown>
-                    </div>
-                  </div>
-                )}
-                {dashboard.valueProposition && (
-                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <MessageSquare className="w-4 h-4 text-violet-400" />
-                      <h3 className="text-sm font-bold text-white/80">Value Proposition</h3>
-                    </div>
-                    <div className="markdown-content-dark text-xs leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.valueProposition.slice(0, 300)}</ReactMarkdown>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ── BUSINESS MODEL + COMPETITIVE ── */}
-        {(dashboard.businessModel || dashboard.competitiveSummary) && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {dashboard.businessModel && (
-              <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Layout className="w-4 h-4 text-emerald-400" />
-                  <h3 className="text-sm font-bold text-white/80">Business Model</h3>
-                </div>
-                <div className="markdown-content-dark text-xs leading-relaxed">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.businessModel.slice(0, 400)}</ReactMarkdown>
-                </div>
-              </div>
-            )}
-            {dashboard.competitiveSummary && (
-              <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Swords className="w-4 h-4 text-rose-400" />
-                  <h3 className="text-sm font-bold text-white/80">Competitive Landscape</h3>
-                </div>
-                <div className="markdown-content-dark text-xs leading-relaxed">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.competitiveSummary.slice(0, 400)}</ReactMarkdown>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── STRATEGY: Assumptions + Timeline + Financials ── */}
-        {(dashboard.keyAssumptions || dashboard.timelineToLaunch || dashboard.financialSummary) && (
-          <>
-            <SectionHeader icon={<Target className="w-4 h-4" />} color="text-violet-400">Strategy & Execution</SectionHeader>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {dashboard.keyAssumptions && (
-                <div className="rounded-xl bg-white/[0.03] border border-l-2 border-l-amber-500/40 border-white/[0.06] p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <HelpCircle className="w-4 h-4 text-amber-400" />
-                    <h3 className="text-sm font-bold text-white/80">Assumptions</h3>
-                  </div>
-                  <div className="markdown-content-dark text-xs leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.keyAssumptions.slice(0, 350)}</ReactMarkdown>
-                  </div>
-                </div>
-              )}
-              {dashboard.timelineToLaunch && (
-                <div className="rounded-xl bg-white/[0.03] border border-l-2 border-l-indigo-500/40 border-white/[0.06] p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Calendar className="w-4 h-4 text-indigo-400" />
-                    <h3 className="text-sm font-bold text-white/80">Timeline</h3>
-                  </div>
-                  <div className="markdown-content-dark text-xs leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.timelineToLaunch.slice(0, 350)}</ReactMarkdown>
-                  </div>
-                </div>
-              )}
-              {dashboard.financialSummary && (
-                <div className="rounded-xl bg-white/[0.03] border border-l-2 border-l-emerald-500/40 border-white/[0.06] p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <DollarSign className="w-4 h-4 text-emerald-400" />
-                    <h3 className="text-sm font-bold text-white/80">Financials</h3>
-                  </div>
-                  <div className="markdown-content-dark text-xs leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.financialSummary.slice(0, 350)}</ReactMarkdown>
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* ── LEAN CANVAS ── */}
-        {dashboard.leanCanvas && (
-          <>
-            <SectionHeader icon={<Grid3X3 className="w-4 h-4" />} color="text-indigo-400">Lean Canvas</SectionHeader>
-            <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
-              <LeanCanvas canvas={dashboard.leanCanvas} />
-            </div>
-          </>
-        )}
-
-        {/* ── VALIDATION CHECKLIST ── */}
-        {dashboard.recommendations.length > 0 && (
-          <div className="rounded-xl bg-gradient-to-br from-indigo-500/[0.06] to-violet-500/[0.03] border border-indigo-500/10 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center">
-                <CheckCircle2 className="w-4 h-4 text-indigo-400" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white/80">Validation Checklist</h3>
-                <p className="text-[10px] text-white/25">Track your progress before building</p>
-              </div>
-            </div>
-            <ValidationChecklist items={dashboard.recommendations} />
-          </div>
-        )}
-
-        {/* ── BUSINESS PLAN GENERATOR ── */}
-        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center shrink-0">
-                <Briefcase className="w-5 h-5 text-indigo-400" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white/80">Business Plan</h3>
-                <p className="text-[10px] text-white/25">Investor-ready plan with financials & GTM</p>
-              </div>
-            </div>
+        {/* ── TABS ── */}
+        <div className="flex gap-1 overflow-x-auto pb-1 mb-4 scrollbar-hide">
+          {tabs.map((tab, i) => (
             <button
-              onClick={handleGenerateBusinessPlan}
-              disabled={isGeneratingBusinessPlan || !!businessPlanContent}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-500 disabled:opacity-30 transition-colors shrink-0"
+              key={tab.label}
+              onClick={() => setActiveTab(i)}
+              className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium transition-all ${
+                activeTab === i
+                  ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
+                  : "bg-white/[0.02] text-white/30 hover:text-white/50 border border-white/[0.04] hover:border-white/[0.08]"
+              }`}
             >
-              {isGeneratingBusinessPlan ? (
-                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</>
-              ) : businessPlanContent ? (
-                <><Check className="w-3.5 h-3.5" /> Generated</>
-              ) : (
-                <><Flame className="w-3.5 h-3.5" /> Generate</>
-              )}
+              {tab.icon}
+              {tab.label}
             </button>
-          </div>
+          ))}
+        </div>
 
-          {displayBusinessPlan && (
-            <div className="mt-5 pt-5 border-t border-white/[0.06]">
-              <div className="markdown-content-dark text-sm max-h-[500px] overflow-y-auto pr-2">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayBusinessPlan}</ReactMarkdown>
-              </div>
-              {isGeneratingBusinessPlan && (
-                <div className="flex items-center gap-2 mt-4 text-white/25 text-xs">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Writing...
+        {/* ── TAB CONTENT ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+
+          {/* ═══ OVERVIEW TAB ═══ */}
+          {activeTab === 0 && (
+            <>
+              {/* Left column */}
+              <div className="space-y-4">
+                {/* Strengths */}
+                <div className="rounded-xl bg-white/[0.03] border border-emerald-500/10 p-4">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <div className="w-5 h-5 rounded-md bg-emerald-500/15 flex items-center justify-center">
+                      <Check className="w-3 h-3 text-emerald-400" />
+                    </div>
+                    <h3 className="text-xs font-bold text-white/80">Strengths</h3>
+                    <span className="text-[9px] text-emerald-400/60 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">{dashboard.strengths.length}</span>
+                  </div>
+                  {dashboard.strengths.length > 0 ? (
+                    <ul className="space-y-1">
+                      {dashboard.strengths.map((s, i) => (
+                        <li key={i} className="flex gap-2 items-start text-[11px] text-white/45 leading-relaxed">
+                          <div className="w-1 h-1 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                          {s.replace(/^\*\*[^*]+\*\*:?\s*/, "").slice(0, 100)}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : <p className="text-white/20 text-[11px] italic">None identified.</p>}
                 </div>
-              )}
-            </div>
+
+                {/* Risks */}
+                <div className="rounded-xl bg-white/[0.03] border border-red-500/10 p-4">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <div className="w-5 h-5 rounded-md bg-red-500/15 flex items-center justify-center">
+                      <AlertTriangle className="w-3 h-3 text-red-400" />
+                    </div>
+                    <h3 className="text-xs font-bold text-white/80">Risk Flags</h3>
+                    <span className="text-[9px] text-red-400/60 font-bold bg-red-500/10 px-1.5 py-0.5 rounded">{dashboard.risks.length}</span>
+                  </div>
+                  {dashboard.risks.length > 0 ? (
+                    <ul className="space-y-1">
+                      {dashboard.risks.map((r, i) => (
+                        <li key={i} className="flex gap-2 items-start text-[11px] text-white/45 leading-relaxed">
+                          <div className="w-1 h-1 rounded-full bg-red-400 mt-1.5 shrink-0" />
+                          {r.replace(/^\*\*[^*]+\*\*:?\s*/, "").slice(0, 100)}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : <p className="text-white/20 text-[11px] italic">None identified.</p>}
+                </div>
+
+                {/* Go/No-Go */}
+                {dashboard.goNoGo && (
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Target className="w-4 h-4 text-emerald-400" />
+                      <h3 className="text-xs font-bold text-white/80">Go / No-Go</h3>
+                    </div>
+                    <div className="markdown-content-dark text-[11px] leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo.slice(0, 400)}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right column */}
+              <div className="space-y-4">
+                <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <BarChart3 className="w-4 h-4 text-indigo-400" />
+                    <h3 className="text-xs font-bold text-white/80">Score Breakdown</h3>
+                  </div>
+                  <RadarChart scores={dashboard.categoryScores} />
+                  <div className="mt-3">
+                    <ScoreBreakdownBars scores={dashboard.categoryScores} />
+                  </div>
+                </div>
+
+                {/* Validation Checklist */}
+                {dashboard.recommendations.length > 0 && (
+                  <div className="rounded-xl bg-gradient-to-br from-indigo-500/[0.06] to-violet-500/[0.03] border border-indigo-500/10 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle2 className="w-4 h-4 text-indigo-400" />
+                      <h3 className="text-xs font-bold text-white/80">Validation Checklist</h3>
+                    </div>
+                    <ValidationChecklist items={dashboard.recommendations} />
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ═══ MARKET TAB ═══ */}
+          {activeTab === 1 && (
+            <>
+              <div className="space-y-4">
+                {(dashboard.tamSamSom.tam || dashboard.tamSamSom.sam || dashboard.tamSamSom.som) && (
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <BarChart3 className="w-4 h-4 text-blue-400" />
+                      <h3 className="text-xs font-bold text-white/80">Market Size (TAM/SAM/SOM)</h3>
+                    </div>
+                    <TamSamSomChart data={dashboard.tamSamSom} />
+                  </div>
+                )}
+                {dashboard.targetCustomer && (
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="w-4 h-4 text-sky-400" />
+                      <h3 className="text-xs font-bold text-white/80">Target Customer</h3>
+                    </div>
+                    <div className="markdown-content-dark text-[11px] leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.targetCustomer.slice(0, 500)}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+                {dashboard.problemSolution && (
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Lightbulb className="w-4 h-4 text-amber-400" />
+                      <h3 className="text-xs font-bold text-white/80">Problem-Solution Fit</h3>
+                    </div>
+                    <div className="markdown-content-dark text-[11px] leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.problemSolution.slice(0, 500)}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-4">
+                {dashboard.valueProposition && (
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MessageSquare className="w-4 h-4 text-violet-400" />
+                      <h3 className="text-xs font-bold text-white/80">Value Proposition</h3>
+                    </div>
+                    <div className="markdown-content-dark text-[11px] leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.valueProposition.slice(0, 400)}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+                {dashboard.businessModel && (
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Layout className="w-4 h-4 text-emerald-400" />
+                      <h3 className="text-xs font-bold text-white/80">Business Model</h3>
+                    </div>
+                    <div className="markdown-content-dark text-[11px] leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.businessModel.slice(0, 400)}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+                {dashboard.competitiveSummary && (
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Swords className="w-4 h-4 text-rose-400" />
+                      <h3 className="text-xs font-bold text-white/80">Competitive Landscape</h3>
+                    </div>
+                    <div className="markdown-content-dark text-[11px] leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.competitiveSummary.slice(0, 400)}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ═══ STRATEGY TAB ═══ */}
+          {activeTab === 2 && (
+            <>
+              <div className="space-y-4">
+                {dashboard.keyAssumptions && (
+                  <div className="rounded-xl bg-white/[0.03] border border-l-2 border-l-amber-500/40 border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <HelpCircle className="w-4 h-4 text-amber-400" />
+                      <h3 className="text-xs font-bold text-white/80">Key Assumptions</h3>
+                    </div>
+                    <div className="markdown-content-dark text-[11px] leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.keyAssumptions.slice(0, 500)}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+                {dashboard.timelineToLaunch && (
+                  <div className="rounded-xl bg-white/[0.03] border border-l-2 border-l-indigo-500/40 border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Calendar className="w-4 h-4 text-indigo-400" />
+                      <h3 className="text-xs font-bold text-white/80">Timeline to Launch</h3>
+                    </div>
+                    <div className="markdown-content-dark text-[11px] leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.timelineToLaunch.slice(0, 500)}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-4">
+                {dashboard.financialSummary && (
+                  <div className="rounded-xl bg-white/[0.03] border border-l-2 border-l-emerald-500/40 border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <DollarSign className="w-4 h-4 text-emerald-400" />
+                      <h3 className="text-xs font-bold text-white/80">Financial Snapshot</h3>
+                    </div>
+                    <div className="markdown-content-dark text-[11px] leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.financialSummary.slice(0, 500)}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+                {dashboard.summary && (
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Lightbulb className="w-4 h-4 text-amber-400" />
+                      <h3 className="text-xs font-bold text-white/80">Summary</h3>
+                    </div>
+                    <p className="text-white/45 text-[11px] leading-relaxed">{dashboard.summary.slice(0, 400)}</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ═══ CANVAS & PLAN TAB ═══ */}
+          {activeTab === 3 && (
+            <>
+              {/* Lean Canvas - full width */}
+              <div className="lg:col-span-2 space-y-4">
+                {dashboard.leanCanvas ? (
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Grid3X3 className="w-4 h-4 text-indigo-400" />
+                      <h3 className="text-xs font-bold text-white/80">Lean Canvas</h3>
+                    </div>
+                    <LeanCanvas canvas={dashboard.leanCanvas} />
+                  </div>
+                ) : (
+                  <div className="rounded-xl bg-white/[0.02] border-2 border-dashed border-white/[0.06] p-6 text-center">
+                    <Grid3X3 className="w-10 h-10 text-white/10 mx-auto mb-2" />
+                    <p className="text-white/25 text-xs">Lean Canvas data not available.</p>
+                  </div>
+                )}
+
+                {/* Business Plan Generator */}
+                <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center shrink-0">
+                        <Briefcase className="w-4 h-4 text-indigo-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-bold text-white/80">Business Plan Generator</h3>
+                        <p className="text-[10px] text-white/25">Investor-ready plan with financials & GTM</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleGenerateBusinessPlan}
+                      disabled={isGeneratingBusinessPlan || !!businessPlanContent}
+                      className="flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-500 disabled:opacity-30 transition-colors shrink-0"
+                    >
+                      {isGeneratingBusinessPlan ? (
+                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</>
+                      ) : businessPlanContent ? (
+                        <><Check className="w-3.5 h-3.5" /> Generated</>
+                      ) : (
+                        <><Flame className="w-3.5 h-3.5" /> Generate</>
+                      )}
+                    </button>
+                  </div>
+                  {displayBusinessPlan && (
+                    <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                      <div className="markdown-content-dark text-xs max-h-[400px] overflow-y-auto pr-2">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayBusinessPlan}</ReactMarkdown>
+                      </div>
+                      {isGeneratingBusinessPlan && (
+                        <div className="flex items-center gap-2 mt-3 text-white/25 text-[11px]">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Writing...
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
           )}
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2">
+          <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             {error}
-            <button onClick={() => { setError(null); setBusinessPlanContent(""); }} className="ml-auto text-xs underline hover:no-underline">
-              Retry
-            </button>
+            <button onClick={() => { setError(null); setBusinessPlanContent(""); }} className="ml-auto text-xs underline hover:no-underline">Retry</button>
           </div>
         )}
 
-        {/* ── DEBATE CTA ── */}
-        <div className="relative rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/15 p-6 overflow-hidden">
+        {/* ── DEBATE CTA (always visible) ── */}
+        <div className="relative rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/15 p-5 overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(139,92,246,0.08)_0%,_transparent_60%)]" />
           <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-indigo-500/15 border border-indigo-500/20 shrink-0">
-                <Swords className="w-6 h-6 text-indigo-400" />
+              <div className="p-2 rounded-xl bg-indigo-500/15 border border-indigo-500/20 shrink-0">
+                <Swords className="w-5 h-5 text-indigo-400" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">Stress-test this idea</h3>
-                <p className="text-white/30 text-xs">Defend your position against The Adversary</p>
+                <h3 className="text-sm font-bold text-white">Stress-test this idea</h3>
+                <p className="text-white/30 text-[11px]">Defend your position against The Adversary</p>
               </div>
             </div>
-            <Link
-              href="/debate"
-              className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-lg shadow-indigo-500/20 text-sm shrink-0"
-            >
-              <Swords className="w-4 h-4" /> Debate
-              <ArrowRight className="w-4 h-4" />
+            <Link href="/debate" className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-lg shadow-indigo-500/20 text-sm shrink-0">
+              <Swords className="w-4 h-4" /> Debate <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
-
       </main>
     </div>
   );
