@@ -20,6 +20,11 @@ import {
   MessageSquare,
   Sparkles,
   ArrowLeft,
+  TrendingUp,
+  Users,
+  Wrench,
+  Brain,
+  ChevronDown,
 } from "lucide-react";
 import { loadSession, clearSession, updateSessionMessages } from "@/lib/session";
 import { shouldBlock, hasSensitiveTopic } from "@/lib/contentModeration";
@@ -28,15 +33,98 @@ import type { Message, ValidationSession } from "@/lib/types";
 
 const MAX_MESSAGE_LENGTH = 2000;
 
-const TYPING_PHRASES = [
-  "Finding the flaw...",
-  "Stress-testing your logic...",
-  "Checking your assumptions...",
-  "Building the counter-argument...",
-  "Analyzing weak points...",
-  "Applying the inversion test...",
-  "Running the pre-mortem...",
-  "Examining your blind spots...",
+// ── Personas ──
+const PERSONAS = [
+  {
+    id: "adversary",
+    name: "The Adversary",
+    short: "Finds every flaw",
+    icon: <Swords className="w-4 h-4" />,
+    color: "text-red-400",
+    bg: "bg-red-500/10 border-red-500/20",
+    activeBg: "bg-red-500/20 border-red-500/40 ring-1 ring-red-500/20",
+    avatarGradient: "from-red-500/20 to-orange-500/20 border-red-500/15",
+    avatarIcon: <Swords className="w-3 h-3 text-red-400" />,
+    typingPhrases: [
+      "Finding the flaw...",
+      "Stress-testing your logic...",
+      "Checking your assumptions...",
+      "Applying the inversion test...",
+      "Running the pre-mortem...",
+    ],
+  },
+  {
+    id: "investor",
+    name: "The Investor",
+    short: "VC lens on returns",
+    icon: <TrendingUp className="w-4 h-4" />,
+    color: "text-emerald-400",
+    bg: "bg-emerald-500/10 border-emerald-500/20",
+    activeBg: "bg-emerald-500/20 border-emerald-500/40 ring-1 ring-emerald-500/20",
+    avatarGradient: "from-emerald-500/20 to-teal-500/20 border-emerald-500/15",
+    avatarIcon: <TrendingUp className="w-3 h-3 text-emerald-400" />,
+    typingPhrases: [
+      "Running the numbers...",
+      "Checking unit economics...",
+      "Evaluating the return...",
+      "Sizing the market...",
+      "Modeling the exit...",
+    ],
+  },
+  {
+    id: "mentor",
+    name: "The Mentor",
+    short: "Founder who's been there",
+    icon: <Brain className="w-4 h-4" />,
+    color: "text-amber-400",
+    bg: "bg-amber-500/10 border-amber-500/20",
+    activeBg: "bg-amber-500/20 border-amber-500/40 ring-1 ring-amber-500/20",
+    avatarGradient: "from-amber-500/20 to-yellow-500/20 border-amber-500/15",
+    avatarIcon: <Brain className="w-3 h-3 text-amber-400" />,
+    typingPhrases: [
+      "Drawing from experience...",
+      "Thinking about what I'd do...",
+      "Recalling a similar pattern...",
+      "Considering the trade-offs...",
+      "Crafting advice...",
+    ],
+  },
+  {
+    id: "customer",
+    name: "The Customer",
+    short: "Convince me to buy",
+    icon: <Users className="w-4 h-4" />,
+    color: "text-sky-400",
+    bg: "bg-sky-500/10 border-sky-500/20",
+    activeBg: "bg-sky-500/20 border-sky-500/40 ring-1 ring-sky-500/20",
+    avatarGradient: "from-sky-500/20 to-blue-500/20 border-sky-500/15",
+    avatarIcon: <Users className="w-3 h-3 text-sky-400" />,
+    typingPhrases: [
+      "Evaluating the pitch...",
+      "Checking if I'd actually pay...",
+      "Comparing to what I use now...",
+      "Thinking about switching costs...",
+      "Considering the risk...",
+    ],
+  },
+  {
+    id: "operator",
+    name: "The Operator",
+    short: "How do you actually build it",
+    icon: <Wrench className="w-4 h-4" />,
+    color: "text-violet-400",
+    bg: "bg-violet-500/10 border-violet-500/20",
+    activeBg: "bg-violet-500/20 border-violet-500/40 ring-1 ring-violet-500/20",
+    avatarGradient: "from-violet-500/20 to-purple-500/20 border-violet-500/15",
+    avatarIcon: <Wrench className="w-3 h-3 text-violet-400" />,
+    typingPhrases: [
+      "Planning the build...",
+      "Mapping the execution...",
+      "Thinking about hiring...",
+      "Scoping the MVP...",
+      "Checking the timeline...",
+    ],
+  },
 ];
 
 const QUICK_ACTIONS = [
@@ -59,37 +147,45 @@ export default function DebatePage() {
   const [typingPhrase, setTypingPhrase] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showQuickActions, setShowQuickActions] = useState(true);
+  const [activePersona, setActivePersona] = useState("adversary");
+  const [showPersonaPicker, setShowPersonaPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const personaRef = useRef<HTMLDivElement>(null);
+
+  const persona = PERSONAS.find(p => p.id === activePersona) || PERSONAS[0];
+
+  // Close persona picker on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (personaRef.current && !personaRef.current.contains(e.target as Node)) {
+        setShowPersonaPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const [debateStarted, setDebateStarted] = useState(false);
 
-  // Load session and kick off a short debate opener (instead of showing the raw validation report)
   useEffect(() => {
     const s = loadSession();
-    if (!s) {
-      router.replace("/validate");
-      return;
-    }
+    if (!s) { router.replace("/validate"); return; }
     setSession(s);
-
-    // Filter out the validation report (first opponent message that's very long)
-    // We keep it in session for context but don't show it as a chat bubble
     const isValidationReport = s.messages.length > 0 && s.messages[0].role === "opponent" && s.messages[0].content.length > 500;
     const chatMessages = isValidationReport ? s.messages.slice(1) : s.messages;
     setMessages(chatMessages);
-
-    // If we filtered out the report and there are no other messages, auto-generate a debate opener
     if (isValidationReport && chatMessages.length === 0) {
       setDebateStarted(true);
-      generateDebateOpener(s);
+      generateDebateOpener(s, "adversary");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
-  const generateDebateOpener = async (s: ValidationSession) => {
+  const generateDebateOpener = async (s: ValidationSession, personaId: string) => {
     setIsLoading(true);
-    setTypingPhrase(TYPING_PHRASES[Math.floor(Math.random() * TYPING_PHRASES.length)]);
+    const p = PERSONAS.find(pp => pp.id === personaId) || PERSONAS[0];
+    setTypingPhrase(p.typingPhrases[Math.floor(Math.random() * p.typingPhrases.length)]);
     try {
       const response = await fetch("/api/debate", {
         method: "POST",
@@ -98,6 +194,7 @@ export default function DebatePage() {
           action: "debate-open",
           setup: s.setup,
           validationContent: s.validationContent,
+          persona: personaId,
         }),
       });
       if (!response.ok) throw new Error("Failed to start debate");
@@ -136,22 +233,16 @@ export default function DebatePage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, streamingContent, scrollToBottom]);
+  useEffect(() => { scrollToBottom(); }, [messages, streamingContent, scrollToBottom]);
 
   useEffect(() => {
     if (isLoading) {
-      setTypingPhrase(TYPING_PHRASES[Math.floor(Math.random() * TYPING_PHRASES.length)]);
+      setTypingPhrase(persona.typingPhrases[Math.floor(Math.random() * persona.typingPhrases.length)]);
     }
-  }, [isLoading]);
+  }, [isLoading, persona]);
 
   if (!session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#08080e]">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500/50" />
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center bg-[#08080e]"><Loader2 className="w-8 h-8 animate-spin text-indigo-500/50" /></div>;
   }
 
   const { setup } = session;
@@ -160,28 +251,15 @@ export default function DebatePage() {
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
       if (msg.role === "opponent") {
-        const match =
-          msg.content.match(/(?:Argument Strength|Score)[:\s]*\[?(\d+)\]?\/10/i) ||
-          msg.content.match(/(\d+)\/10/);
+        const match = msg.content.match(/(?:Argument Strength|Score)[:\s]*\[?(\d+)\]?\/10/i) || msg.content.match(/(\d+)\/10/);
         if (match) return parseInt(match[1]);
       }
     }
     return null;
   };
-
   const score = getArgumentScore();
-
-  const getScoreColor = (s: number) => {
-    if (s >= 7) return "text-emerald-400";
-    if (s >= 5) return "text-amber-400";
-    return "text-red-400";
-  };
-
-  const getScoreBg = (s: number) => {
-    if (s >= 7) return "bg-emerald-500/10 border-emerald-500/25";
-    if (s >= 5) return "bg-amber-500/10 border-amber-500/25";
-    return "bg-red-500/10 border-red-500/25";
-  };
+  const getScoreColor = (s: number) => s >= 7 ? "text-emerald-400" : s >= 5 ? "text-amber-400" : "text-red-400";
+  const getScoreBg = (s: number) => s >= 7 ? "bg-emerald-500/10 border-emerald-500/25" : s >= 5 ? "bg-amber-500/10 border-amber-500/25" : "bg-red-500/10 border-red-500/25";
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -195,35 +273,23 @@ export default function DebatePage() {
     const decoder = new TextDecoder();
     let accumulated = "";
     setStreamingContent("");
-
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split("\n");
-      for (const line of lines) {
+      for (const line of chunk.split("\n")) {
         if (line.startsWith("data: ")) {
           const data = line.slice(6);
           if (data === "[DONE]") break;
           try {
             const parsed = JSON.parse(data);
-            if (parsed.content) {
-              accumulated += parsed.content;
-              setStreamingContent(accumulated);
-            }
-          } catch {
-            // skip
-          }
+            if (parsed.content) { accumulated += parsed.content; setStreamingContent(accumulated); }
+          } catch { /* skip */ }
         }
       }
     }
-
     setStreamingContent("");
-    const opponentMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      role: "opponent",
-      content: accumulated,
-    };
+    const opponentMessage: Message = { id: (Date.now() + 1).toString(), role: "opponent", content: accumulated };
     const updated = [...newMessages, opponentMessage];
     setMessages(updated);
     updateSessionMessages(updated);
@@ -231,22 +297,11 @@ export default function DebatePage() {
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
-
     const trimmed = input.trim();
-    if (shouldBlock(trimmed)) {
-      setError("I can help you debate ideas, but I can't provide instructions for harmful or illegal activities.");
-      return;
-    }
-    if (trimmed.length > MAX_MESSAGE_LENGTH) {
-      setError("Message too long. Keep it under 2000 characters.");
-      return;
-    }
+    if (shouldBlock(trimmed)) { setError("I can help you debate ideas, but I can't provide instructions for harmful or illegal activities."); return; }
+    if (trimmed.length > MAX_MESSAGE_LENGTH) { setError("Message too long. Keep it under 2000 characters."); return; }
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: trimmed,
-    };
+    const userMessage: Message = { id: Date.now().toString(), role: "user", content: trimmed };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput("");
@@ -258,25 +313,12 @@ export default function DebatePage() {
       const response = await fetch("/api/debate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "continue",
-          setup,
-          messages: newMessages,
-          validationContent: session.validationContent,
-        }),
+        body: JSON.stringify({ action: "continue", setup, messages: newMessages, validationContent: session.validationContent, persona: activePersona }),
       });
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || "Failed to get response.");
-      }
-
+      if (!response.ok) { const err = await response.json().catch(() => ({})); throw new Error((err as { error?: string }).error || "Failed to get response."); }
       await streamResponse(response, newMessages);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to get response.");
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (e) { setError(e instanceof Error ? e.message : "Failed to get response."); }
+    finally { setIsLoading(false); }
   };
 
   const handleQuickAction = async (actionId: string) => {
@@ -284,41 +326,30 @@ export default function DebatePage() {
     setIsLoading(true);
     setError(null);
     setShowQuickActions(false);
-
     const actionLabel = QUICK_ACTIONS.find(a => a.id === actionId)?.label || actionId;
-    const actionMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: `[${actionLabel}]`,
-      isQuickAction: true,
-    };
+    const actionMessage: Message = { id: Date.now().toString(), role: "user", content: `[${actionLabel}]`, isQuickAction: true };
     const newMessages = [...messages, actionMessage];
     setMessages(newMessages);
-
     try {
       const response = await fetch("/api/debate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "quick",
-          setup,
-          messages,
-          quickAction: actionId,
-          validationContent: session.validationContent,
-        }),
+        body: JSON.stringify({ action: "quick", setup, messages, quickAction: actionId, validationContent: session.validationContent, persona: activePersona }),
       });
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || "Failed to get response.");
-      }
-
+      if (!response.ok) { const err = await response.json().catch(() => ({})); throw new Error((err as { error?: string }).error || "Failed to get response."); }
       await streamResponse(response, newMessages);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to get response.");
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (e) { setError(e instanceof Error ? e.message : "Failed to get response."); }
+    finally { setIsLoading(false); }
+  };
+
+  const handlePersonaSwitch = (personaId: string) => {
+    setActivePersona(personaId);
+    setShowPersonaPicker(false);
+    // Add a system message so user sees the switch
+    const switchMsg: Message = { id: Date.now().toString(), role: "user", content: `[Switched to ${PERSONAS.find(p => p.id === personaId)?.name}]`, isQuickAction: true };
+    const newMessages = [...messages, switchMsg];
+    setMessages(newMessages);
+    updateSessionMessages(newMessages);
   };
 
   const copyMessage = (id: string, content: string) => {
@@ -329,12 +360,7 @@ export default function DebatePage() {
 
   const downloadReport = () => {
     const header = `# Debate: ${setup.topic}\n\n**Your case:** ${setup.position}\n${setup.context ? `**Context:** ${setup.context}\n` : ""}\n---\n\n`;
-    const body = messages
-      .map((m) => {
-        const role = m.role === "user" ? "**You:**" : "**The Adversary:**";
-        return `${role}\n${m.content}\n`;
-      })
-      .join("\n---\n\n");
+    const body = messages.map((m) => `${m.role === "user" ? "**You:**" : `**${persona.name}:**`}\n${m.content}\n`).join("\n---\n\n");
     const blob = new Blob([header + body], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -344,46 +370,22 @@ export default function DebatePage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleNew = () => {
-    clearSession();
-    router.push("/validate");
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
+  const handleNew = () => { clearSession(); router.push("/validate"); };
+  const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
 
   const renderAiMessage = (content: string, id?: string) => (
     <div className="flex gap-3 max-w-2xl msg-fade-in group">
-      {/* Avatar */}
-      <div className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/15 flex items-center justify-center mt-0.5">
-        <Zap className="w-3 h-3 text-indigo-400" />
+      <div className={`shrink-0 w-7 h-7 rounded-full bg-gradient-to-br ${persona.avatarGradient} flex items-center justify-center mt-0.5`}>
+        {persona.avatarIcon}
       </div>
-      {/* Content */}
       <div className="min-w-0 flex-1">
         <div className="text-[13px] leading-[1.7] text-white/75 markdown-content-dark">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
         </div>
         {id && (
           <div className="mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={() => copyMessage(id, content)}
-              className="inline-flex items-center gap-1 text-[11px] text-white/20 hover:text-white/50 transition-colors px-1.5 py-0.5 rounded hover:bg-white/[0.04]"
-            >
-              {copiedId === id ? (
-                <>
-                  <Check className="w-3 h-3 text-emerald-400" />
-                  <span className="text-emerald-400">Copied</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3 h-3" />
-                  <span>Copy</span>
-                </>
-              )}
+            <button onClick={() => copyMessage(id, content)} className="inline-flex items-center gap-1 text-[11px] text-white/20 hover:text-white/50 transition-colors px-1.5 py-0.5 rounded hover:bg-white/[0.04]">
+              {copiedId === id ? <><Check className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400">Copied</span></> : <><Copy className="w-3 h-3" /><span>Copy</span></>}
             </button>
           </div>
         )}
@@ -394,52 +396,68 @@ export default function DebatePage() {
   return (
     <div className="h-screen h-[100dvh] flex flex-col bg-[#08080e]">
       {/* Header */}
-      <header className="shrink-0 border-b border-white/[0.06] bg-[#08080e]/90 backdrop-blur-xl z-10">
+      <header className="shrink-0 border-b border-white/[0.06] bg-[#08080e]/90 backdrop-blur-xl z-20">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 h-13 flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/15 flex items-center justify-center">
-              <Zap className="w-3.5 h-3.5 text-indigo-400" />
+            {/* Persona selector */}
+            <div className="relative" ref={personaRef}>
+              <button
+                onClick={() => setShowPersonaPicker(!showPersonaPicker)}
+                className={`shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-all ${showPersonaPicker ? persona.activeBg : `${persona.bg} hover:border-white/15`}`}
+              >
+                <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${persona.avatarGradient} flex items-center justify-center`}>
+                  {persona.avatarIcon}
+                </div>
+                <span className={`text-xs font-semibold ${persona.color} hidden sm:inline`}>{persona.name}</span>
+                <ChevronDown className={`w-3 h-3 text-white/30 transition-transform ${showPersonaPicker ? "rotate-180" : ""}`} />
+              </button>
+
+              {/* Dropdown */}
+              {showPersonaPicker && (
+                <div className="absolute top-full left-0 mt-1.5 w-64 rounded-xl bg-[#12121a] border border-white/[0.08] shadow-xl shadow-black/40 overflow-hidden z-30">
+                  <div className="p-1.5">
+                    {PERSONAS.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => handlePersonaSwitch(p.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all ${
+                          activePersona === p.id ? `${p.bg}` : "hover:bg-white/[0.04]"
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${p.avatarGradient} flex items-center justify-center shrink-0`}>
+                          {p.avatarIcon}
+                        </div>
+                        <div className="min-w-0">
+                          <div className={`text-xs font-semibold ${activePersona === p.id ? p.color : "text-white/70"}`}>{p.name}</div>
+                          <div className="text-[10px] text-white/30">{p.short}</div>
+                        </div>
+                        {activePersona === p.id && <Check className={`w-3.5 h-3.5 ${p.color} ml-auto shrink-0`} />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="min-w-0">
+
+            <div className="min-w-0 hidden sm:block">
               <div className="flex items-center gap-2">
-                <h1 className="text-[13px] font-semibold text-white/90 truncate">
-                  {setup.topic}
-                </h1>
+                <h1 className="text-[13px] font-medium text-white/50 truncate">{setup.topic}</h1>
                 {score !== null && (
-                  <span
-                    className={`shrink-0 inline-flex items-center text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md border ${getScoreBg(score)} ${getScoreColor(score)}`}
-                  >
-                    {score}/10
-                  </span>
+                  <span className={`shrink-0 inline-flex items-center text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md border ${getScoreBg(score)} ${getScoreColor(score)}`}>{score}/10</span>
                 )}
               </div>
             </div>
           </div>
+
           <div className="flex items-center gap-0.5 shrink-0 ml-3">
             {setup.template === "validate" && (
-              <Link
-                href="/results"
-                className="flex items-center gap-1 px-2 py-1.5 text-[11px] text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-colors"
-              >
-                <ArrowLeft className="w-3 h-3" />
-                <span className="hidden sm:inline">Results</span>
+              <Link href="/results" className="flex items-center gap-1 px-2 py-1.5 text-[11px] text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-colors">
+                <ArrowLeft className="w-3 h-3" /><span className="hidden sm:inline">Results</span>
               </Link>
             )}
             <ThemeToggle />
-            <button
-              onClick={downloadReport}
-              className="p-2 text-white/25 hover:text-white/50 rounded-lg hover:bg-white/[0.04] transition-colors"
-              title="Download transcript"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleNew}
-              className="p-2 text-white/25 hover:text-white/50 rounded-lg hover:bg-white/[0.04] transition-colors"
-              title="New debate"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
+            <button onClick={downloadReport} className="p-2 text-white/25 hover:text-white/50 rounded-lg hover:bg-white/[0.04] transition-colors" title="Download transcript"><Download className="w-4 h-4" /></button>
+            <button onClick={handleNew} className="p-2 text-white/25 hover:text-white/50 rounded-lg hover:bg-white/[0.04] transition-colors" title="New debate"><RotateCcw className="w-4 h-4" /></button>
           </div>
         </div>
       </header>
@@ -449,33 +467,22 @@ export default function DebatePage() {
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-6">
           {messages.map((message) =>
             message.role === "opponent" ? (
-              <div key={message.id}>
-                {renderAiMessage(message.content, message.id)}
-              </div>
+              <div key={message.id}>{renderAiMessage(message.content, message.id)}</div>
             ) : (
-              /* User message */
               <div key={message.id} className="flex justify-end msg-fade-in">
-                <div
-                  className={`max-w-[80%] sm:max-w-[70%] ${
-                    message.isQuickAction
-                      ? "px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium"
-                      : "px-4 py-2.5 rounded-2xl rounded-br-md bg-white/[0.07] text-white/85 text-[13px] leading-relaxed"
-                  }`}
-                >
+                <div className={`max-w-[80%] sm:max-w-[70%] ${message.isQuickAction ? "px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium" : "px-4 py-2.5 rounded-2xl rounded-br-md bg-white/[0.07] text-white/85 text-[13px] leading-relaxed"}`}>
                   <p className="whitespace-pre-wrap">{message.content}</p>
                 </div>
               </div>
             )
           )}
 
-          {/* Streaming */}
           {isLoading && streamingContent && renderAiMessage(streamingContent)}
 
-          {/* Typing indicator */}
           {isLoading && !streamingContent && (
             <div className="flex gap-3 msg-fade-in">
-              <div className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/15 flex items-center justify-center mt-0.5">
-                <Zap className="w-3 h-3 text-indigo-400 animate-pulse" />
+              <div className={`shrink-0 w-7 h-7 rounded-full bg-gradient-to-br ${persona.avatarGradient} flex items-center justify-center mt-0.5`}>
+                <div className="animate-pulse">{persona.avatarIcon}</div>
               </div>
               <div className="flex items-center gap-2.5 py-1">
                 <div className="flex gap-1">
@@ -495,17 +502,14 @@ export default function DebatePage() {
       {/* Error */}
       {error && (
         <div className="shrink-0 px-4 sm:px-6 pb-2">
-          <div className="max-w-2xl mx-auto px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
-            {error}
-          </div>
+          <div className="max-w-2xl mx-auto px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs">{error}</div>
         </div>
       )}
 
-      {/* Sensitive topic warning */}
       {input.trim() && hasSensitiveTopic(input) && !shouldBlock(input) && (
         <div className="shrink-0 px-4 sm:px-6 pb-2">
           <div className="max-w-2xl mx-auto px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
-            Sensitive topic detected. Debate allowed for academic discussion. Operational advice will be blocked.
+            Sensitive topic detected. Debate allowed for academic discussion.
           </div>
         </div>
       )}
@@ -513,59 +517,34 @@ export default function DebatePage() {
       {/* Input area */}
       <div className="shrink-0 border-t border-white/[0.06] bg-[#08080e] safe-area-bottom">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-3 pb-4">
-          {/* Quick actions - inline pills */}
           {showQuickActions && (
             <div className="flex flex-wrap gap-1.5 mb-3">
               {QUICK_ACTIONS.map((action) => (
-                <button
-                  key={action.id}
-                  onClick={() => handleQuickAction(action.id)}
-                  disabled={isLoading}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-medium transition-colors disabled:opacity-25 disabled:cursor-not-allowed ${action.color}`}
-                >
-                  {action.icon}
-                  {action.label}
+                <button key={action.id} onClick={() => handleQuickAction(action.id)} disabled={isLoading}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-medium transition-colors disabled:opacity-25 disabled:cursor-not-allowed ${action.color}`}>
+                  {action.icon}{action.label}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Input field */}
           <div className="relative">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Defend your position..."
-              rows={1}
-              maxLength={MAX_MESSAGE_LENGTH}
+            <textarea ref={inputRef} value={input} onChange={handleInputChange} onKeyDown={handleKeyDown}
+              placeholder="Defend your position..." rows={1} maxLength={MAX_MESSAGE_LENGTH}
               className="w-full pl-4 pr-12 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/90 placeholder:text-white/20 focus:outline-none focus:border-indigo-500/30 focus:ring-1 focus:ring-indigo-500/20 transition-all resize-none text-[13px] leading-relaxed"
               style={{ minHeight: "46px", maxHeight: "120px" }}
             />
-            <button
-              onClick={sendMessage}
-              disabled={isLoading || !input.trim()}
-              className="absolute right-2 bottom-2 p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-15 disabled:cursor-not-allowed transition-all"
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
+            <button onClick={sendMessage} disabled={isLoading || !input.trim()}
+              className="absolute right-2 bottom-2 p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-15 disabled:cursor-not-allowed transition-all">
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
           </div>
 
-          {/* Footer hint */}
           <div className="mt-1.5 text-center">
             {input.length > 0 ? (
-              <span className={`text-[10px] tabular-nums ${input.length > MAX_MESSAGE_LENGTH - 100 ? "text-amber-400/50" : "text-white/15"}`}>
-                {input.length}/{MAX_MESSAGE_LENGTH}
-              </span>
+              <span className={`text-[10px] tabular-nums ${input.length > MAX_MESSAGE_LENGTH - 100 ? "text-amber-400/50" : "text-white/15"}`}>{input.length}/{MAX_MESSAGE_LENGTH}</span>
             ) : (
-              <span className="text-[10px] text-white/12">
-                Enter to send &middot; Shift+Enter for new line
-              </span>
+              <span className="text-[10px] text-white/12">Enter to send &middot; Shift+Enter for new line</span>
             )}
           </div>
         </div>

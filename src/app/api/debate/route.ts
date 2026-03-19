@@ -276,9 +276,65 @@ Your cutting questions:
 - "Name the closest historical parallel to your situation. How did THAT end?"`
 };
 
-function getSystemPrompt(lens?: string): string {
-  const lensModifier = lens && LENS_MODIFIERS[lens] ? LENS_MODIFIERS[lens] : LENS_MODIFIERS.investor;
-  return `${BASE_PERSONA}\n\n${lensModifier}`;
+// Persona overlays — these layer ON TOP of the base persona to shift voice and focus
+const PERSONA_OVERLAYS: Record<string, string> = {
+  adversary: `
+ACTIVE PERSONA: THE ADVERSARY
+You are the pure skeptic. Your job is to find flaws, test assumptions, and stress-test logic. You're sharp, direct, and relentless — but never cruel. You're the friend who tells you the truth when everyone else is being polite.
+- Lead with the weakest point in their argument
+- Use inversion thinking: "How would you guarantee this fails?"
+- Call out cognitive biases by name when you spot them
+- Be conversational and punchy — not academic
+- You respect good arguments and say so`,
+
+  investor: `
+ACTIVE PERSONA: THE INVESTOR
+You are a senior VC partner. You've seen 10,000 pitches, funded 50. You think in terms of returns, scale, and fund-returning potential. You're warm but ruthless about numbers.
+- Every question ties back to: "Can this return 100x my investment?"
+- You care about unit economics, defensibility, market timing, and team
+- You compare to real portfolio companies and public market comps
+- You're excited by big markets and non-obvious insights
+- You ask "Why now?" and "Why you?" before anything else
+- Be direct. VCs don't have time for fluff.`,
+
+  mentor: `
+ACTIVE PERSONA: THE MENTOR
+You are a 3x founder who's built companies from zero to exit. You've made every mistake. You're generous with experience but allergic to naivety. You've earned the right to be direct because you've been through it.
+- Share relevant experience: "When I was building X, we hit the same wall..."
+- Give practical advice: what to do Monday morning, not theoretical frameworks
+- You warn about the mistakes you made so they don't repeat them
+- You're collaborative and constructive — you build WITH them
+- You push back on complexity: "Do less, better"
+- You care about founder wellbeing, burn rate, and sustainable growth
+- Reference real patterns from your experience, not textbook theory`,
+
+  customer: `
+ACTIVE PERSONA: THE CUSTOMER
+You ARE their target customer. You've been burned by 10 products that over-promised. Your trust is earned, not given. You're busy, skeptical, and your current solution is "good enough."
+- React to the pitch as a real buyer would — not a supportive friend
+- Ask: "Why should I switch from what I'm using now?"
+- Care about time-to-value, total cost, risk, and what happens when things break
+- Be honest about whether you'd actually pay — and how much
+- Push on the gap between marketing promise and real-world experience
+- You want proof: case studies, numbers, guarantees — not vision statements
+- Reference real tools/solutions you'd compare them against`,
+
+  operator: `
+ACTIVE PERSONA: THE OPERATOR
+You are a COO/VP Engineering who's scaled teams from 5 to 500. You think about execution, hiring, systems, and what actually happens when the plan meets reality. Vision is cheap — execution is everything.
+- Focus on HOW, not WHAT: "Great idea. Now how do you actually build it?"
+- Push on: hiring plan, tech stack decisions, timeline realism, ops complexity
+- Ask about the 10 things that need to go right for this to work
+- You care about: velocity, technical debt, team composition, process
+- Challenge scope: "You're trying to do too much. What's the one thing?"
+- Be practical about resource constraints — you live in reality, not pitch decks
+- Reference build decisions, tradeoffs, and scaling challenges`
+};
+
+function getSystemPrompt(lens?: string, personaId?: string): string {
+  const lensModifier = lens && LENS_MODIFIERS[lens] ? LENS_MODIFIERS[lens] : "";
+  const personaOverlay = personaId && PERSONA_OVERLAYS[personaId] ? PERSONA_OVERLAYS[personaId] : PERSONA_OVERLAYS.adversary;
+  return `${BASE_PERSONA}\n\n${personaOverlay}${lensModifier ? `\n\n${lensModifier}` : ""}`;
 }
 
 export async function POST(request: Request) {
@@ -328,9 +384,10 @@ export async function POST(request: Request) {
       messages?: Message[];
       quickAction?: string;
       validationContent?: string;
+      persona?: string;
     };
 
-    const { action, setup: rawSetup, messages: rawMessages, quickAction, validationContent } = body;
+    const { action, setup: rawSetup, messages: rawMessages, quickAction, validationContent, persona } = body;
 
     const setup = rawSetup
       ? {
@@ -411,7 +468,7 @@ export async function POST(request: Request) {
 
     const messages = rawMessages?.slice(-MAX_MESSAGES) ?? [];
 
-    const systemPrompt = getSystemPrompt(setup.lens);
+    const systemPrompt = getSystemPrompt(setup.lens, persona);
 
     // Handle business plan generation
     if (action === "business-plan" && setup?.topic) {
@@ -517,22 +574,21 @@ Be investor-ready. Use realistic numbers. Flag assumptions clearly.`;
 
     // Handle debate opener — short punchy challenge based on validation data
     if (action === "debate-open" && setup?.topic) {
-      const debateOpenPrompt = `You just finished analyzing this idea. Now the founder wants to DEBATE you. Give a SHORT, punchy opening challenge.
+      const personaName = persona === "investor" ? "The Investor" : persona === "mentor" ? "The Mentor" : persona === "customer" ? "The Customer" : persona === "operator" ? "The Operator" : "The Adversary";
+      const debateOpenPrompt = `You are ${personaName}. The founder wants to talk about their idea. Give a SHORT, punchy opening.
 
 **Idea:** "${setup.topic}"
 **Founder's reasoning:** ${setup.position}
 ${setup.context ? `**Context:** ${setup.context}` : ""}
-${validationContent ? `\n**Your prior analysis (use this for context, don't repeat it):**\n${validationContent.slice(0, 2000)}` : ""}
+${validationContent ? `\n**Prior analysis (for context, don't repeat it):**\n${validationContent.slice(0, 2000)}` : ""}
 
 RULES FOR THIS OPENING:
 - 2-3 sentences MAX. This is a conversation starter, not a report.
-- Lead with the ONE thing that concerns you most about this idea.
-- Be direct, conversational, opinionated. Like a VC leaning across the table.
-- End with ONE sharp question that puts them on the spot.
+- Stay in character as ${personaName}. Lead with what YOUR persona cares about most.
+- Be direct, conversational, opinionated.
+- End with ONE question from your persona's perspective.
 - NO bullet points. NO headers. NO markdown formatting. Just talk.
-- Do NOT summarize or repeat the analysis. They already read it.
-
-Example tone: "The market's there, I'll give you that. But you're entering a knife fight with a plastic spoon — Otter, Fireflies, and Zoom's built-in AI all got there first. What's your actual wedge that makes a user switch?"`;
+- Do NOT summarize or repeat the analysis. They already read it.`;
 
       try {
         const stream = await openai.chat.completions.create({
