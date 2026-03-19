@@ -51,7 +51,6 @@ export const LANDING_PAGE_STYLE_KIT = `
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .lp-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
 
 body.lp-page {
@@ -265,12 +264,11 @@ body.lp-page {
 .lp-footer a { color: var(--lp-muted); text-decoration: none; }
 .lp-footer a:hover { color: var(--lp-text); }
 
-/* Reveal */
-.lp-reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.6s ease, transform 0.6s ease; }
-.lp-reveal.is-visible { opacity: 1; transform: translateY(0); }
+/* Reveal — always visible (iframes / sandboxed previews often break IntersectionObserver). Optional subtle hover only. */
+.lp-reveal { opacity: 1; transform: none; }
 `.trim();
 
-/** Minimal JS the model should include (vanilla): nav + reveal */
+/** Minimal JS the model should include (vanilla): mobile nav only */
 export const LANDING_PAGE_SCRIPT_KIT = `
 (function(){
   var nav=document.querySelector("[data-lp-nav]");
@@ -279,12 +277,5 @@ export const LANDING_PAGE_SCRIPT_KIT = `
     var m=nav.querySelector("[data-lp-nav-mobile]");
     if(t&&m){ t.addEventListener("click",function(){ m.classList.toggle("is-open"); }); }
   }
-  if(window.matchMedia("(prefers-reduced-motion:reduce)").matches) return;
-  var els=document.querySelectorAll(".lp-reveal");
-  if(!els.length||!("IntersectionObserver" in window)) { els.forEach(function(el){ el.classList.add("is-visible"); }); return; }
-  var io=new IntersectionObserver(function(entries){
-    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("is-visible"); io.unobserve(e.target); } });
-  },{ rootMargin:"0px 0px -8% 0px", threshold:0.1 });
-  els.forEach(function(el){ io.observe(el); });
 })();
 `.trim();

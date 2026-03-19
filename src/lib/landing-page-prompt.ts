@@ -69,7 +69,7 @@ The app provides a **finished CSS component system** (class prefix \`lp-\`). You
 
 ${LANDING_PAGE_STYLE_KIT}
 
-3. Before </body>, wrap the following JavaScript in a single <script> tag exactly as-is (nav toggle + scroll reveal; do not modify):
+3. Before </body>, wrap the following JavaScript in a single <script> tag exactly as-is (mobile nav toggle only; do not modify):
 
 ${LANDING_PAGE_SCRIPT_KIT}
 
@@ -82,7 +82,7 @@ ${LANDING_PAGE_SCRIPT_KIT}
    - FAQ: .lp-faq with <details> using .lp-faq classes
    - Final: section.lp-cta > .lp-container > .lp-cta__inner with .lp-form (POST to formspree)
    - footer.lp-footer
-   - Add class "lp-reveal" to major blocks (not every tiny element) for scroll animation
+   - Optional: class "lp-reveal" on major blocks for consistent spacing hooks (content stays visible without JS)
 
 ${LANDING_PAGE_COPY_SKILL}
 

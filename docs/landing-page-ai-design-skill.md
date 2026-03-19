@@ -6,7 +6,7 @@ The deployed model does **not** read Cursor/Claude skill files. What it **does**
 
 1. **`src/lib/landing-page-design-kit.ts`**  
    - `LANDING_PAGE_STYLE_KIT` — full CSS for the `lp-*` component system (nav, hero, cards, steps, FAQ, CTA, footer).  
-   - `LANDING_PAGE_SCRIPT_KIT` — minimal JS (mobile nav + `IntersectionObserver` reveals).  
+   - `LANDING_PAGE_SCRIPT_KIT` — minimal JS (mobile nav only; scroll-reveal was removed because `opacity:0` + `IntersectionObserver` often never fires in sandboxed `srcDoc` iframes, leaving the preview blank).  
    - `LANDING_PAGE_COPY_SKILL` — headline/CTA formulas and anti-patterns.
 
 2. **`src/lib/landing-page-prompt.ts`**  

@@ -432,14 +432,15 @@ export default function LandingGeneratorPage() {
               className="mx-auto transition-all duration-300 ease-in-out"
               style={{ maxWidth: PREVIEW_WIDTHS[previewSize] }}
             >
-              <div className="rounded-2xl border border-white/[0.08] overflow-hidden bg-white shadow-2xl shadow-black/50">
+              <div className="rounded-2xl border border-white/[0.08] overflow-hidden bg-[#07070c] shadow-2xl shadow-black/50">
                 <iframe
                   ref={iframeRef}
                   srcDoc={displayContent}
                   title="Landing page preview"
-                  className="w-full border-0"
+                  className="w-full border-0 bg-[#07070c] block"
                   style={{ height: "80vh", minHeight: "600px" }}
-                  sandbox="allow-scripts"
+                  sandbox="allow-scripts allow-forms allow-popups allow-downloads"
+                  referrerPolicy="no-referrer-when-downgrade"
                 />
               </div>
             </div>
