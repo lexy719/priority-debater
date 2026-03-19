@@ -175,6 +175,11 @@ export default function ResultsPage() {
   const [isGeneratingBusinessPlan, setIsGeneratingBusinessPlan] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shareToast, setShareToast] = useState(false);
+  const [pivotData, setPivotData] = useState<Record<string, { analysis: string; pivots: { title: string; description: string; estimatedScore: number }[] }>>({});
+  const [pivotLoading, setPivotLoading] = useState<Record<string, boolean>>({});
+  const [pivotErrors, setPivotErrors] = useState<Record<string, string>>({});
+  const [selectedPivots, setSelectedPivots] = useState<Record<string, number | "custom">>({});
+  const [customPivotText, setCustomPivotText] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const s = loadSession();
@@ -255,12 +260,6 @@ export default function ResultsPage() {
     { key: "teamExecution", label: "Team & Execution", value: cs.teamExecution },
     { key: "timingTrends", label: "Timing & Trends", value: cs.timingTrends },
   ].filter(c => c.value != null && c.value < 7);
-
-  const [pivotData, setPivotData] = useState<Record<string, { analysis: string; pivots: { title: string; description: string; estimatedScore: number }[] }>>({});
-  const [pivotLoading, setPivotLoading] = useState<Record<string, boolean>>({});
-  const [pivotErrors, setPivotErrors] = useState<Record<string, string>>({});
-  const [selectedPivots, setSelectedPivots] = useState<Record<string, number | "custom">>({});
-  const [customPivotText, setCustomPivotText] = useState<Record<string, string>>({});
 
   const handleGeneratePivots = async (categoryKey: string, categoryLabel: string, categoryScore: number) => {
     setPivotLoading(prev => ({ ...prev, [categoryKey]: true }));
