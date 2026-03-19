@@ -39,32 +39,32 @@
 
 [data-theme="light"] {
   --bg-primary: #f8f7f4;
-  --bg-secondary: #f0efe9;
-  --bg-card: rgba(255, 255, 255, 0.85);
-  --bg-card-hover: rgba(255, 255, 255, 1);
-  --bg-input: rgba(255, 255, 255, 0.9);
+  --bg-secondary: #f0eee8;
+  --bg-card: #ffffff;
+  --bg-card-hover: #ffffff;
+  --bg-input: #ffffff;
   --bg-input-focus: #ffffff;
-  --bg-elevated: rgba(255, 255, 255, 0.95);
+  --bg-elevated: #fafafa;
 
   --border-primary: rgba(0, 0, 0, 0.08);
   --border-secondary: rgba(0, 0, 0, 0.05);
-  --border-focus: rgba(99, 102, 241, 0.6);
+  --border-focus: rgba(79, 70, 229, 0.55);
 
   --text-primary: #1a1a2e;
   --text-secondary: #4a4a68;
-  --text-tertiary: #8888a0;
-  --text-muted: #b0b0c0;
-  --text-accent: #5b5cf6;
+  --text-tertiary: #7c7c96;
+  --text-muted: #a0a0b8;
+  --text-accent: #4f46e5;
 
-  --accent-primary: #5b5cf6;
-  --accent-gradient-from: #5b5cf6;
-  --accent-gradient-to: #7c5cf6;
+  --accent-primary: #4f46e5;
+  --accent-gradient-from: #4f46e5;
+  --accent-gradient-to: #7c3aed;
 
-  --glow-accent: rgba(91, 92, 246, 0.08);
-  --glow-success: rgba(16, 185, 129, 0.08);
+  --glow-accent: rgba(79, 70, 229, 0.10);
+  --glow-success: rgba(16, 185, 129, 0.10);
 
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 20px rgba(0, 0, 0, 0.03);
+  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.06);
 
   color-scheme: light;
 }
@@ -203,15 +203,15 @@ body {
    Light mode card enhancements
    ======================================== */
 [data-theme="light"] .light-card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
+  background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 20px rgba(0, 0, 0, 0.03);
 }
 
 [data-theme="light"] .light-card:hover {
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 8px 32px rgba(0, 0, 0, 0.04);
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 8px 32px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
 }
 
 /* Progress bar animation */
@@ -238,43 +238,89 @@ body {
 }
 
 /* ========================================
+   Keyframes — Shimmer & Pulse Border
+   For streaming content & loading states.
+   ======================================== */
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-border {
+  0%, 100% {
+    border-color: rgba(79, 70, 229, 0.2);
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+  }
+  50% {
+    border-color: rgba(79, 70, 229, 0.45);
+    box-shadow: 0 0 12px 2px rgba(79, 70, 229, 0.08);
+  }
+}
+
+/* Shimmer utility class */
+.shimmer-border {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(79, 70, 229, 0.06) 25%,
+    rgba(124, 58, 237, 0.1) 50%,
+    rgba(79, 70, 229, 0.06) 75%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2.5s ease-in-out infinite;
+}
+
+.pulse-border-active {
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+/* ========================================
    Light mode — Tailwind utility overrides
    Automatically remaps hardcoded dark-mode
    classes when data-theme="light" is active.
    Uses !important to override Tailwind layer.
    ======================================== */
 
+/* ─── 1. Body: warm gradient background ─── */
+[data-theme="light"] body {
+  background: linear-gradient(135deg, #f8f7f4 0%, #f0eee8 50%, #f5f3ef 100%) !important;
+  background-attachment: fixed !important;
+}
+
 /* --- Backgrounds: hardcoded dark hex → themed --- */
 [data-theme="light"] .bg-\[\#08080e\],
 [data-theme="light"] .bg-\[\#0a0a12\],
 [data-theme="light"] .bg-\[\#0c0c14\] {
-  background-color: var(--bg-primary) !important;
+  background-color: transparent !important;
+  background: linear-gradient(135deg, #f8f7f4 0%, #f0eee8 50%, #f5f3ef 100%) !important;
 }
 [data-theme="light"] .bg-\[\#08080e\]\/80,
 [data-theme="light"] .bg-\[\#08080e\]\/50,
 [data-theme="light"] .bg-\[\#0c0c14\]\/50 {
-  background-color: color-mix(in srgb, var(--bg-primary) 85%, transparent) !important;
+  background-color: rgba(248, 247, 244, 0.85) !important;
 }
 [data-theme="light"] .bg-\[\#0c0c14\]\/90 {
-  background-color: color-mix(in srgb, var(--bg-secondary) 92%, transparent) !important;
+  background-color: rgba(240, 238, 232, 0.92) !important;
 }
 
 /* --- Backgrounds: white-alpha → themed surfaces --- */
 [data-theme="light"] .bg-white\/\[0\.02\],
 [data-theme="light"] .bg-white\/\[0\.03\] {
-  background-color: var(--bg-card) !important;
+  background-color: #ffffff !important;
 }
 [data-theme="light"] .bg-white\/\[0\.04\] {
-  background-color: var(--bg-input) !important;
+  background-color: #ffffff !important;
 }
 [data-theme="light"] .bg-white\/\[0\.06\],
 [data-theme="light"] .bg-white\/5 {
-  background-color: var(--bg-card-hover) !important;
+  background-color: #fafafa !important;
 }
 [data-theme="light"] .bg-white\/\[0\.08\],
 [data-theme="light"] .bg-white\/\[0\.1\],
 [data-theme="light"] .bg-white\/10 {
-  background-color: var(--bg-elevated) !important;
+  background-color: #f5f5f5 !important;
 }
 
 /* --- Text: white-alpha → themed text --- */
@@ -309,13 +355,13 @@ body {
 /* --- Borders: white-alpha → themed borders --- */
 [data-theme="light"] .border-white\/\[0\.04\],
 [data-theme="light"] .border-white\/\[0\.05\] {
-  border-color: var(--border-secondary) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
 }
 [data-theme="light"] .border-white\/\[0\.06\],
 [data-theme="light"] .border-white\/\[0\.08\],
 [data-theme="light"] .border-white\/10,
 [data-theme="light"] .border-white\/20 {
-  border-color: var(--border-primary) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 [data-theme="light"] .border-\[\#08080e\] {
   border-color: var(--bg-primary) !important;
@@ -323,26 +369,26 @@ body {
 
 /* --- Divide/border-white classes for timeline --- */
 [data-theme="light"] .border-white\/\[0\.10\] {
-  border-color: var(--border-primary) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 [data-theme="light"] .divide-white\/\[0\.06\] > :not([hidden]) ~ :not([hidden]) {
-  border-color: var(--border-primary) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
 /* --- Placeholder text --- */
 [data-theme="light"] .placeholder\:text-white\/20::placeholder {
-  color: var(--text-muted) !important;
+  color: #b0b0c0 !important;
 }
 
 /* --- Hover states --- */
 [data-theme="light"] .hover\:bg-white\/\[0\.04\]:hover {
-  background-color: rgba(0, 0, 0, 0.03) !important;
+  background-color: rgba(79, 70, 229, 0.03) !important;
 }
 [data-theme="light"] .hover\:bg-white\/\[0\.06\]:hover {
-  background-color: rgba(0, 0, 0, 0.04) !important;
+  background-color: rgba(79, 70, 229, 0.04) !important;
 }
 [data-theme="light"] .hover\:bg-white\/\[0\.1\]:hover {
-  background-color: rgba(0, 0, 0, 0.06) !important;
+  background-color: rgba(79, 70, 229, 0.06) !important;
 }
 [data-theme="light"] .hover\:bg-white\/90:hover {
   background-color: rgba(0, 0, 0, 0.04) !important;
@@ -370,70 +416,255 @@ body {
 
 /* --- Gradient from/to for results hero card --- */
 [data-theme="light"] .from-white\/\[0\.04\] {
-  --tw-gradient-from: rgba(255, 255, 255, 0.85) !important;
+  --tw-gradient-from: #ffffff !important;
 }
 [data-theme="light"] .to-white\/\[0\.01\] {
-  --tw-gradient-to: rgba(255, 255, 255, 0.5) !important;
+  --tw-gradient-to: #fafafa !important;
 }
 
-/* --- CTA button overrides --- */
+/* ─── 2. CTA button overrides ─── */
 [data-theme="light"] .cta-primary {
-  background: var(--text-primary) !important;
+  background: linear-gradient(135deg, #4f46e5 0%, #6d28d9 100%) !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
 }
 [data-theme="light"] .cta-primary:hover {
-  background: #2e2e4a !important;
+  background: linear-gradient(135deg, #4338ca 0%, #5b21b6 100%) !important;
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.35), 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+  transform: translateY(-1px);
 }
 [data-theme="light"] .cta-secondary {
-  background: rgba(0, 0, 0, 0.04) !important;
+  background: #ffffff !important;
   color: var(--text-secondary) !important;
-  border-color: var(--border-primary) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 [data-theme="light"] .cta-secondary:hover {
-  background: rgba(0, 0, 0, 0.07) !important;
+  background: #fafafa !important;
+  border-color: rgba(79, 70, 229, 0.2) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
 }
 
-/* --- Light mode accent color boosts --- */
+/* ─── 3. Vivid accent colors for gradient text ─── */
 [data-theme="light"] .text-indigo-400\/70 {
-  color: #5b5cf6 !important;
+  color: #4f46e5 !important;
 }
 [data-theme="light"] .text-indigo-400\/60 {
-  color: rgba(91, 92, 246, 0.7) !important;
+  color: #4338ca !important;
+}
+/* Landing page headline gradient text — richer purples in light mode */
+[data-theme="light"] .bg-gradient-to-r.from-indigo-400.via-violet-400.to-purple-400 {
+  --tw-gradient-from: #4f46e5 !important;
+  --tw-gradient-via: #7c3aed !important;
+  --tw-gradient-to: #9333ea !important;
+}
+[data-theme="light"] .from-indigo-400 {
+  --tw-gradient-from: #4f46e5 !important;
+}
+[data-theme="light"] .via-violet-400 {
+  --tw-gradient-via: #7c3aed !important;
+}
+[data-theme="light"] .to-purple-400 {
+  --tw-gradient-to: #9333ea !important;
 }
 
-/* --- Comparison table light overrides --- */
+/* ─── 4. Nav bar — white frosted glass ─── */
+[data-theme="light"] nav {
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03) !important;
+}
+/* Headers / sticky bars on inner pages */
+[data-theme="light"] .sticky.top-0.bg-\[\#08080e\]\/80,
+[data-theme="light"] .bg-\[\#08080e\]\/80.backdrop-blur-xl {
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+}
+
+/* ─── 5. Cards — pure white with stronger shadows & accent left-border ─── */
+[data-theme="light"] .rounded-xl.bg-white\/\[0\.03\],
+[data-theme="light"] .rounded-2xl.bg-white\/\[0\.03\],
+[data-theme="light"] .rounded-xl.bg-white\/\[0\.02\],
+[data-theme="light"] .rounded-2xl.bg-white\/\[0\.02\] {
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+  border-left: 3px solid rgba(79, 70, 229, 0.12) !important;
+  transition: box-shadow 0.2s ease, transform 0.2s ease !important;
+}
+[data-theme="light"] .rounded-xl.bg-white\/\[0\.03\]:hover,
+[data-theme="light"] .rounded-2xl.bg-white\/\[0\.03\]:hover,
+[data-theme="light"] .rounded-xl.bg-white\/\[0\.02\]:hover,
+[data-theme="light"] .rounded-2xl.bg-white\/\[0\.02\]:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07), 0 8px 32px rgba(0, 0, 0, 0.04) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* ─── 5b. Feature cards on landing page — hover color lift ─── */
+[data-theme="light"] .group.p-4.rounded-xl.border {
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease !important;
+}
+[data-theme="light"] .group.p-4.rounded-xl.border:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.10), 0 8px 32px rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(79, 70, 229, 0.15) !important;
+}
+
+/* ─── 6. Comparison table — alternating rows & cleaner borders ─── */
 [data-theme="light"] .bg-indigo-500\/\[0\.06\] {
-  background-color: rgba(99, 102, 241, 0.06) !important;
+  background-color: rgba(79, 70, 229, 0.05) !important;
+}
+[data-theme="light"] .bg-indigo-500\/\[0\.03\] {
+  background-color: rgba(79, 70, 229, 0.03) !important;
+}
+[data-theme="light"] table tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.015) !important;
+}
+[data-theme="light"] table thead tr {
+  background-color: #fafafa !important;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.08) !important;
+}
+[data-theme="light"] table th {
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+[data-theme="light"] table td,
+[data-theme="light"] table th {
+  border-color: rgba(0, 0, 0, 0.05) !important;
 }
 
-/* --- Landing hero dot grid in light mode --- */
+/* ─── 7. FAQ accordions — white cards with hover lift ─── */
+[data-theme="light"] details.group.p-4.rounded-xl {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+  transition: box-shadow 0.25s ease, transform 0.25s ease !important;
+}
+[data-theme="light"] details.group.p-4.rounded-xl:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  transform: translateY(-1px) !important;
+  border-color: rgba(79, 70, 229, 0.12) !important;
+}
+[data-theme="light"] details.group.p-4.rounded-xl[open] {
+  border-color: rgba(79, 70, 229, 0.15) !important;
+  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* ─── 8. CTA sections — soft pastel tints instead of dark glows ─── */
+[data-theme="light"] .from-indigo-600\/20 {
+  --tw-gradient-from: rgba(79, 70, 229, 0.06) !important;
+}
+[data-theme="light"] .via-violet-600\/10 {
+  --tw-gradient-via: rgba(124, 58, 237, 0.04) !important;
+}
+[data-theme="light"] .to-purple-600\/20 {
+  --tw-gradient-to: rgba(147, 51, 234, 0.05) !important;
+}
+[data-theme="light"] .from-indigo-600\/10 {
+  --tw-gradient-from: rgba(79, 70, 229, 0.04) !important;
+}
+[data-theme="light"] .to-violet-600\/10 {
+  --tw-gradient-to: rgba(124, 58, 237, 0.03) !important;
+}
+[data-theme="light"] .from-indigo-500\/20 {
+  --tw-gradient-from: rgba(99, 102, 241, 0.06) !important;
+}
+[data-theme="light"] .via-violet-500\/20 {
+  --tw-gradient-via: rgba(139, 92, 246, 0.04) !important;
+}
+[data-theme="light"] .to-purple-500\/20 {
+  --tw-gradient-to: rgba(168, 85, 247, 0.04) !important;
+}
+[data-theme="light"] .from-indigo-500\/10 {
+  --tw-gradient-from: rgba(99, 102, 241, 0.05) !important;
+}
+[data-theme="light"] .to-violet-500\/10 {
+  --tw-gradient-to: rgba(139, 92, 246, 0.04) !important;
+}
+/* Debate mode & final CTA section backgrounds — white card with subtle pastel wash */
+[data-theme="light"] .rounded-3xl.overflow-hidden > .bg-gradient-to-br.from-indigo-600\/20 {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.04) 0%, rgba(124, 58, 237, 0.02) 50%, rgba(147, 51, 234, 0.04) 100%) !important;
+}
+[data-theme="light"] .rounded-3xl.overflow-hidden > .bg-gradient-to-br.from-indigo-600\/10 {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.03) 0%, transparent 50%, rgba(124, 58, 237, 0.03) 100%) !important;
+}
+/* Glow blobs in CTA sections — softer in light mode */
+[data-theme="light"] .bg-indigo-500\/15 {
+  background-color: rgba(79, 70, 229, 0.06) !important;
+}
+[data-theme="light"] .bg-violet-500\/10 {
+  background-color: rgba(124, 58, 237, 0.04) !important;
+}
+[data-theme="light"] .bg-indigo-500\/10 {
+  background-color: rgba(79, 70, 229, 0.06) !important;
+}
+
+/* ─── 9. Input fields — white with inner shadow & indigo focus ring ─── */
+[data-theme="light"] input.bg-white\/\[0\.04\],
+[data-theme="light"] textarea.bg-white\/\[0\.04\] {
+  background: #ffffff !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: var(--text-primary) !important;
+}
+[data-theme="light"] input.bg-white\/\[0\.04\]:focus,
+[data-theme="light"] textarea.bg-white\/\[0\.04\]:focus,
+[data-theme="light"] input.focus\:border-indigo-500\/50:focus,
+[data-theme="light"] textarea.focus\:border-indigo-500\/50:focus {
+  background: #ffffff !important;
+  border-color: rgba(79, 70, 229, 0.5) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+  outline: none !important;
+}
+[data-theme="light"] input.focus\:bg-white\/\[0\.06\]:focus,
+[data-theme="light"] textarea.focus\:bg-white\/\[0\.06\]:focus {
+  background: #ffffff !important;
+}
+
+/* ─── 10. Streaming content — shimmer border animation ─── */
+[data-theme="light"] .rounded-2xl.bg-white\/\[0\.03\].border.border-white\/\[0\.06\].overflow-y-auto {
+  background: #ffffff !important;
+  border: 1px solid rgba(79, 70, 229, 0.15) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+  position: relative;
+}
+/* When streaming is active, add pulse animation */
+[data-theme="light"] .rounded-2xl.bg-white\/\[0\.03\].border.border-white\/\[0\.06\].overflow-y-auto:has(.markdown-content-dark) {
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+/* ─── Landing hero dot grid ─── */
 [data-theme="light"] .opacity-\[0\.03\] {
-  opacity: 0.06 !important;
+  opacity: 0.04 !important;
 }
 
-/* --- Scoring pill borders in light --- */
-[data-theme="light"] .border-emerald-500\/20 { border-color: rgba(16, 185, 129, 0.25) !important; }
-[data-theme="light"] .border-red-500\/20 { border-color: rgba(239, 68, 68, 0.2) !important; }
-[data-theme="light"] .border-amber-500\/20 { border-color: rgba(245, 158, 11, 0.2) !important; }
-[data-theme="light"] .border-indigo-500\/20 { border-color: rgba(99, 102, 241, 0.25) !important; }
-[data-theme="light"] .border-violet-500\/20 { border-color: rgba(139, 92, 246, 0.25) !important; }
-[data-theme="light"] .border-sky-500\/20 { border-color: rgba(14, 165, 233, 0.2) !important; }
-[data-theme="light"] .border-indigo-500\/30 { border-color: rgba(99, 102, 241, 0.3) !important; }
-[data-theme="light"] .border-emerald-500\/30 { border-color: rgba(16, 185, 129, 0.3) !important; }
-[data-theme="light"] .border-amber-500\/30 { border-color: rgba(245, 158, 11, 0.3) !important; }
-[data-theme="light"] .border-red-500\/30 { border-color: rgba(239, 68, 68, 0.25) !important; }
-[data-theme="light"] .border-indigo-500\/15 { border-color: rgba(99, 102, 241, 0.2) !important; }
+/* ─── Scoring pill borders — slightly more vivid in light ─── */
+[data-theme="light"] .border-emerald-500\/20 { border-color: rgba(16, 185, 129, 0.3) !important; }
+[data-theme="light"] .border-red-500\/20 { border-color: rgba(239, 68, 68, 0.25) !important; }
+[data-theme="light"] .border-amber-500\/20 { border-color: rgba(245, 158, 11, 0.25) !important; }
+[data-theme="light"] .border-indigo-500\/20 { border-color: rgba(79, 70, 229, 0.3) !important; }
+[data-theme="light"] .border-violet-500\/20 { border-color: rgba(124, 58, 237, 0.3) !important; }
+[data-theme="light"] .border-sky-500\/20 { border-color: rgba(14, 165, 233, 0.25) !important; }
+[data-theme="light"] .border-indigo-500\/30 { border-color: rgba(79, 70, 229, 0.35) !important; }
+[data-theme="light"] .border-emerald-500\/30 { border-color: rgba(16, 185, 129, 0.35) !important; }
+[data-theme="light"] .border-amber-500\/30 { border-color: rgba(245, 158, 11, 0.35) !important; }
+[data-theme="light"] .border-red-500\/30 { border-color: rgba(239, 68, 68, 0.3) !important; }
+[data-theme="light"] .border-indigo-500\/15 { border-color: rgba(79, 70, 229, 0.2) !important; }
 [data-theme="light"] .border-emerald-500\/15 { border-color: rgba(16, 185, 129, 0.2) !important; }
-[data-theme="light"] .border-red-500\/15 { border-color: rgba(239, 68, 68, 0.18) !important; }
+[data-theme="light"] .border-red-500\/15 { border-color: rgba(239, 68, 68, 0.2) !important; }
 
 /* --- SVG elements --- */
 [data-theme="light"] svg line[stroke="rgba(255,255,255,0.06)"],
 [data-theme="light"] svg path[stroke="rgba(255,255,255,0.06)"] {
-  stroke: var(--border-primary) !important;
+  stroke: rgba(0, 0, 0, 0.1) !important;
 }
 [data-theme="light"] svg path[fill="none"][stroke="rgba(255,255,255,0.06)"] {
-  stroke: var(--border-primary) !important;
+  stroke: rgba(0, 0, 0, 0.1) !important;
 }
 [data-theme="light"] svg text[fill="rgba(255,255,255,0.35)"] {
   fill: var(--text-tertiary) !important;
@@ -448,96 +679,190 @@ body {
   fill: var(--text-tertiary) !important;
 }
 [data-theme="light"] svg circle[stroke="#08080e"] {
-  stroke: var(--bg-primary) !important;
+  stroke: #f8f7f4 !important;
 }
 
 /* --- Light mode card glass effect for app pages --- */
 [data-theme="light"] .bg-white\/\[0\.03\],
 [data-theme="light"] .bg-white\/\[0\.02\] {
-  backdrop-filter: blur(8px);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 20px rgba(0, 0, 0, 0.03);
 }
 
-/* --- Accent-colored backgrounds: boost opacity for light mode readability --- */
-[data-theme="light"] .bg-emerald-500\/10 { background-color: rgba(16, 185, 129, 0.12) !important; }
-[data-theme="light"] .bg-red-500\/10 { background-color: rgba(239, 68, 68, 0.1) !important; }
-[data-theme="light"] .bg-amber-500\/10 { background-color: rgba(245, 158, 11, 0.1) !important; }
-[data-theme="light"] .bg-indigo-500\/10 { background-color: rgba(99, 102, 241, 0.1) !important; }
-[data-theme="light"] .bg-violet-500\/10 { background-color: rgba(139, 92, 246, 0.1) !important; }
-[data-theme="light"] .bg-sky-500\/10 { background-color: rgba(14, 165, 233, 0.1) !important; }
-[data-theme="light"] .bg-indigo-500\/15 { background-color: rgba(99, 102, 241, 0.12) !important; }
-[data-theme="light"] .bg-emerald-500\/15 { background-color: rgba(16, 185, 129, 0.14) !important; }
-[data-theme="light"] .bg-indigo-500\/20 { background-color: rgba(99, 102, 241, 0.12) !important; }
-[data-theme="light"] .bg-red-500\/20 { background-color: rgba(239, 68, 68, 0.12) !important; }
-[data-theme="light"] .bg-amber-500\/20 { background-color: rgba(245, 158, 11, 0.12) !important; }
-[data-theme="light"] .bg-violet-500\/20 { background-color: rgba(139, 92, 246, 0.12) !important; }
-[data-theme="light"] .bg-emerald-500\/20 { background-color: rgba(16, 185, 129, 0.14) !important; }
+/* --- Accent-colored backgrounds: slightly richer in light mode --- */
+[data-theme="light"] .bg-emerald-500\/10 { background-color: rgba(16, 185, 129, 0.10) !important; }
+[data-theme="light"] .bg-red-500\/10 { background-color: rgba(239, 68, 68, 0.08) !important; }
+[data-theme="light"] .bg-amber-500\/10 { background-color: rgba(245, 158, 11, 0.08) !important; }
+[data-theme="light"] .bg-violet-500\/10 { background-color: rgba(124, 58, 237, 0.08) !important; }
+[data-theme="light"] .bg-sky-500\/10 { background-color: rgba(14, 165, 233, 0.08) !important; }
+[data-theme="light"] .bg-indigo-500\/15 { background-color: rgba(79, 70, 229, 0.10) !important; }
+[data-theme="light"] .bg-emerald-500\/15 { background-color: rgba(16, 185, 129, 0.12) !important; }
+[data-theme="light"] .bg-indigo-500\/20 { background-color: rgba(79, 70, 229, 0.10) !important; }
+[data-theme="light"] .bg-red-500\/20 { background-color: rgba(239, 68, 68, 0.10) !important; }
+[data-theme="light"] .bg-amber-500\/20 { background-color: rgba(245, 158, 11, 0.10) !important; }
+[data-theme="light"] .bg-violet-500\/20 { background-color: rgba(124, 58, 237, 0.10) !important; }
+[data-theme="light"] .bg-emerald-500\/20 { background-color: rgba(16, 185, 129, 0.12) !important; }
 
 /* --- LeanCanvas colored cell backgrounds --- */
-[data-theme="light"] .bg-red-500\/\[0\.06\] { background-color: rgba(239, 68, 68, 0.08) !important; }
-[data-theme="light"] .bg-emerald-500\/\[0\.06\] { background-color: rgba(16, 185, 129, 0.08) !important; }
-[data-theme="light"] .bg-violet-500\/\[0\.06\] { background-color: rgba(139, 92, 246, 0.08) !important; }
-[data-theme="light"] .bg-amber-500\/\[0\.06\] { background-color: rgba(245, 158, 11, 0.08) !important; }
-[data-theme="light"] .bg-sky-500\/\[0\.06\] { background-color: rgba(14, 165, 233, 0.08) !important; }
-[data-theme="light"] .bg-indigo-500\/\[0\.06\] { background-color: rgba(99, 102, 241, 0.08) !important; }
-[data-theme="light"] .bg-cyan-500\/\[0\.06\] { background-color: rgba(6, 182, 212, 0.08) !important; }
-[data-theme="light"] .bg-orange-500\/\[0\.06\] { background-color: rgba(249, 115, 22, 0.08) !important; }
+[data-theme="light"] .bg-red-500\/\[0\.06\] { background-color: rgba(239, 68, 68, 0.06) !important; }
+[data-theme="light"] .bg-emerald-500\/\[0\.06\] { background-color: rgba(16, 185, 129, 0.06) !important; }
+[data-theme="light"] .bg-violet-500\/\[0\.06\] { background-color: rgba(124, 58, 237, 0.06) !important; }
+[data-theme="light"] .bg-amber-500\/\[0\.06\] { background-color: rgba(245, 158, 11, 0.06) !important; }
+[data-theme="light"] .bg-sky-500\/\[0\.06\] { background-color: rgba(14, 165, 233, 0.06) !important; }
+[data-theme="light"] .bg-indigo-500\/\[0\.06\] { background-color: rgba(79, 70, 229, 0.06) !important; }
+[data-theme="light"] .bg-cyan-500\/\[0\.06\] { background-color: rgba(6, 182, 212, 0.06) !important; }
+[data-theme="light"] .bg-orange-500\/\[0\.06\] { background-color: rgba(249, 115, 22, 0.06) !important; }
 
-/* --- Gradient overrides for light mode --- */
-[data-theme="light"] .from-indigo-500\/20 { --tw-gradient-from: rgba(99, 102, 241, 0.08) !important; }
-[data-theme="light"] .via-violet-500\/20 { --tw-gradient-via: rgba(139, 92, 246, 0.06) !important; }
-[data-theme="light"] .to-purple-500\/20 { --tw-gradient-to: rgba(168, 85, 247, 0.06) !important; }
-[data-theme="light"] .from-indigo-600\/20 { --tw-gradient-from: rgba(79, 70, 229, 0.08) !important; }
-[data-theme="light"] .via-violet-600\/10 { --tw-gradient-via: rgba(124, 58, 237, 0.05) !important; }
-[data-theme="light"] .to-purple-600\/20 { --tw-gradient-to: rgba(147, 51, 234, 0.06) !important; }
-[data-theme="light"] .from-indigo-600\/10 { --tw-gradient-from: rgba(79, 70, 229, 0.05) !important; }
-[data-theme="light"] .to-violet-600\/10 { --tw-gradient-to: rgba(124, 58, 237, 0.04) !important; }
-[data-theme="light"] .from-indigo-500\/10 { --tw-gradient-from: rgba(99, 102, 241, 0.06) !important; }
-[data-theme="light"] .to-violet-500\/10 { --tw-gradient-to: rgba(139, 92, 246, 0.05) !important; }
-
-/* --- Landing page CTA button: white bg → dark bg in light mode --- */
+/* --- Landing page CTA button: white bg → rich gradient in light mode --- */
 [data-theme="light"] .bg-white.text-\[\#08080e\] {
-  background-color: var(--text-primary) !important;
+  background: linear-gradient(135deg, #4f46e5 0%, #6d28d9 100%) !important;
   color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25) !important;
 }
 
 /* --- Ring/border accent overrides for light --- */
 [data-theme="light"] .border-\[\#08080e\],
 [data-theme="light"] .border-2.border-\[\#08080e\] {
-  border-color: var(--bg-primary) !important;
+  border-color: #f0eee8 !important;
 }
 
 /* --- Divider dots opacity --- */
 [data-theme="light"] .bg-red-500\/40,
 [data-theme="light"] .bg-amber-500\/40,
 [data-theme="light"] .bg-emerald-500\/40 {
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
-/* --- Indigo-tinted backgrounds for light mode --- */
-[data-theme="light"] .bg-indigo-500\/\[0\.03\] {
-  background-color: rgba(99, 102, 241, 0.04) !important;
+/* ─── Results hero card — white with pastel gradient ─── */
+[data-theme="light"] .rounded-2xl.bg-gradient-to-br.from-white\/\[0\.04\] {
+  background: linear-gradient(135deg, #ffffff 0%, #fafafe 50%, #f8f7ff 100%) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 8px 32px rgba(0, 0, 0, 0.04) !important;
 }
 
-/* --- Light mode global enhancements --- */
-[data-theme="light"] {
-  --landing-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.04);
+/* ─── Demo preview card — white with subtle shadow ─── */
+[data-theme="light"] .rounded-2xl.border.border-white\/\[0\.08\].bg-\[\#0c0c14\]\/90 {
+  background: #ffffff !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
 }
 
-/* Light mode card + border glass effect for ALL card-like elements */
-[data-theme="light"] .border-white\/\[0\.06\] {
-  border-color: rgba(0, 0, 0, 0.08) !important;
+/* ─── Debate page message bubbles ─── */
+[data-theme="light"] .rounded-2xl.rounded-tl-md.bg-white\/\[0\.03\] {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
-[data-theme="light"] .border-white\/\[0\.08\] {
+[data-theme="light"] .rounded-2xl.rounded-tr-md.bg-white\/\[0\.08\] {
+  background: rgba(79, 70, 229, 0.06) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ─── Quick action area on debate page ─── */
+[data-theme="light"] .bg-\[\#08080e\]\/50.border-t {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+/* ─── Zigzag timeline cards — white with colored left border ─── */
+[data-theme="light"] .rounded-2xl.border.p-6.border-blue-500\/30 {
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.02) !important;
+  border-left: 3px solid rgba(59, 130, 246, 0.4) !important;
+}
+[data-theme="light"] .rounded-2xl.border.p-6.border-violet-500\/30 {
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.02) !important;
+  border-left: 3px solid rgba(124, 58, 237, 0.4) !important;
+}
+[data-theme="light"] .rounded-2xl.border.p-6.border-emerald-500\/30 {
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.02) !important;
+  border-left: 3px solid rgba(16, 185, 129, 0.4) !important;
+}
+[data-theme="light"] .rounded-2xl.border.p-6.border-amber-500\/30 {
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.02) !important;
+  border-left: 3px solid rgba(245, 158, 11, 0.4) !important;
+}
+[data-theme="light"] .rounded-2xl.border.p-6:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 8px 32px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* ─── Section borders — softer in light mode ─── */
+[data-theme="light"] .border-y.border-white\/\[0\.06\],
+[data-theme="light"] .border-t.border-white\/\[0\.06\] {
+  border-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* ─── Indigo buttons (submit, debate CTA) — vivid gradient ─── */
+[data-theme="light"] .bg-indigo-600 {
+  background: linear-gradient(135deg, #4f46e5 0%, #6d28d9 100%) !important;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25) !important;
+}
+[data-theme="light"] .bg-indigo-600:hover,
+[data-theme="light"] .hover\:bg-indigo-500:hover {
+  background: linear-gradient(135deg, #4338ca 0%, #5b21b6 100%) !important;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35) !important;
+}
+
+/* ─── Shadow color overrides for indigo glow ─── */
+[data-theme="light"] .shadow-indigo-500\/20 {
+  --tw-shadow-color: rgba(79, 70, 229, 0.15) !important;
+}
+
+/* ─── Overall refinements for the premium SaaS feel ─── */
+
+/* Softer scrollbar for light mode */
+[data-theme="light"] ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Selection color */
+[data-theme="light"] ::selection {
+  background: rgba(79, 70, 229, 0.15);
+  color: #1a1a2e;
+}
+
+/* Checkbox accent in light mode */
+[data-theme="light"] input[type="checkbox"] {
+  accent-color: #4f46e5 !important;
+}
+
+/* Mode toggle pills on validate page */
+[data-theme="light"] .rounded-xl.bg-white\/\[0\.04\].border.border-white\/\[0\.06\].w-fit {
+  background: #f5f4f0 !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+}
+[data-theme="light"] .rounded-lg.bg-white\/10.text-white.shadow-sm {
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Tabs on results page */
+[data-theme="light"] .bg-indigo-500\/15.text-indigo-300.border.border-indigo-500\/30 {
+  background: rgba(79, 70, 229, 0.08) !important;
+  color: #4f46e5 !important;
+  border-color: rgba(79, 70, 229, 0.2) !important;
+}
+
+/* Dashed borders for empty states */
+[data-theme="light"] .border-dashed.border-white\/\[0\.06\] {
   border-color: rgba(0, 0, 0, 0.1) !important;
 }
 
-/* Give cards in light mode a subtle shadow and white bg */
-[data-theme="light"] .rounded-xl.bg-white\/\[0\.03\],
-[data-theme="light"] .rounded-2xl.bg-white\/\[0\.03\],
-[data-theme="light"] .rounded-xl.bg-white\/\[0\.02\],
-[data-theme="light"] .rounded-2xl.bg-white\/\[0\.02\] {
-  background-color: rgba(255, 255, 255, 0.85) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.02) !important;
-  backdrop-filter: blur(8px) !important;
+/* Landing page section backgrounds — subtle warmth */
+[data-theme="light"] .landing-page {
+  background: linear-gradient(135deg, #f8f7f4 0%, #f0eee8 50%, #f5f3ef 100%) !important;
 }
