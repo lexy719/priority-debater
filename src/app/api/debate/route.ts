@@ -391,7 +391,7 @@ export async function POST(request: Request) {
     });
 
     const body = (await request.json()) as {
-      action: "start" | "continue" | "quick" | "business-plan" | "pitch-deck" | "landing-page" | "debate-open" | "refine";
+      action: "start" | "continue" | "quick" | "business-plan" | "pitch-deck" | "landing-page" | "business-strategy" | "debate-open" | "refine";
       setup: DebateSetup;
       messages?: Message[];
       quickAction?: string;
@@ -450,7 +450,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if ((action === "business-plan" || action === "pitch-deck" || action === "landing-page") && validationContent && shouldBlock(validationContent)) {
+    if ((action === "business-plan" || action === "pitch-deck" || action === "landing-page" || action === "business-strategy") && validationContent && shouldBlock(validationContent)) {
       return new Response(
         JSON.stringify({
           error: "I can help with business plans for legitimate ideas, but not for harmful or illegal activities.",
@@ -664,9 +664,262 @@ RULES:
       }
     }
 
+    // Handle business strategy generation
+    if (action === "business-strategy" && setup?.topic) {
+      const strategyPrompt = `You are a world-class startup strategist — a combination of a McKinsey consultant, a Y Combinator partner, and a seasoned CMO. Generate a COMPLETE GO-TO-MARKET STRATEGY AND BUSINESS PLAYBOOK for this validated idea.
+
+**Idea:** "${setup.topic}"
+**Founder's reasoning:** ${setup.position}
+${setup.context ? `**Context:** ${setup.context}` : ""}
+
+**Validation report (for context — use real data from here):**
+${validationContent || "No prior validation — generate based on the idea alone."}
+
+Create a comprehensive, actionable strategy document. This should be something a founder can literally follow step-by-step for the first 6 months. Use markdown formatting.
+
+## 🎯 EXECUTIVE STRATEGY BRIEF
+
+### One-Line Strategy
+[The core strategic bet in one sentence — e.g., "Win the SMB segment with a freemium PLG motion before incumbents notice."]
+
+### Strategic Positioning
+- **Category:** [What category are you in? Or are you creating a new one?]
+- **Positioning Statement:** [For {target customer} who {need}, {product} is a {category} that {key benefit}. Unlike {alternatives}, we {key differentiator}.]
+- **Brand Voice:** [2-3 adjective description — e.g., "Sharp, honest, slightly irreverent"]
+
+---
+
+## 💰 PRICING & MONETIZATION STRATEGY
+
+### Pricing Model
+- **Model type:** [Freemium / Free trial / Usage-based / Flat rate / Per-seat / Hybrid]
+- **Why this model:** [Reasoning based on market, competitors, and customer behavior]
+
+### Pricing Tiers
+**Free / Starter — $0/mo**
+- [Feature 1]
+- [Feature 2]
+- [Feature 3]
+- **Purpose:** Lead generation, build habit, reduce friction to adoption
+
+**Pro — $[X]/mo**
+- Everything in Free, plus:
+- [Premium feature 1]
+- [Premium feature 2]
+- [Premium feature 3]
+- **Purpose:** Core revenue driver, converts power users
+
+**Business/Team — $[X]/mo**
+- Everything in Pro, plus:
+- [Team feature 1]
+- [Team feature 2]
+- [Team feature 3]
+- **Purpose:** Expansion revenue, higher LTV
+
+### Pricing Rationale
+- **Competitor benchmarks:** [What do competitors charge? Where do you position?]
+- **Willingness to pay:** [Based on target customer segment and problem severity]
+- **Value metric:** [What scales with usage? Per seat? Per project? Per API call?]
+- **Upgrade triggers:** [What makes a free user convert to paid?]
+
+---
+
+## 🚀 GO-TO-MARKET PLAYBOOK
+
+### Phase 1: Pre-Launch (Weeks 1-4)
+**Goal:** Build an audience and validate demand before writing code
+
+1. **Landing page + waitlist**
+   - [Specific landing page strategy — what to test, what metrics to track]
+   - Target: [X] waitlist signups
+
+2. **Community infiltration**
+   - [3-5 specific communities/platforms where target customers hang out]
+   - Strategy: provide value first, pitch second
+
+3. **Content seeding**
+   - [3 specific content pieces to publish — type, platform, topic]
+   - Goal: establish authority and drive waitlist signups
+
+4. **Founder-led outreach**
+   - [Target X cold outreach per day to potential early adopters]
+   - Template/approach: [Specific outreach strategy]
+
+### Phase 2: Launch (Weeks 5-8)
+**Goal:** Get first 100 users and validate core product assumptions
+
+1. **Launch channels**
+   - Product Hunt launch: [Specific strategy — day, preparation, follow-up]
+   - Hacker News / Reddit: [Which subreddits, posting strategy]
+   - Twitter/X: [Content strategy, influencer outreach]
+   - [1-2 more specific channels based on the audience]
+
+2. **Activation strategy**
+   - **First-run experience:** [What the first 5 minutes should look like]
+   - **Aha moment:** [What action converts a visitor into a retained user]
+   - **Onboarding flow:** [Key steps to get users to the aha moment]
+
+3. **Early user feedback loop**
+   - [How to collect feedback — tools, cadence, incentives]
+   - [What metrics to track at this stage]
+
+### Phase 3: Growth (Months 3-6)
+**Goal:** Find repeatable acquisition and hit [X] MRR
+
+1. **Primary growth channel**
+   - [The ONE channel that will drive 60%+ of growth — be specific]
+   - Budget: $[X]/month, expected CAC: $[X]
+   - Metrics to track: [CPA, conversion rate, etc.]
+
+2. **Secondary channels**
+   - [Channel 2]: [Strategy and expected contribution]
+   - [Channel 3]: [Strategy and expected contribution]
+
+3. **Retention & engagement**
+   - [Specific tactics to improve retention — emails, features, community]
+   - [Target retention metrics: D1, D7, D30]
+
+4. **Referral/viral mechanics**
+   - [Built-in sharing mechanism — what and why it would work]
+   - [Referral incentive structure if applicable]
+
+---
+
+## 📊 90-DAY LAUNCH ROADMAP
+
+### Month 1: Foundation
+| Week | Focus | Key Deliverables | Success Metric |
+|------|-------|-------------------|----------------|
+| 1 | [Focus] | [Deliverables] | [Metric] |
+| 2 | [Focus] | [Deliverables] | [Metric] |
+| 3 | [Focus] | [Deliverables] | [Metric] |
+| 4 | [Focus] | [Deliverables] | [Metric] |
+
+### Month 2: Launch
+| Week | Focus | Key Deliverables | Success Metric |
+|------|-------|-------------------|----------------|
+| 5 | [Focus] | [Deliverables] | [Metric] |
+| 6 | [Focus] | [Deliverables] | [Metric] |
+| 7 | [Focus] | [Deliverables] | [Metric] |
+| 8 | [Focus] | [Deliverables] | [Metric] |
+
+### Month 3: Growth
+| Week | Focus | Key Deliverables | Success Metric |
+|------|-------|-------------------|----------------|
+| 9 | [Focus] | [Deliverables] | [Metric] |
+| 10 | [Focus] | [Deliverables] | [Metric] |
+| 11 | [Focus] | [Deliverables] | [Metric] |
+| 12 | [Focus] | [Deliverables] | [Metric] |
+
+---
+
+## 🏆 COMPETITIVE POSITIONING
+
+### Competitive Matrix
+| Feature/Factor | You | Competitor 1 | Competitor 2 | Competitor 3 |
+|---------------|-----|-------------|-------------|-------------|
+| [Key factor] | ✅ | ❌ | ⚠️ | ❌ |
+| [Key factor] | ✅ | ✅ | ❌ | ⚠️ |
+| [Key factor] | ✅ | ❌ | ❌ | ❌ |
+| Pricing | [Price] | [Price] | [Price] | [Price] |
+
+### Your Wedge
+[The specific angle that lets you win against larger competitors — be specific, not generic]
+
+### Competitive Moat (12-month plan)
+1. [Moat element 1 and how to build it]
+2. [Moat element 2 and how to build it]
+3. [Moat element 3 and how to build it]
+
+---
+
+## 📈 KEY METRICS & TARGETS
+
+### North Star Metric
+**[Metric name]** — [Why this metric matters most]
+
+### Target Metrics (6-month)
+| Metric | Month 1 | Month 3 | Month 6 |
+|--------|---------|---------|---------|
+| MRR | $[X] | $[X] | $[X] |
+| Total Users | [X] | [X] | [X] |
+| Paying Users | [X] | [X] | [X] |
+| Conversion Rate | [X]% | [X]% | [X]% |
+| Churn Rate | [X]% | [X]% | [X]% |
+| CAC | $[X] | $[X] | $[X] |
+| LTV | $[X] | $[X] | $[X] |
+
+---
+
+## ⚡ IMMEDIATE NEXT STEPS (This Week)
+
+1. **Today:** [One thing to do right now]
+2. **Tomorrow:** [Next action]
+3. **This week:** [3-4 specific tasks with clear outcomes]
+4. **This month:** [Top 3 milestones to hit]
+
+---
+
+## ⚠️ STRATEGIC RISKS & CONTINGENCIES
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| [Risk 1] | High/Med/Low | High/Med/Low | [Specific action] |
+| [Risk 2] | High/Med/Low | High/Med/Low | [Specific action] |
+| [Risk 3] | High/Med/Low | High/Med/Low | [Specific action] |
+
+RULES:
+- Use REAL numbers from the validation report. Don't invent data.
+- Be specific to THIS idea. Generic advice = worthless.
+- Pricing should be realistic for the market and competitive landscape.
+- The roadmap should be achievable by a solo founder or small team.
+- Every recommendation should pass the "can I do this Monday morning?" test.
+- Use emojis for section headers only, nowhere else.`;
+
+      try {
+        const stream = await openai.chat.completions.create({
+          model: "gpt-4.1",
+          messages: [
+            { role: "system", content: "You are an elite startup strategist. You combine the analytical rigor of a McKinsey partner, the pattern recognition of a YC partner who's seen 5,000 startups, and the practical wisdom of a 3x exited founder. You create actionable strategies, not academic frameworks. Every recommendation must pass the test: 'Can a founder act on this Monday morning?' Be specific, be honest, be actionable." },
+            { role: "user", content: strategyPrompt },
+          ],
+          temperature: 0.7,
+          max_completion_tokens: 6000,
+          stream: true,
+        });
+        const encoder = new TextEncoder();
+        const readable = new ReadableStream({
+          async start(controller) {
+            try {
+              for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content || "";
+                if (content) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+              }
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            } catch (streamError) {
+              console.error("Strategy stream error:", streamError);
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`));
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            }
+          },
+        });
+        return new Response(readable, {
+          headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+        });
+      } catch (stratError) {
+        console.error("Strategy generation error:", stratError);
+        return new Response(
+          JSON.stringify({ error: "Failed to generate strategy. Please try again." }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Handle landing page generation
     if (action === "landing-page" && setup?.topic) {
-      const landingPagePrompt = `Generate a complete, production-ready HTML landing page for this startup idea.
+      const landingPagePrompt = `Generate a STUNNING, conversion-optimized HTML landing page for this startup. This must look like a $5,000+ agency-designed page, not a template.
 
 **Idea:** "${setup.topic}"
 **Value Proposition:** ${setup.position}
@@ -677,40 +930,118 @@ ${(validationContent || "").slice(0, 3000)}
 
 REQUIREMENTS:
 - Output a COMPLETE HTML document from <!DOCTYPE html> to </html>
-- ALL CSS must be inline in a <style> tag (no external stylesheets)
-- NO external dependencies (no CDN links, no JavaScript frameworks)
-- Responsive design (works on mobile and desktop)
-- Modern, clean design with subtle gradients and good typography
-- Use system fonts: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
+- ALL CSS must be inline in a <style> tag (no external stylesheets except Google Fonts)
+- You MAY include ONE Google Fonts link for a premium font pairing (e.g., Inter + Space Grotesk, or DM Sans + Sora)
+- Responsive design — mobile-first, looks perfect on 375px, 768px, and 1440px
+- Use CSS Grid and Flexbox for layouts
+- Include CSS custom properties (variables) for easy theme customization
 
-SECTIONS (in order):
-1. HERO: Compelling headline (from value proposition), subheadline, primary CTA button, trust indicators
-2. PROBLEM: 3-4 pain points the target customer faces (from validation data)
-3. SOLUTION: How this product solves each pain point (from strengths)
-4. HOW IT WORKS: 3-4 simple steps with icons (use emoji for icons)
-5. FEATURES: 3-4 key features with brief descriptions
-6. SOCIAL PROOF: Placeholder section with "Trusted by X+ early adopters" and 3 fake testimonial cards (marked as placeholders)
-7. CTA: Final call-to-action with email capture form (use action="https://formspree.io/f/YOUR_FORM_ID" as placeholder)
-8. FOOTER: Simple footer with copyright and links
+ADVANCED CSS TECHNIQUES (use at least 5 of these):
+- CSS animations: fade-in-up on scroll using @keyframes + animation
+- Gradient text effects on the hero headline using background-clip: text
+- Glassmorphism cards: backdrop-filter: blur(), semi-transparent backgrounds
+- Subtle grain/noise texture overlay on hero using CSS pseudo-element
+- Floating/glowing accent elements using absolute positioning + blur + animation
+- Micro-interactions: button hover scales, card hover lifts with shadow transition
+- Smooth gradient borders using border-image or pseudo-element technique
+- CSS-only animated gradient background (slow-moving, subtle)
+- Grid layout for features with auto-fit and minmax()
+- Scroll-triggered animations using IntersectionObserver in a small <script>
 
-DESIGN GUIDELINES:
-- Primary color: #6366f1 (indigo)
-- Background: #0f0f1a (dark) with white text, OR #ffffff (light) with dark text — pick based on the brand feel
-- Generous whitespace, 1200px max-width container
-- Smooth scroll behavior
-- Subtle hover effects on buttons and cards
-- The page should look like it was designed by a professional, not generated by AI
+JAVASCRIPT (minimal, vanilla only):
+- IntersectionObserver for scroll animations (fade-in elements as they enter viewport)
+- Smooth scroll for anchor links
+- Simple mobile nav toggle if needed
+- Optional: typing effect on hero headline OR a count-up animation for stats
 
-OUTPUT ONLY THE HTML. No explanations, no markdown, no code fences. Just the raw HTML document.`;
+SECTIONS (in order — each must be visually distinct):
+1. NAVIGATION: Sticky nav with logo text, 3-4 anchor links, CTA button. Blur background on scroll.
+2. HERO:
+   - Massive, punchy headline (gradient text effect) — max 8 words
+   - Subheadline: 1-2 sentences that create urgency
+   - Primary CTA button (large, with hover animation) + secondary ghost button
+   - Trust strip: "Trusted by 500+ founders" with small avatar circles (CSS-generated)
+   - Subtle animated background (gradient mesh or floating shapes)
+3. PROBLEM/PAIN:
+   - "The problem" section with 3 pain point cards
+   - Each card has an emoji icon, bold stat or hook, and 1-2 sentence description
+   - Use a contrasting background section (slightly darker or lighter)
+4. SOLUTION:
+   - "Here's how [Product] fixes this"
+   - 3 solution cards that directly mirror the 3 problems above
+   - Each with emoji icon, title, description
+   - Visual connectors or before/after framing
+5. HOW IT WORKS:
+   - Numbered steps (3-4) in a horizontal timeline on desktop, vertical on mobile
+   - Each step: number badge, title, description, relevant emoji
+   - Connecting lines between steps (CSS borders/pseudo-elements)
+6. FEATURES GRID:
+   - 2x2 or 3x2 grid of feature cards
+   - Each: emoji icon, bold title, 2-line description
+   - Glassmorphism card style with subtle border
+7. SOCIAL PROOF:
+   - Large stat bar: "500+ founders" / "4.9★ rating" / "$2M+ validated" (placeholder numbers)
+   - 3 testimonial cards with name, role, quote, star rating
+   - Mark as "placeholder" in an HTML comment only, not visible to users
+8. PRICING (optional but impressive):
+   - Simple 2-3 tier pricing section OR "Join the waitlist" section
+   - Highlight the recommended tier
+9. FAQ:
+   - 4-5 FAQs in accordion style (CSS-only using details/summary)
+   - Real questions based on the validation data
+10. FINAL CTA:
+    - Full-width section with gradient background
+    - Bold headline, subtext, large CTA button
+    - Email capture form (action="https://formspree.io/f/YOUR_FORM_ID")
+11. FOOTER:
+    - Clean footer with copyright, 3-4 links, social media placeholders
+
+DESIGN SYSTEM:
+- Primary color: #6366f1 (indigo) — use for CTAs, accents, gradient starts
+- Secondary color: #8b5cf6 (violet) — use for gradient ends, hover states
+- Background: #0a0a14 (near-black) with white/gray text for dark theme, OR #fafafa with dark text for light theme — choose based on brand feel
+- Success/accent: #10b981 (emerald) for positive indicators
+- Text hierarchy: hero 56-72px, h2 36-48px, h3 20-24px, body 16-18px, small 14px
+- Border radius: 12-16px for cards, 8-12px for buttons, full-round for avatars
+- Generous padding: sections 80-120px vertical, cards 24-32px
+- Max-width container: 1200px with auto margins
+- Letter-spacing: -0.02em on headlines for tightness
+- Line-height: 1.1 on headlines, 1.6 on body text
+
+COPY GUIDELINES (this is crucial):
+- Headlines: benefit-driven, specific, emotional. NOT generic ("The Future of X" is lazy)
+- Subheadlines: address the #1 objection or create urgency
+- CTAs: action-oriented, first person ("Start My Free Trial" not "Sign Up")
+- Problem section: make them FEEL the pain. Use "You" language.
+- Solution section: show the transformation, not just features
+- Testimonials: specific results, not vague praise ("Saved 10 hours/week" not "Great product")
+
+OUTPUT ONLY THE HTML. No explanations, no markdown, no code fences. Start with <!DOCTYPE html>.`;
       try {
         const stream = await openai.chat.completions.create({
           model: "gpt-4.1",
           messages: [
-            { role: "system", content: "You are a world-class web designer and copywriter. You generate complete, production-ready HTML landing pages. Output ONLY raw HTML — no markdown, no code fences, no explanations. Start with <!DOCTYPE html> and end with </html>." },
+            { role: "system", content: `You are a world-class web designer, front-end engineer, and conversion copywriter combined. You've built landing pages for YC startups, Stripe, Linear, and Vercel. Your pages convert at 2-3x industry average because you understand both visual design AND persuasion psychology.
+
+DESIGN PHILOSOPHY:
+- Every pixel serves a purpose. Whitespace is a feature, not empty space.
+- Typography creates hierarchy. Font size differences should be dramatic (hero vs body).
+- Color is used sparingly but intentionally — accent colors draw the eye to CTAs.
+- Animation adds polish but never distracts. Subtle > flashy.
+- Mobile isn't an afterthought — it's the primary design target.
+
+TECHNICAL STANDARDS:
+- Clean, semantic HTML5. Use <section>, <article>, <nav>, <header>, <footer>.
+- CSS custom properties for theming. All colors, fonts, spacing in :root.
+- Mobile-first responsive: design for 375px, then enhance for 768px and 1200px+.
+- Performance: no external JS libraries, minimal DOM, optimized CSS.
+- Accessibility: proper contrast ratios, focus states, semantic structure, alt text.
+
+Output ONLY raw HTML — no markdown, no code fences, no explanations. Start with <!DOCTYPE html> and end with </html>.` },
             { role: "user", content: landingPagePrompt },
           ],
-          temperature: 0.7,
-          max_completion_tokens: 4000,
+          temperature: 0.75,
+          max_completion_tokens: 8000,
           stream: true,
         });
         const encoder = new TextEncoder();

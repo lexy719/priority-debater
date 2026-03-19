@@ -775,7 +775,7 @@ export default function ResultsPage() {
         )}
 
         {/* ── CTAs ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* Debate CTA */}
           <div className="relative rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/15 p-6 overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(139,92,246,0.08)_0%,_transparent_60%)]" />
@@ -823,6 +823,23 @@ export default function ResultsPage() {
               </div>
               <Link href="/landing-generator" className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold transition-all shadow-lg shadow-teal-500/20 text-sm">
                 <Globe className="w-4 h-4" /> Generate Landing Page <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Strategy CTA */}
+          <div className="relative rounded-2xl bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 border border-violet-500/15 p-6 overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(139,92,246,0.08)_0%,_transparent_60%)]" />
+            <div className="relative flex flex-col gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-violet-500/15 border border-violet-500/20 shrink-0"><Briefcase className="w-6 h-6 text-violet-400" /></div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Strategy</h3>
+                  <p className="text-white/30 text-sm">Full GTM playbook with pricing, roadmap, and competitive positioning.</p>
+                </div>
+              </div>
+              <Link href="/strategy" className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold transition-all shadow-lg shadow-violet-500/20 text-sm">
+                <Briefcase className="w-4 h-4" /> Generate Strategy <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           </div>

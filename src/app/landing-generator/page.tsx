@@ -236,10 +236,17 @@ export default function LandingGeneratorPage() {
                   <Globe className="w-8 h-8 text-teal-400" />
                 </div>
                 <h2 className="text-xl font-bold text-white mb-3">Generate Your Landing Page</h2>
-                <p className="text-white/40 text-sm leading-relaxed mb-6 max-w-md mx-auto">
-                  Create a complete, deployable HTML landing page from your validation data.
-                  Download it and host it anywhere — no code required.
+                <p className="text-white/40 text-sm leading-relaxed mb-4 max-w-md mx-auto">
+                  Generate a stunning, conversion-optimized HTML landing page with scroll animations,
+                  glassmorphism effects, and copy that converts. Download and deploy anywhere.
                 </p>
+                <div className="flex flex-wrap justify-center gap-2 mb-6">
+                  {["Scroll Animations", "Responsive Design", "Conversion Copy", "Dark/Light Theme", "Download & Deploy"].map((tag) => (
+                    <span key={tag} className="px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/15 text-teal-300 text-xs font-medium">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
                 <button
                   onClick={handleGenerate}
                   className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold transition-all shadow-lg shadow-teal-500/20 text-sm"
@@ -429,6 +436,19 @@ export default function LandingGeneratorPage() {
                 />
               </div>
             </div>
+
+            {/* Regenerate button */}
+            {htmlContent && !isGenerating && (
+              <div className="mt-6 flex justify-center">
+                <button
+                  onClick={handleGenerate}
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm font-medium text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Regenerate Landing Page
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>
