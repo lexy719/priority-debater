@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { shouldBlock, sanitizeForDisplay } from "@/lib/contentModeration";
+import { landingPageSystemPrompt, landingPageUserPrompt } from "@/lib/landing-page-prompt";
 
 const MAX_TOPIC = 500;
 const MAX_POSITION = 2000;
@@ -917,131 +918,18 @@ RULES:
       }
     }
 
-    // Handle landing page generation
+    // Handle landing page generation (structured brief from parsed validation + full excerpt)
     if (action === "landing-page" && setup?.topic) {
-      const landingPagePrompt = `Generate a STUNNING, conversion-optimized HTML landing page for this startup. This must look like a $5,000+ agency-designed page, not a template.
-
-**Idea:** "${setup.topic}"
-**Value Proposition:** ${setup.position}
-**Context:** ${setup.context || "N/A"}
-
-Use the validation data below to write compelling copy:
-${(validationContent || "").slice(0, 3000)}
-
-REQUIREMENTS:
-- Output a COMPLETE HTML document from <!DOCTYPE html> to </html>
-- ALL CSS must be inline in a <style> tag (no external stylesheets except Google Fonts)
-- You MAY include ONE Google Fonts link for a premium font pairing (e.g., Inter + Space Grotesk, or DM Sans + Sora)
-- Responsive design — mobile-first, looks perfect on 375px, 768px, and 1440px
-- Use CSS Grid and Flexbox for layouts
-- Include CSS custom properties (variables) for easy theme customization
-
-ADVANCED CSS TECHNIQUES (use at least 5 of these):
-- CSS animations: fade-in-up on scroll using @keyframes + animation
-- Gradient text effects on the hero headline using background-clip: text
-- Glassmorphism cards: backdrop-filter: blur(), semi-transparent backgrounds
-- Subtle grain/noise texture overlay on hero using CSS pseudo-element
-- Floating/glowing accent elements using absolute positioning + blur + animation
-- Micro-interactions: button hover scales, card hover lifts with shadow transition
-- Smooth gradient borders using border-image or pseudo-element technique
-- CSS-only animated gradient background (slow-moving, subtle)
-- Grid layout for features with auto-fit and minmax()
-- Scroll-triggered animations using IntersectionObserver in a small <script>
-
-JAVASCRIPT (minimal, vanilla only):
-- IntersectionObserver for scroll animations (fade-in elements as they enter viewport)
-- Smooth scroll for anchor links
-- Simple mobile nav toggle if needed
-- Optional: typing effect on hero headline OR a count-up animation for stats
-
-SECTIONS (in order — each must be visually distinct):
-1. NAVIGATION: Sticky nav with logo text, 3-4 anchor links, CTA button. Blur background on scroll.
-2. HERO:
-   - Massive, punchy headline (gradient text effect) — max 8 words
-   - Subheadline: 1-2 sentences that create urgency
-   - Primary CTA button (large, with hover animation) + secondary ghost button
-   - Trust strip: "Trusted by 500+ founders" with small avatar circles (CSS-generated)
-   - Subtle animated background (gradient mesh or floating shapes)
-3. PROBLEM/PAIN:
-   - "The problem" section with 3 pain point cards
-   - Each card has an emoji icon, bold stat or hook, and 1-2 sentence description
-   - Use a contrasting background section (slightly darker or lighter)
-4. SOLUTION:
-   - "Here's how [Product] fixes this"
-   - 3 solution cards that directly mirror the 3 problems above
-   - Each with emoji icon, title, description
-   - Visual connectors or before/after framing
-5. HOW IT WORKS:
-   - Numbered steps (3-4) in a horizontal timeline on desktop, vertical on mobile
-   - Each step: number badge, title, description, relevant emoji
-   - Connecting lines between steps (CSS borders/pseudo-elements)
-6. FEATURES GRID:
-   - 2x2 or 3x2 grid of feature cards
-   - Each: emoji icon, bold title, 2-line description
-   - Glassmorphism card style with subtle border
-7. SOCIAL PROOF:
-   - Large stat bar: "500+ founders" / "4.9★ rating" / "$2M+ validated" (placeholder numbers)
-   - 3 testimonial cards with name, role, quote, star rating
-   - Mark as "placeholder" in an HTML comment only, not visible to users
-8. PRICING (optional but impressive):
-   - Simple 2-3 tier pricing section OR "Join the waitlist" section
-   - Highlight the recommended tier
-9. FAQ:
-   - 4-5 FAQs in accordion style (CSS-only using details/summary)
-   - Real questions based on the validation data
-10. FINAL CTA:
-    - Full-width section with gradient background
-    - Bold headline, subtext, large CTA button
-    - Email capture form (action="https://formspree.io/f/YOUR_FORM_ID")
-11. FOOTER:
-    - Clean footer with copyright, 3-4 links, social media placeholders
-
-DESIGN SYSTEM:
-- Primary color: #6366f1 (indigo) — use for CTAs, accents, gradient starts
-- Secondary color: #8b5cf6 (violet) — use for gradient ends, hover states
-- Background: #0a0a14 (near-black) with white/gray text for dark theme, OR #fafafa with dark text for light theme — choose based on brand feel
-- Success/accent: #10b981 (emerald) for positive indicators
-- Text hierarchy: hero 56-72px, h2 36-48px, h3 20-24px, body 16-18px, small 14px
-- Border radius: 12-16px for cards, 8-12px for buttons, full-round for avatars
-- Generous padding: sections 80-120px vertical, cards 24-32px
-- Max-width container: 1200px with auto margins
-- Letter-spacing: -0.02em on headlines for tightness
-- Line-height: 1.1 on headlines, 1.6 on body text
-
-COPY GUIDELINES (this is crucial):
-- Headlines: benefit-driven, specific, emotional. NOT generic ("The Future of X" is lazy)
-- Subheadlines: address the #1 objection or create urgency
-- CTAs: action-oriented, first person ("Start My Free Trial" not "Sign Up")
-- Problem section: make them FEEL the pain. Use "You" language.
-- Solution section: show the transformation, not just features
-- Testimonials: specific results, not vague praise ("Saved 10 hours/week" not "Great product")
-
-OUTPUT ONLY THE HTML. No explanations, no markdown, no code fences. Start with <!DOCTYPE html>.`;
+      const vc = typeof validationContent === "string" ? validationContent : "";
       try {
         const stream = await openai.chat.completions.create({
           model: "gpt-4.1",
           messages: [
-            { role: "system", content: `You are a world-class web designer, front-end engineer, and conversion copywriter combined. You've built landing pages for YC startups, Stripe, Linear, and Vercel. Your pages convert at 2-3x industry average because you understand both visual design AND persuasion psychology.
-
-DESIGN PHILOSOPHY:
-- Every pixel serves a purpose. Whitespace is a feature, not empty space.
-- Typography creates hierarchy. Font size differences should be dramatic (hero vs body).
-- Color is used sparingly but intentionally — accent colors draw the eye to CTAs.
-- Animation adds polish but never distracts. Subtle > flashy.
-- Mobile isn't an afterthought — it's the primary design target.
-
-TECHNICAL STANDARDS:
-- Clean, semantic HTML5. Use <section>, <article>, <nav>, <header>, <footer>.
-- CSS custom properties for theming. All colors, fonts, spacing in :root.
-- Mobile-first responsive: design for 375px, then enhance for 768px and 1200px+.
-- Performance: no external JS libraries, minimal DOM, optimized CSS.
-- Accessibility: proper contrast ratios, focus states, semantic structure, alt text.
-
-Output ONLY raw HTML — no markdown, no code fences, no explanations. Start with <!DOCTYPE html> and end with </html>.` },
-            { role: "user", content: landingPagePrompt },
+            { role: "system", content: landingPageSystemPrompt() },
+            { role: "user", content: landingPageUserPrompt(setup, vc) },
           ],
-          temperature: 0.75,
-          max_completion_tokens: 8000,
+          temperature: 0.68,
+          max_completion_tokens: 16384,
           stream: true,
         });
         const encoder = new TextEncoder();

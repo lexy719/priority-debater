@@ -223,7 +223,7 @@ export default function LandingGeneratorPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
             {session.setup.topic}
           </h1>
-          <p className="text-white/30 text-sm">Landing Page Generator</p>
+          <p className="text-white/30 text-sm">Landing page from your validation report</p>
         </div>
 
         {/* Not generated yet — show CTA */}
@@ -235,13 +235,20 @@ export default function LandingGeneratorPage() {
                 <div className="w-16 h-16 rounded-2xl bg-teal-500/15 border border-teal-500/20 flex items-center justify-center mx-auto mb-5">
                   <Globe className="w-8 h-8 text-teal-400" />
                 </div>
-                <h2 className="text-xl font-bold text-white mb-3">Generate Your Landing Page</h2>
+                <h2 className="text-xl font-bold text-white mb-3">Generate your marketing site</h2>
                 <p className="text-white/40 text-sm leading-relaxed mb-4 max-w-md mx-auto">
-                  Generate a stunning, conversion-optimized HTML landing page with scroll animations,
-                  glassmorphism effects, and copy that converts. Download and deploy anywhere.
+                  We pull structured data from your validation report (scores, ICP, risks, market sizing)
+                  and brief a senior-level layout: editorial typography, real proof points, and CTAs that
+                  match your idea — not generic startup filler. Single HTML file; host anywhere.
                 </p>
                 <div className="flex flex-wrap justify-center gap-2 mb-6">
-                  {["Scroll Animations", "Responsive Design", "Conversion Copy", "Dark/Light Theme", "Download & Deploy"].map((tag) => (
+                  {[
+                    "Report-informed copy",
+                    "Agency-grade layout",
+                    "Motion & polish",
+                    "SEO meta + OG tags",
+                    "Download & deploy",
+                  ].map((tag) => (
                     <span key={tag} className="px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/15 text-teal-300 text-xs font-medium">
                       {tag}
                     </span>
@@ -265,8 +272,8 @@ export default function LandingGeneratorPage() {
           <div className="max-w-3xl mx-auto">
             <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-12 animate-pulse text-center">
               <Loader2 className="w-10 h-10 animate-spin text-teal-400/50 mx-auto mb-4" />
-              <p className="text-white/30 text-sm">Generating your landing page...</p>
-              <p className="text-white/15 text-xs mt-2">This usually takes 15-30 seconds</p>
+              <p className="text-white/30 text-sm">Building your page from the validation report…</p>
+              <p className="text-white/15 text-xs mt-2">Usually 30–90 seconds — larger pages need more tokens</p>
             </div>
           </div>
         )}

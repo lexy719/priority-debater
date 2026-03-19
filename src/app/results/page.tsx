@@ -817,7 +817,7 @@ export default function ResultsPage() {
                 <div className="p-3 rounded-xl bg-teal-500/15 border border-teal-500/20 shrink-0"><Globe className="w-6 h-6 text-teal-400" /></div>
                 <div>
                   <h3 className="text-lg font-bold text-white">Landing Page</h3>
-                  <p className="text-white/30 text-sm">Generate a deployable HTML landing page you can download and host anywhere.</p>
+                  <p className="text-white/30 text-sm">Agency-style single-page site from your validation data — download one HTML file and host anywhere.</p>
                 </div>
               </div>
               <Link href="/landing-generator" className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold transition-all shadow-lg shadow-teal-500/20 text-sm">
