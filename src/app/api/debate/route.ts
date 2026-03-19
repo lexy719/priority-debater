@@ -323,7 +323,7 @@ export async function POST(request: Request) {
     });
 
     const body = (await request.json()) as {
-      action: "start" | "continue" | "quick" | "business-plan";
+      action: "start" | "continue" | "quick" | "business-plan" | "debate-open";
       setup: DebateSetup;
       messages?: Message[];
       quickAction?: string;
@@ -512,6 +512,63 @@ Be investor-ready. Use realistic numbers. Flag assumptions clearly.`;
           JSON.stringify({ error: "Failed to generate business plan. Please try again." }),
           { status: 500, headers: { "Content-Type": "application/json" } }
         );
+      }
+    }
+
+    // Handle debate opener — short punchy challenge based on validation data
+    if (action === "debate-open" && setup?.topic) {
+      const debateOpenPrompt = `You just finished analyzing this idea. Now the founder wants to DEBATE you. Give a SHORT, punchy opening challenge.
+
+**Idea:** "${setup.topic}"
+**Founder's reasoning:** ${setup.position}
+${setup.context ? `**Context:** ${setup.context}` : ""}
+${validationContent ? `\n**Your prior analysis (use this for context, don't repeat it):**\n${validationContent.slice(0, 2000)}` : ""}
+
+RULES FOR THIS OPENING:
+- 2-3 sentences MAX. This is a conversation starter, not a report.
+- Lead with the ONE thing that concerns you most about this idea.
+- Be direct, conversational, opinionated. Like a VC leaning across the table.
+- End with ONE sharp question that puts them on the spot.
+- NO bullet points. NO headers. NO markdown formatting. Just talk.
+- Do NOT summarize or repeat the analysis. They already read it.
+
+Example tone: "The market's there, I'll give you that. But you're entering a knife fight with a plastic spoon — Otter, Fireflies, and Zoom's built-in AI all got there first. What's your actual wedge that makes a user switch?"`;
+
+      try {
+        const stream = await openai.chat.completions.create({
+          model: "gpt-4.1",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: debateOpenPrompt },
+          ],
+          temperature: 0.85,
+          max_completion_tokens: 250,
+          stream: true,
+        });
+        const encoder = new TextEncoder();
+        const readable = new ReadableStream({
+          async start(controller) {
+            try {
+              for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content || "";
+                if (content) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+              }
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            } catch (e) {
+              console.error("Debate open stream error:", e);
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`));
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            }
+          },
+        });
+        return new Response(readable, {
+          headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+        });
+      } catch (e) {
+        console.error("Debate open error:", e);
+        return new Response(JSON.stringify({ error: "Failed to start debate." }), { status: 500, headers: { "Content-Type": "application/json" } });
       }
     }
 
@@ -1013,6 +1070,7 @@ Generate a complete analysis with these EXACT section headers (the parser depend
 **Your Lens:** ${lensName}
 **Their original reasoning:** ${setup.position}
 ${setup.context ? `**Context:** ${setup.context}` : ""}
+${validationContent ? `\n**Prior validation analysis (for context, don't repeat it):**\n${validationContent.slice(0, 1500)}\n` : ""}
 
 **DEBATE CONTINUITY RULES — CRITICAL:**
 1. **Track argument evolution:** Reference what they said earlier. Note when they've strengthened a point vs when they're repeating themselves.

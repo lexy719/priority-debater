@@ -62,6 +62,9 @@ export default function DebatePage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const [debateStarted, setDebateStarted] = useState(false);
+
+  // Load session and kick off a short debate opener (instead of showing the raw validation report)
   useEffect(() => {
     const s = loadSession();
     if (!s) {
@@ -69,8 +72,65 @@ export default function DebatePage() {
       return;
     }
     setSession(s);
-    setMessages(s.messages);
+
+    // Filter out the validation report (first opponent message that's very long)
+    // We keep it in session for context but don't show it as a chat bubble
+    const isValidationReport = s.messages.length > 0 && s.messages[0].role === "opponent" && s.messages[0].content.length > 500;
+    const chatMessages = isValidationReport ? s.messages.slice(1) : s.messages;
+    setMessages(chatMessages);
+
+    // If we filtered out the report and there are no other messages, auto-generate a debate opener
+    if (isValidationReport && chatMessages.length === 0) {
+      setDebateStarted(true);
+      generateDebateOpener(s);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
+
+  const generateDebateOpener = async (s: ValidationSession) => {
+    setIsLoading(true);
+    setTypingPhrase(TYPING_PHRASES[Math.floor(Math.random() * TYPING_PHRASES.length)]);
+    try {
+      const response = await fetch("/api/debate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "debate-open",
+          setup: s.setup,
+          validationContent: s.validationContent,
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to start debate");
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No reader");
+      const decoder = new TextDecoder();
+      let accumulated = "";
+      setStreamingContent("");
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        for (const line of chunk.split("\n")) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data === "[DONE]") break;
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) { accumulated += parsed.content; setStreamingContent(accumulated); }
+            } catch { /* skip */ }
+          }
+        }
+      }
+      setStreamingContent("");
+      const openerMsg: Message = { id: (Date.now() + 1).toString(), role: "opponent", content: accumulated };
+      setMessages([openerMsg]);
+      updateSessionMessages([openerMsg]);
+    } catch {
+      setError("Failed to start debate. Try sending a message.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -202,6 +262,7 @@ export default function DebatePage() {
           action: "continue",
           setup,
           messages: newMessages,
+          validationContent: session.validationContent,
         }),
       });
 
@@ -243,6 +304,7 @@ export default function DebatePage() {
           setup,
           messages,
           quickAction: actionId,
+          validationContent: session.validationContent,
         }),
       });
 
