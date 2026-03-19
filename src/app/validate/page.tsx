@@ -207,192 +207,148 @@ function ValidateForm() {
     }
   };
 
-  // ── Section parser: splits streaming markdown into section cards ──
-  const SECTION_META: Record<string, { icon: React.ReactNode; color: string; accent: string }> = {
-    "Viability Score": { icon: <BarChart3 className="w-4 h-4" />, color: "text-indigo-400", accent: "border-l-indigo-500/40" },
-    "Go/No-Go": { icon: <Target className="w-4 h-4" />, color: "text-emerald-400", accent: "border-l-emerald-500/40" },
-    "Category Scores": { icon: <BarChart3 className="w-4 h-4" />, color: "text-violet-400", accent: "border-l-violet-500/40" },
-    "Problem-Solution Fit": { icon: <Lightbulb className="w-4 h-4" />, color: "text-amber-400", accent: "border-l-amber-500/40" },
-    "Target Customer": { icon: <Users className="w-4 h-4" />, color: "text-sky-400", accent: "border-l-sky-500/40" },
-    "Value Proposition": { icon: <Sparkles className="w-4 h-4" />, color: "text-pink-400", accent: "border-l-pink-500/40" },
-    "Market Opportunity": { icon: <BarChart3 className="w-4 h-4" />, color: "text-blue-400", accent: "border-l-blue-500/40" },
-    "Competitive Landscape": { icon: <Swords className="w-4 h-4" />, color: "text-rose-400", accent: "border-l-rose-500/40" },
-    "Risk Assessment": { icon: <AlertTriangle className="w-4 h-4" />, color: "text-red-400", accent: "border-l-red-500/40" },
-    "Financial Snapshot": { icon: <DollarSign className="w-4 h-4" />, color: "text-emerald-400", accent: "border-l-emerald-500/40" },
-    "Recommendations": { icon: <CheckCircle2 className="w-4 h-4" />, color: "text-indigo-400", accent: "border-l-indigo-500/40" },
-    "Lean Canvas": { icon: <FileText className="w-4 h-4" />, color: "text-violet-400", accent: "border-l-violet-500/40" },
-  };
-
-  const parseSections = (content: string) => {
-    if (!content) return [];
-    // Split by ### headings
-    const parts = content.split(/(?=^###\s)/m);
-    const sections: { title: string; content: string }[] = [];
-    for (const part of parts) {
-      const match = part.match(/^###\s+(.+)/);
-      if (match) {
-        sections.push({ title: match[1].trim(), content: part });
-      } else if (part.trim()) {
-        // Intro content before first ### heading
-        sections.push({ title: "Overview", content: part });
-      }
-    }
-    return sections;
-  };
-
-  const sections = parseSections(streamingContent);
+  // Progress percentage
   const overallProgress = Math.round(((progressStep + 1) / PROGRESS_STEPS.length) * 100);
 
-  // Streaming view
+  // All loading steps with icons and descriptions
+  const LOADING_STEPS = [
+    { icon: <Sparkles className="w-5 h-5" />, label: "Analyzing idea", desc: "Understanding your concept and thesis", color: "text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20" },
+    { icon: <Lightbulb className="w-5 h-5" />, label: "Problem-solution fit", desc: "Evaluating pain point severity and solution match", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+    { icon: <BarChart3 className="w-5 h-5" />, label: "Sizing the market", desc: "Calculating TAM, SAM, and SOM", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+    { icon: <Swords className="w-5 h-5" />, label: "Scanning competitors", desc: "Mapping the competitive landscape", color: "text-rose-400", bg: "bg-rose-500/10 border-rose-500/20" },
+    { icon: <AlertTriangle className="w-5 h-5" />, label: "Assessing risks", desc: "Identifying blind spots and red flags", color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
+    { icon: <DollarSign className="w-5 h-5" />, label: "Financial snapshot", desc: "Unit economics and revenue potential", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+    { icon: <CheckCircle2 className="w-5 h-5" />, label: "Recommendations", desc: "Building your action plan", color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/20" },
+    { icon: <Target className="w-5 h-5" />, label: "Finalizing report", desc: "Scoring viability and generating dashboard", color: "text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20" },
+  ];
+
+  // Streaming view — PURE LOADING SCREEN, no content shown
   if (isLoading || streamingContent) {
     return (
       <div className="min-h-screen min-h-[100dvh] bg-[#08080e] flex flex-col">
-        {/* Sticky header */}
+        {/* Header */}
         <div className="border-b border-white/[0.06] bg-[#08080e]/80 backdrop-blur-xl sticky top-0 z-10">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="relative">
-                <div className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-                  <Zap className="w-4.5 h-4.5 text-white" />
-                </div>
-                {isLoading && (
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-indigo-500 border-2 border-[#08080e] flex items-center justify-center">
-                    <Loader2 className="w-3 h-3 text-white animate-spin" />
-                  </div>
-                )}
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+                <Zap className="w-4 h-4 text-white" />
               </div>
-              <div className="min-w-0">
-                <span className="text-sm font-bold text-white block leading-tight truncate max-w-xs sm:max-w-md">
-                  {setup.topic || "Your idea"}
-                </span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[11px] text-white/30">
-                    {isLoading ? PROGRESS_STEPS[progressStep]?.label || "Analyzing..." : "Complete"}
-                  </span>
-                  <span className="text-[11px] font-bold text-indigo-400">{overallProgress}%</span>
-                </div>
-              </div>
+              <span className="text-sm font-semibold text-white">Priority Debater</span>
             </div>
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-            </div>
-          </div>
-          {/* Progress bar under header */}
-          <div className="h-0.5 bg-white/[0.04]">
-            <div
-              className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-1000 ease-out"
-              style={{ width: `${overallProgress}%` }}
-            />
+            <ThemeToggle />
           </div>
         </div>
 
-        {/* Main content: section cards */}
-        <div ref={streamRef} className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-4">
+        {/* Centered loading content */}
+        <div className="flex-1 flex items-start justify-center overflow-y-auto">
+          <div className="w-full max-w-lg px-4 sm:px-6 py-12 sm:py-16">
 
-            {/* Step pills - compact horizontal */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide mb-2">
-              {PROGRESS_STEPS.map((step, i) => (
+            {/* Big animated icon */}
+            <div className="flex flex-col items-center mb-10">
+              <div className="relative mb-6">
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500/15 to-violet-500/15 border border-indigo-500/20 flex items-center justify-center">
+                  <div className={`transition-all duration-500 ${LOADING_STEPS[progressStep]?.color || "text-indigo-400"}`}>
+                    {LOADING_STEPS[progressStep]?.icon || <Loader2 className="w-8 h-8 animate-spin" />}
+                  </div>
+                </div>
+                {/* Pulsing ring */}
+                <div className="absolute -inset-3 rounded-[2rem] border border-indigo-500/10 animate-pulse" />
+                <div className="absolute -inset-6 rounded-[2.5rem] border border-indigo-500/5 animate-pulse" style={{ animationDelay: "500ms" }} />
+              </div>
+
+              <h2 className="text-xl font-bold text-white text-center mb-1">
+                {LOADING_STEPS[progressStep]?.label || "Analyzing..."}
+              </h2>
+              <p className="text-sm text-white/35 text-center max-w-xs">
+                {LOADING_STEPS[progressStep]?.desc || "Processing your idea..."}
+              </p>
+
+              {/* Idea name */}
+              <div className="mt-4 px-4 py-2 rounded-full bg-white/[0.04] border border-white/[0.06]">
+                <p className="text-xs text-white/40 truncate max-w-xs">{setup.topic}</p>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-white/30">Progress</span>
+                <span className="text-xs font-bold text-indigo-400">{overallProgress}%</span>
+              </div>
+              <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-1000 ease-out"
+                  style={{ width: `${overallProgress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Step list */}
+            <div className="space-y-2">
+              {LOADING_STEPS.map((step, i) => (
                 <div
                   key={i}
-                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-500 ${
+                  className={`flex items-center gap-3.5 px-4 py-3 rounded-xl border transition-all duration-700 ${
                     i < progressStep
-                      ? "bg-emerald-500/10 text-emerald-400"
+                      ? "bg-white/[0.02] border-white/[0.04]"
                       : i === progressStep
-                        ? "bg-indigo-500/10 text-indigo-300 border border-indigo-500/20"
-                        : "text-white/15"
+                        ? `${step.bg} border`
+                        : "border-transparent opacity-40"
                   }`}
                 >
-                  {i < progressStep ? (
-                    <CheckCircle2 className="w-3 h-3" />
-                  ) : i === progressStep ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <span className="w-2 h-2 rounded-full bg-white/10 inline-block" />
+                  {/* Icon */}
+                  <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
+                    i < progressStep
+                      ? "bg-emerald-500/15 text-emerald-400"
+                      : i === progressStep
+                        ? `${step.bg} ${step.color}`
+                        : "text-white/20"
+                  }`}>
+                    {i < progressStep ? (
+                      <CheckCircle2 className="w-4.5 h-4.5" />
+                    ) : i === progressStep ? (
+                      <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                    ) : (
+                      <span className="w-2 h-2 rounded-full bg-white/20" />
+                    )}
+                  </div>
+
+                  {/* Label */}
+                  <div className="flex-1 min-w-0">
+                    <span className={`text-sm font-medium block ${
+                      i < progressStep
+                        ? "text-white/50"
+                        : i === progressStep
+                          ? "text-white/90"
+                          : "text-white/25"
+                    }`}>
+                      {step.label}
+                    </span>
+                    {i === progressStep && (
+                      <span className="text-[11px] text-white/30 block mt-0.5">{step.desc}</span>
+                    )}
+                  </div>
+
+                  {/* Status */}
+                  {i < progressStep && (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400/60 shrink-0" />
                   )}
-                  <span className="hidden sm:inline">{step.label}</span>
                 </div>
               ))}
             </div>
 
-            {/* Empty state */}
-            {sections.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-24 gap-4">
-                <div className="relative">
-                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/15 flex items-center justify-center">
-                    <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-                  </div>
-                  <div className="absolute -inset-4 rounded-[2rem] bg-indigo-500/5 animate-pulse" />
-                </div>
-                <div className="text-center mt-2">
-                  <p className="text-white/70 font-semibold text-lg">Analyzing your idea</p>
-                  <p className="text-white/25 text-sm mt-1.5 max-w-sm">
-                    GPT-4.1 is evaluating viability, market opportunity, competition, and more...
-                  </p>
-                </div>
-                {/* Skeleton cards */}
-                <div className="w-full max-w-2xl mt-6 space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="rounded-xl bg-white/[0.02] border border-white/[0.04] p-5 animate-pulse" style={{ animationDelay: `${i * 200}ms` }}>
-                      <div className="h-3 w-32 bg-white/[0.06] rounded mb-3" />
-                      <div className="h-2 w-full bg-white/[0.04] rounded mb-2" />
-                      <div className="h-2 w-3/4 bg-white/[0.04] rounded" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Estimated time */}
+            <p className="text-center text-[11px] text-white/20 mt-8">
+              Usually takes 60–90 seconds · Your results will open automatically
+            </p>
 
-            {/* Section cards */}
-            {sections.map((section, i) => {
-              const meta = Object.entries(SECTION_META).find(([key]) =>
-                section.title.toLowerCase().includes(key.toLowerCase())
-              );
-              const icon = meta ? meta[1].icon : <FileText className="w-4 h-4" />;
-              const color = meta ? meta[1].color : "text-white/40";
-              const accent = meta ? meta[1].accent : "border-l-white/10";
-              const isLast = i === sections.length - 1 && isLoading;
-
-              return (
-                <div
-                  key={i}
-                  className={`rounded-xl bg-white/[0.03] border border-white/[0.06] border-l-[3px] ${accent} p-5 sm:p-6 transition-all duration-500 msg-fade-in ${
-                    isLast ? "pulse-border-active" : ""
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className={color}>{icon}</span>
-                    <h3 className="text-sm font-bold text-white/90">{section.title}</h3>
-                    {isLast && (
-                      <Loader2 className="w-3.5 h-3.5 text-indigo-400 animate-spin ml-auto" />
-                    )}
-                  </div>
-                  <div className="markdown-content-dark text-sm">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {section.content.replace(/^###\s+.+\n?/, "")}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Loading next section indicator */}
-            {isLoading && sections.length > 0 && (
-              <div className="flex items-center gap-3 px-4 py-3 text-white/20 msg-fade-in">
-                <Loader2 className="w-4 h-4 animate-spin text-indigo-400/50" />
-                <span className="text-xs">{PROGRESS_STEPS[progressStep]?.label || "Processing"}...</span>
+            {error && (
+              <div className="mt-6 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                {error}
               </div>
             )}
           </div>
         </div>
-
-        {error && (
-          <div className="shrink-0 px-4 sm:px-6 pb-4">
-            <div className="max-w-4xl mx-auto p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-              {error}
-            </div>
-          </div>
-        )}
       </div>
     );
   }
