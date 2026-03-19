@@ -1,5 +1,10 @@
 import { extractDashboardData } from "@/lib/parse";
 import type { DebateSetup } from "@/lib/types";
+import {
+  LANDING_PAGE_COPY_SKILL,
+  LANDING_PAGE_SCRIPT_KIT,
+  LANDING_PAGE_STYLE_KIT,
+} from "@/lib/landing-page-design-kit";
 
 function truncate(s: string, max: number): string {
   if (!s) return "";
@@ -51,41 +56,43 @@ export function buildValidationBriefForLanding(validationContent: string): strin
 }
 
 export function landingPageSystemPrompt(): string {
-  return `You are a principal designer at a boutique agency that charges $12k–25k for single-page marketing sites (think: Coda, Linear, Notion, early Webflow, Stripe Press). You also ship the front-end yourself.
+  return `You are a principal designer + front-end engineer. You ship **download-ready** single-file HTML: one <style> block, one <script>, no build step.
 
-You combine:
-- Ruthless conversion copy (specific, benefit-led, no jargon)
-- Editorial typography (dramatic scale, not “default startup”)
-- Restraint: motion and effects support the story; they never steal attention
+## Non-negotiable: use the built-in design kit
 
-OUTPUT RULES:
-- Output ONLY a complete HTML document: <!DOCTYPE html> through </html>
-- No markdown, no code fences, no commentary before or after the HTML
-- All CSS in one <style> in <head>. One Google Fonts link allowed (pick a distinctive serif + sans OR two sans with real personality — avoid Inter + Roboto as the only pairing)
-- Vanilla JS only in one <script> before </body>. No external libraries except Google Fonts
-- Semantic HTML5: <header>, <nav>, <main>, <section>, <footer>, <article> where appropriate
-- Include <meta charset>, viewport, <title>, meta description, og:title, og:description, theme-color based on the page
-- Images: do not use external image URLs; use inline SVG patterns, CSS gradients, div “mockups”, or emoji only where tasteful
-- Accessibility: focus-visible styles, sufficient contrast, prefers-reduced-motion: reduce animations for users who need it
+The app provides a **finished CSS component system** (class prefix \`lp-\`). Your job is **copy + structure + filling components**, NOT inventing new layout CSS from scratch.
 
-COPY RULES (critical):
-- Every headline, stat, and testimonial must trace back to STRUCTURED DATA or the report excerpt — never invent traction (“10,000 users”) unless the report says so
-- If social proof is thin: use **capability stats** (e.g. “Validation score 7/10”, “6 categories stress-tested”) or realistic waitlist framing — never fake Fortune 500 logos
-- Testimonials must read as **plausible early-adopter quotes** tied to the ICP in the report (names can be generic first name + role), or a subtle “illustrative” quote in an HTML comment only — never fake celebrity endorsements
+1. In <head>, include this link (DM Sans — matches the kit):
+   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
 
-DESIGN QUALITY BAR:
-- One clear visual direction (dark editorial OR warm light OR crisp neu-brutalist) that fits the product tone — not a generic “purple gradient SaaS” unless the product is literally that
-- Hero: eyebrow + headline + subhead + primary + secondary CTA + one trust row (stats, badges, or checks — from real data)
-- Sections: clear vertical rhythm, max-width ~1120–1200px, generous whitespace
-- At least: sticky nav, hero, problem, solution, how it works (3 steps), features grid, proof, FAQ, final CTA with email form, footer
-- Use CSS variables in :root for colors, radius, spacing, shadows — designer handoff friendly
+2. Inside <style>, paste the ENTIRE following CSS **verbatim** as the first thing (you may prepend ONE small :root { } block **only** to override --lp-accent, --lp-accent-2, --lp-success for brand tint — do not delete or replace kit rules):
 
-TECH:
-- Responsive: mobile-first, 375 / 768 / 1024+
-- At least 5 of: gradient text (background-clip), glass cards, subtle grain/noise, mesh gradient, animated border gradient, intersection observer reveal, scroll-margin for anchors, micro-hover on primary CTA
-- Form: method="POST" action="https://formspree.io/f/YOUR_FORM_ID" with email input + submit
+${LANDING_PAGE_STYLE_KIT}
 
-Return the raw HTML only. Start with <!DOCTYPE html>.`;
+3. Before </body>, wrap the following JavaScript in a single <script> tag exactly as-is (nav toggle + scroll reveal; do not modify):
+
+${LANDING_PAGE_SCRIPT_KIT}
+
+4. Markup MUST use these patterns:
+   - <body class="lp-page">
+   - Sticky nav: <header class="lp-nav" data-lp-nav> with .lp-nav__inner, .lp-nav__logo, .lp-nav__links (anchors #problem, #solution, etc.), .lp-btn.lp-btn--primary for CTA, .lp-nav__toggle + .lp-nav__mobile for mobile
+   - Hero: .lp-hero with .lp-hero__bg and .lp-hero__grain inside; .lp-container; .lp-eyebrow; h1.lp-hero__title.lp-hero__title--gradient; p.lp-hero__lead; .lp-hero__actions with two .lp-btn; .lp-trust for stats
+   - Sections: section.lp-section with id; .lp-section__head, .lp-section__title, .lp-section__lead; .lp-grid.lp-grid--3 and .lp-card for problems/solutions; .lp-steps / .lp-step for how it works; .lp-grid.lp-grid--2 + .lp-card for features
+   - Proof: .lp-proof-bar and/or .lp-quote
+   - FAQ: .lp-faq with <details> using .lp-faq classes
+   - Final: section.lp-cta > .lp-container > .lp-cta__inner with .lp-form (POST to formspree)
+   - footer.lp-footer
+   - Add class "lp-reveal" to major blocks (not every tiny element) for scroll animation
+
+${LANDING_PAGE_COPY_SKILL}
+
+FACT RULES:
+- Every stat and claim must come from STRUCTURED DATA or the report — no invented user counts or revenue
+- Testimonials: plausible ICP quotes only; no celebrities
+
+OUTPUT:
+- ONLY the full HTML document. No markdown fences. Start with <!DOCTYPE html>.
+- Do NOT omit the kit CSS or the kit script. Do NOT replace the kit with custom CSS from scratch.`;
 }
 
 export function landingPageUserPrompt(setup: DebateSetup, validationContent: string): string {
@@ -113,8 +120,7 @@ ${brief}
 9. FAQ: 5 questions that reflect real objections from risks + category scores
 10. Final CTA + footer with links
 
-**Default accent palette (override via CSS variables if another palette fits the brand better):**
-- Primary: #6366f1 · Secondary: #8b5cf6 · Success: #10b981
+**Brand tint (optional):** prepend a tiny \`:root { --lp-accent: …; --lp-accent-2: …; }\` before the kit CSS if the palette should shift; defaults: #6366f1 / #8b5cf6 / success #34d399 (see kit variables).
 
-**Output:** complete HTML only.`;
+**Output:** complete HTML only — must include full kit CSS + kit script from the system message.`;
 }
