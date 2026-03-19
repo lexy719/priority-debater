@@ -46,7 +46,6 @@ import type { ValidationSession } from "@/lib/types";
 function downloadAsPDF(setup: ValidationSession["setup"], validationContent: string) {
   const printWindow = window.open("", "_blank");
   if (!printWindow) return;
-
   printWindow.document.write(`<!DOCTYPE html><html><head><title>Validation Report - ${setup.topic}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -83,12 +82,7 @@ function downloadAsPDF(setup: ValidationSession["setup"], validationContent: str
 
 function downloadAsMarkdown(setup: ValidationSession["setup"], messages: ValidationSession["messages"]) {
   const header = `# Validation Report: ${setup.topic}\n\n**Your case:** ${setup.position}\n${setup.context ? `**Context:** ${setup.context}\n` : ""}\n---\n\n`;
-  const body = messages
-    .map((m) => {
-      const role = m.role === "user" ? "**You:**" : "**The Adversary:**";
-      return `${role}\n${m.content}\n`;
-    })
-    .join("\n---\n\n");
+  const body = messages.map((m) => `${m.role === "user" ? "**You:**" : "**The Adversary:**"}\n${m.content}\n`).join("\n---\n\n");
   const blob = new Blob([header + body], { type: "text/markdown" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -98,78 +92,40 @@ function downloadAsMarkdown(setup: ValidationSession["setup"], messages: Validat
   URL.revokeObjectURL(url);
 }
 
-// ── Share Link ──
 function generateShareData(session: ValidationSession): string {
-  const data = {
-    t: session.setup.topic,
-    p: session.setup.position,
-    c: session.setup.context,
-    v: session.validationContent,
-  };
-  return btoa(encodeURIComponent(JSON.stringify(data)));
+  return btoa(encodeURIComponent(JSON.stringify({ t: session.setup.topic, p: session.setup.position, c: session.setup.context, v: session.validationContent })));
 }
 
-// ── Score Ring SVG ──
-function ScoreRing({ score, size = 120 }: { score: number; size?: number }) {
-  const radius = (size - 12) / 2;
+// ── Score Ring ──
+function ScoreRing({ score, size = 100 }: { score: number; size?: number }) {
+  const radius = (size - 10) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = (score / 10) * circumference;
   const color = score >= 7 ? "#10b981" : score >= 5 ? "#f59e0b" : "#ef4444";
   const bgColor = score >= 7 ? "rgba(16,185,129,0.1)" : score >= 5 ? "rgba(245,158,11,0.1)" : "rgba(239,68,68,0.1)";
-
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="transform -rotate-90">
-        <circle cx={size/2} cy={size/2} r={radius} fill={bgColor} stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
-        <circle
-          cx={size/2} cy={size/2} r={radius}
-          fill="none" stroke={color} strokeWidth="6"
-          strokeDasharray={circumference} strokeDashoffset={circumference - progress}
-          strokeLinecap="round"
-          className="transition-all duration-1000 ease-out"
-        />
+        <circle cx={size/2} cy={size/2} r={radius} fill={bgColor} stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke={color} strokeWidth="5" strokeDasharray={circumference} strokeDashoffset={circumference - progress} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-black" style={{ color }}>{score}</span>
+        <span className="text-2xl font-black" style={{ color }}>{score}</span>
         <span className="text-[10px] text-white/25 font-medium">/ 10</span>
       </div>
     </div>
   );
 }
 
-// ── Metric Tile ──
-function MetricTile({ label, value, icon, color }: { label: string; value: string | number; icon: React.ReactNode; color: string }) {
+// ── Card with full readable content ──
+function ContentCard({ icon, title, color, children, className = "" }: { icon: React.ReactNode; title: string; color: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 flex items-center gap-3 hover:bg-white/[0.05] transition-colors`}>
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color} bg-current/10 shrink-0`}
-        style={{ backgroundColor: `color-mix(in srgb, currentColor 10%, transparent)` }}>
-        {icon}
+    <div className={`rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 sm:p-6 ${className}`}>
+      <div className="flex items-center gap-2.5 mb-4">
+        <span className={color}>{icon}</span>
+        <h3 className="text-sm font-bold text-white/90">{title}</h3>
       </div>
-      <div className="min-w-0">
-        <div className="text-lg font-bold text-white truncate">{value}</div>
-        <div className="text-[11px] text-white/30 font-medium">{label}</div>
-      </div>
-    </div>
-  );
-}
-
-// ── Compact Pill List ──
-function PillList({ items, color, icon }: { items: string[]; color: "emerald" | "red" | "amber" | "indigo"; icon: React.ReactNode }) {
-  const colors = {
-    emerald: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
-    red: "bg-red-500/10 border-red-500/20 text-red-400",
-    amber: "bg-amber-500/10 border-amber-500/20 text-amber-400",
-    indigo: "bg-indigo-500/10 border-indigo-500/20 text-indigo-400",
-  };
-  if (items.length === 0) return null;
-  return (
-    <div className="flex flex-wrap gap-2">
-      {items.slice(0, 5).map((item, i) => (
-        <div key={i} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium ${colors[color]}`}>
-          {icon}
-          <span className="truncate max-w-[200px]">{item.replace(/^\*\*[^*]+\*\*:?\s*/, "").slice(0, 60)}</span>
-        </div>
-      ))}
+      {children}
     </div>
   );
 }
@@ -177,58 +133,32 @@ function PillList({ items, color, icon }: { items: string[]; color: "emerald" | 
 // ── Validation Checklist ──
 function ValidationChecklist({ items }: { items: string[] }) {
   const [checked, setChecked] = useState<Set<number>>(new Set());
-
   const toggle = (i: number) => {
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(i)) next.delete(i);
-      else next.add(i);
-      return next;
-    });
+    setChecked((prev) => { const next = new Set(prev); if (next.has(i)) next.delete(i); else next.add(i); return next; });
   };
-
   const progress = items.length > 0 ? Math.round((checked.size / items.length) * 100) : 0;
-
   if (items.length === 0) return <p className="text-white/25 text-sm italic">No specific steps parsed.</p>;
-
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-white/30">{checked.size}/{items.length} completed</span>
-        <span className="text-xs font-bold text-indigo-400">{progress}%</span>
+        <span className="text-sm font-medium text-white/30">{checked.size}/{items.length} completed</span>
+        <span className="text-sm font-bold text-indigo-400">{progress}%</span>
       </div>
-      <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden mb-4">
+      <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden mb-5">
         <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
       </div>
-      <ol className="space-y-2">
+      <ol className="space-y-3">
         {items.map((item, i) => (
           <li key={i} className="flex gap-3 group cursor-pointer" onClick={() => toggle(i)}>
-            <button
-              className={`shrink-0 w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold transition-all ${
-                checked.has(i)
-                  ? "bg-emerald-500 text-white"
-                  : "bg-indigo-500/15 text-indigo-400 group-hover:bg-indigo-500/25"
-              }`}
-            >
-              {checked.has(i) ? <Check className="w-3 h-3" /> : i + 1}
+            <button className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-all ${checked.has(i) ? "bg-emerald-500 text-white" : "bg-indigo-500/15 text-indigo-400 group-hover:bg-indigo-500/25"}`}>
+              {checked.has(i) ? <Check className="w-4 h-4" /> : i + 1}
             </button>
-            <span className={`text-xs leading-relaxed transition-all ${checked.has(i) ? "line-through text-white/20" : "text-white/50"}`}>
+            <span className={`text-sm leading-relaxed transition-all pt-0.5 ${checked.has(i) ? "line-through text-white/20" : "text-white/60"}`}>
               {item}
             </span>
           </li>
         ))}
       </ol>
-    </div>
-  );
-}
-
-// ── Section Header ──
-function SectionHeader({ icon, children, color = "text-white/40" }: { icon: React.ReactNode; children: React.ReactNode; color?: string }) {
-  return (
-    <div className="flex items-center gap-2 mb-4">
-      <span className={color}>{icon}</span>
-      <h2 className="text-sm font-bold text-white/80 uppercase tracking-wider">{children}</h2>
-      <div className="flex-1 h-px bg-white/[0.06]" />
     </div>
   );
 }
@@ -246,42 +176,27 @@ export default function ResultsPage() {
 
   useEffect(() => {
     const s = loadSession();
-    if (!s || s.setup.template === "generate") {
-      router.replace("/validate");
-      return;
-    }
+    if (!s || s.setup.template === "generate") { router.replace("/validate"); return; }
     setSession(s);
   }, [router]);
 
   const handleCopyShareLink = useCallback(() => {
     if (!session) return;
-    const encoded = generateShareData(session);
-    const url = `${window.location.origin}/results?s=${encoded}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setShareToast(true);
-      setTimeout(() => setShareToast(false), 2000);
-    });
+    const url = `${window.location.origin}/results?s=${generateShareData(session)}`;
+    navigator.clipboard.writeText(url).then(() => { setShareToast(true); setTimeout(() => setShareToast(false), 2000); });
   }, [session]);
 
   if (!session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#08080e]">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500/50" />
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center bg-[#08080e]"><Loader2 className="w-8 h-8 animate-spin text-indigo-500/50" /></div>;
   }
 
   const { setup, validationContent, messages } = session;
   const dashboard = extractDashboardData(validationContent);
-
   const score = dashboard.score;
 
   const goNoGoLabel =
-    dashboard.goNoGoType === "go" ? "GO" :
-    dashboard.goNoGoType === "caution" ? "CAUTION" :
-    dashboard.goNoGoType === "nogo" ? "NO-GO" :
+    dashboard.goNoGoType === "go" ? "GO" : dashboard.goNoGoType === "caution" ? "CAUTION" : dashboard.goNoGoType === "nogo" ? "NO-GO" :
     score != null ? (score >= 7 ? "GO" : score >= 5 ? "CAUTION" : "NO-GO") : null;
-
   const goNoGoColor =
     goNoGoLabel === "GO" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" :
     goNoGoLabel === "CAUTION" ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
@@ -289,19 +204,10 @@ export default function ResultsPage() {
     "bg-white/5 text-white/30 border-white/10";
 
   const handleGenerateBusinessPlan = async () => {
-    setIsGeneratingBusinessPlan(true);
-    setError(null);
-    setBusinessPlanStreaming("");
+    setIsGeneratingBusinessPlan(true); setError(null); setBusinessPlanStreaming("");
     try {
-      const response = await fetch("/api/debate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "business-plan", setup, validationContent }),
-      });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => null);
-        throw new Error(errData?.error || `Server error (${response.status})`);
-      }
+      const response = await fetch("/api/debate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "business-plan", setup, validationContent }) });
+      if (!response.ok) { const errData = await response.json().catch(() => null); throw new Error(errData?.error || `Server error (${response.status})`); }
       const reader = response.body?.getReader();
       if (!reader) throw new Error("No response stream");
       const decoder = new TextDecoder();
@@ -314,41 +220,20 @@ export default function ResultsPage() {
           if (line.startsWith("data: ")) {
             const data = line.slice(6);
             if (data === "[DONE]") break;
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.content) { content += parsed.content; setBusinessPlanStreaming(content); }
-              if (parsed.error) { throw new Error(parsed.error); }
-            } catch (e) {
-              if (e instanceof Error && e.message !== "Stream interrupted") { /* skip parse errors */ }
-              else throw e;
-            }
+            try { const parsed = JSON.parse(data); if (parsed.content) { content += parsed.content; setBusinessPlanStreaming(content); } if (parsed.error) throw new Error(parsed.error); } catch (e) { if (e instanceof Error && e.message !== "Stream interrupted") { /* skip */ } else throw e; }
           }
         }
       }
       if (!content) throw new Error("No content received");
-      setBusinessPlanContent(content);
-      setBusinessPlanStreaming("");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to generate business plan. Please try again.");
-      setBusinessPlanContent("");
-    } finally {
-      setIsGeneratingBusinessPlan(false);
-    }
+      setBusinessPlanContent(content); setBusinessPlanStreaming("");
+    } catch (e) { setError(e instanceof Error ? e.message : "Failed to generate business plan."); setBusinessPlanContent(""); }
+    finally { setIsGeneratingBusinessPlan(false); }
   };
 
-  const handleRevalidate = () => {
-    sessionStorage.setItem("revalidate", JSON.stringify(setup));
-    router.push("/validate");
-  };
-
-  const handleValidateNew = () => {
-    clearSession();
-    router.push("/validate");
-  };
-
+  const handleRevalidate = () => { sessionStorage.setItem("revalidate", JSON.stringify(setup)); router.push("/validate"); };
+  const handleValidateNew = () => { clearSession(); router.push("/validate"); };
   const displayBusinessPlan = businessPlanContent || businessPlanStreaming;
 
-  // Category scores for metric tiles
   const cs = dashboard.categoryScores;
   const categoryMetrics = [
     { label: "Problem-Solution", value: cs.problemSolutionFit, icon: <Lightbulb className="w-4 h-4" />, color: "text-amber-400" },
@@ -361,8 +246,8 @@ export default function ResultsPage() {
 
   const tabs = [
     { label: "Overview", icon: <BarChart3 className="w-4 h-4" /> },
-    { label: "Market", icon: <TrendingUp className="w-4 h-4" /> },
-    { label: "Strategy", icon: <Target className="w-4 h-4" /> },
+    { label: "Deep Dive", icon: <TrendingUp className="w-4 h-4" /> },
+    { label: "Action Plan", icon: <Target className="w-4 h-4" /> },
     { label: "Canvas & Plan", icon: <Grid3X3 className="w-4 h-4" /> },
   ];
 
@@ -373,9 +258,7 @@ export default function ResultsPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
           <div className="flex items-center gap-3 min-w-0">
             <Link href="/" className="flex items-center gap-2 group shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
-              </div>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center"><Zap className="w-4 h-4 text-white" /></div>
               <span className="hidden sm:inline text-sm font-semibold text-white/70 group-hover:text-white transition-colors">Priority Debater</span>
             </Link>
             <span className="text-white/10 hidden sm:inline">/</span>
@@ -403,16 +286,16 @@ export default function ResultsPage() {
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
-        {/* ── HERO: Score ring + title + metric tiles (always visible) ── */}
-        <div className="relative rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.06] overflow-hidden mb-4">
+        {/* ── HERO ── */}
+        <div className="relative rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.06] overflow-hidden mb-5">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.08)_0%,_transparent_50%)]" />
-          <div className="relative p-5 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+          <div className="relative p-6 sm:p-8">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
               {score != null && (
                 <div className="shrink-0 flex flex-col items-center">
-                  <ScoreRing score={score} size={100} />
+                  <ScoreRing score={score} />
                   {goNoGoLabel && (
-                    <span className={`mt-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${goNoGoColor}`}>
+                    <span className={`mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${goNoGoColor}`}>
                       {goNoGoLabel === "GO" && <Check className="w-3 h-3" />}
                       {goNoGoLabel === "CAUTION" && <AlertTriangle className="w-3 h-3" />}
                       {goNoGoLabel === "NO-GO" && <X className="w-3 h-3" />}
@@ -422,15 +305,14 @@ export default function ResultsPage() {
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h1 className="text-lg sm:text-xl font-bold text-white mb-1">{setup.topic}</h1>
-                {dashboard.verdict && <p className="text-white/40 text-xs leading-relaxed mb-3">{dashboard.verdict}</p>}
-                {/* Inline metric tiles */}
+                <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">{setup.topic}</h1>
+                {dashboard.verdict && <p className="text-white/50 text-sm leading-relaxed mb-4">{dashboard.verdict}</p>}
                 {categoryMetrics.length > 0 && (
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                     {categoryMetrics.map((m, i) => (
                       <div key={i} className="rounded-lg bg-white/[0.04] border border-white/[0.06] py-2 px-2 text-center">
-                        <div className={`text-base font-bold ${m.color}`}>{m.value}<span className="text-[9px] text-white/15">/10</span></div>
-                        <div className="text-[9px] text-white/25 font-medium leading-tight">{m.label}</div>
+                        <div className={`text-lg font-bold ${m.color}`}>{m.value}<span className="text-[10px] text-white/15">/10</span></div>
+                        <div className="text-[10px] text-white/30 font-medium leading-tight">{m.label}</div>
                       </div>
                     ))}
                   </div>
@@ -441,327 +323,229 @@ export default function ResultsPage() {
         </div>
 
         {/* ── TABS ── */}
-        <div className="flex gap-1 overflow-x-auto pb-1 mb-4 scrollbar-hide">
+        <div className="flex gap-1 overflow-x-auto pb-1 mb-5 scrollbar-hide">
           {tabs.map((tab, i) => (
-            <button
-              key={tab.label}
-              onClick={() => setActiveTab(i)}
-              className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium transition-all ${
-                activeTab === i
-                  ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
-                  : "bg-white/[0.02] text-white/30 hover:text-white/50 border border-white/[0.04] hover:border-white/[0.08]"
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
+            <button key={tab.label} onClick={() => setActiveTab(i)}
+              className={`shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === i ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30" : "bg-white/[0.02] text-white/30 hover:text-white/50 border border-white/[0.04] hover:border-white/[0.08]"}`}>
+              {tab.icon}{tab.label}
             </button>
           ))}
         </div>
 
         {/* ── TAB CONTENT ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
 
-          {/* ═══ OVERVIEW TAB ═══ */}
+          {/* ═══ OVERVIEW: The big picture ═══ */}
           {activeTab === 0 && (
             <>
-              {/* Left column */}
-              <div className="space-y-4">
-                {/* Strengths */}
-                <div className="rounded-xl bg-white/[0.03] border border-emerald-500/10 p-4">
-                  <div className="flex items-center gap-2 mb-2.5">
-                    <div className="w-5 h-5 rounded-md bg-emerald-500/15 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-emerald-400" />
-                    </div>
-                    <h3 className="text-xs font-bold text-white/80">Strengths</h3>
-                    <span className="text-[9px] text-emerald-400/60 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">{dashboard.strengths.length}</span>
-                  </div>
+              <div className="space-y-5">
+                {/* Strengths - FULL content */}
+                <ContentCard icon={<Check className="w-4 h-4" />} title={`Strengths (${dashboard.strengths.length})`} color="text-emerald-400" className="border-emerald-500/10">
                   {dashboard.strengths.length > 0 ? (
-                    <ul className="space-y-1">
+                    <ul className="space-y-2.5">
                       {dashboard.strengths.map((s, i) => (
-                        <li key={i} className="flex gap-2 items-start text-[11px] text-white/45 leading-relaxed">
-                          <div className="w-1 h-1 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                          {s.replace(/^\*\*[^*]+\*\*:?\s*/, "").slice(0, 100)}
+                        <li key={i} className="flex gap-3 items-start">
+                          <div className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                          <span className="text-sm text-white/60 leading-relaxed">{s}</span>
                         </li>
                       ))}
                     </ul>
-                  ) : <p className="text-white/20 text-[11px] italic">None identified.</p>}
-                </div>
+                  ) : <p className="text-white/25 text-sm italic">None identified.</p>}
+                </ContentCard>
 
-                {/* Risks */}
-                <div className="rounded-xl bg-white/[0.03] border border-red-500/10 p-4">
-                  <div className="flex items-center gap-2 mb-2.5">
-                    <div className="w-5 h-5 rounded-md bg-red-500/15 flex items-center justify-center">
-                      <AlertTriangle className="w-3 h-3 text-red-400" />
-                    </div>
-                    <h3 className="text-xs font-bold text-white/80">Risk Flags</h3>
-                    <span className="text-[9px] text-red-400/60 font-bold bg-red-500/10 px-1.5 py-0.5 rounded">{dashboard.risks.length}</span>
-                  </div>
+                {/* Risks - FULL content */}
+                <ContentCard icon={<AlertTriangle className="w-4 h-4" />} title={`Risk Flags (${dashboard.risks.length})`} color="text-red-400" className="border-red-500/10">
                   {dashboard.risks.length > 0 ? (
-                    <ul className="space-y-1">
+                    <ul className="space-y-2.5">
                       {dashboard.risks.map((r, i) => (
-                        <li key={i} className="flex gap-2 items-start text-[11px] text-white/45 leading-relaxed">
-                          <div className="w-1 h-1 rounded-full bg-red-400 mt-1.5 shrink-0" />
-                          {r.replace(/^\*\*[^*]+\*\*:?\s*/, "").slice(0, 100)}
+                        <li key={i} className="flex gap-3 items-start">
+                          <div className="w-2 h-2 rounded-full bg-red-400 mt-1.5 shrink-0" />
+                          <span className="text-sm text-white/60 leading-relaxed">{r}</span>
                         </li>
                       ))}
                     </ul>
-                  ) : <p className="text-white/20 text-[11px] italic">None identified.</p>}
-                </div>
+                  ) : <p className="text-white/25 text-sm italic">None identified.</p>}
+                </ContentCard>
 
-                {/* Go/No-Go */}
+                {/* Go/No-Go - FULL content */}
                 {dashboard.goNoGo && (
-                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Target className="w-4 h-4 text-emerald-400" />
-                      <h3 className="text-xs font-bold text-white/80">Go / No-Go</h3>
+                  <ContentCard icon={<Target className="w-4 h-4" />} title="Go / No-Go Recommendation" color="text-emerald-400">
+                    <div className="markdown-content-dark text-sm leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo}</ReactMarkdown>
                     </div>
-                    <div className="markdown-content-dark text-[11px] leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo.slice(0, 400)}</ReactMarkdown>
-                    </div>
-                  </div>
+                  </ContentCard>
                 )}
               </div>
 
-              {/* Right column */}
-              <div className="space-y-4">
-                <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <BarChart3 className="w-4 h-4 text-indigo-400" />
-                    <h3 className="text-xs font-bold text-white/80">Score Breakdown</h3>
-                  </div>
+              <div className="space-y-5">
+                {/* Radar chart */}
+                <ContentCard icon={<BarChart3 className="w-4 h-4" />} title="Score Breakdown" color="text-indigo-400">
                   <RadarChart scores={dashboard.categoryScores} />
-                  <div className="mt-3">
-                    <ScoreBreakdownBars scores={dashboard.categoryScores} />
-                  </div>
-                </div>
+                  <div className="mt-4"><ScoreBreakdownBars scores={dashboard.categoryScores} /></div>
+                </ContentCard>
 
-                {/* Validation Checklist */}
-                {dashboard.recommendations.length > 0 && (
-                  <div className="rounded-xl bg-gradient-to-br from-indigo-500/[0.06] to-violet-500/[0.03] border border-indigo-500/10 p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <CheckCircle2 className="w-4 h-4 text-indigo-400" />
-                      <h3 className="text-xs font-bold text-white/80">Validation Checklist</h3>
-                    </div>
-                    <ValidationChecklist items={dashboard.recommendations} />
-                  </div>
+                {/* Summary */}
+                {dashboard.summary && (
+                  <ContentCard icon={<Lightbulb className="w-4 h-4" />} title="Idea Summary" color="text-amber-400">
+                    <p className="text-sm text-white/60 leading-relaxed">{dashboard.summary}</p>
+                  </ContentCard>
                 )}
               </div>
             </>
           )}
 
-          {/* ═══ MARKET TAB ═══ */}
+          {/* ═══ DEEP DIVE: Market, customer, competition ═══ */}
           {activeTab === 1 && (
             <>
-              <div className="space-y-4">
-                {(dashboard.tamSamSom.tam || dashboard.tamSamSom.sam || dashboard.tamSamSom.som) && (
-                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <BarChart3 className="w-4 h-4 text-blue-400" />
-                      <h3 className="text-xs font-bold text-white/80">Market Size (TAM/SAM/SOM)</h3>
+              <div className="space-y-5">
+                {dashboard.problemSolution && (
+                  <ContentCard icon={<Lightbulb className="w-4 h-4" />} title="Problem-Solution Fit" color="text-amber-400">
+                    <div className="markdown-content-dark text-sm leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.problemSolution}</ReactMarkdown>
                     </div>
-                    <TamSamSomChart data={dashboard.tamSamSom} />
-                  </div>
+                  </ContentCard>
                 )}
                 {dashboard.targetCustomer && (
-                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Users className="w-4 h-4 text-sky-400" />
-                      <h3 className="text-xs font-bold text-white/80">Target Customer</h3>
+                  <ContentCard icon={<Users className="w-4 h-4" />} title="Target Customer" color="text-sky-400">
+                    <div className="markdown-content-dark text-sm leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.targetCustomer}</ReactMarkdown>
                     </div>
-                    <div className="markdown-content-dark text-[11px] leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.targetCustomer.slice(0, 500)}</ReactMarkdown>
-                    </div>
-                  </div>
+                  </ContentCard>
                 )}
-                {dashboard.problemSolution && (
-                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Lightbulb className="w-4 h-4 text-amber-400" />
-                      <h3 className="text-xs font-bold text-white/80">Problem-Solution Fit</h3>
-                    </div>
-                    <div className="markdown-content-dark text-[11px] leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.problemSolution.slice(0, 500)}</ReactMarkdown>
-                    </div>
-                  </div>
+                {(dashboard.tamSamSom.tam || dashboard.tamSamSom.sam || dashboard.tamSamSom.som) && (
+                  <ContentCard icon={<BarChart3 className="w-4 h-4" />} title="Market Size (TAM / SAM / SOM)" color="text-blue-400">
+                    <TamSamSomChart data={dashboard.tamSamSom} />
+                  </ContentCard>
                 )}
               </div>
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {dashboard.valueProposition && (
-                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <MessageSquare className="w-4 h-4 text-violet-400" />
-                      <h3 className="text-xs font-bold text-white/80">Value Proposition</h3>
+                  <ContentCard icon={<MessageSquare className="w-4 h-4" />} title="Value Proposition" color="text-violet-400">
+                    <div className="markdown-content-dark text-sm leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.valueProposition}</ReactMarkdown>
                     </div>
-                    <div className="markdown-content-dark text-[11px] leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.valueProposition.slice(0, 400)}</ReactMarkdown>
-                    </div>
-                  </div>
+                  </ContentCard>
                 )}
                 {dashboard.businessModel && (
-                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Layout className="w-4 h-4 text-emerald-400" />
-                      <h3 className="text-xs font-bold text-white/80">Business Model</h3>
+                  <ContentCard icon={<Layout className="w-4 h-4" />} title="Business Model" color="text-emerald-400">
+                    <div className="markdown-content-dark text-sm leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.businessModel}</ReactMarkdown>
                     </div>
-                    <div className="markdown-content-dark text-[11px] leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.businessModel.slice(0, 400)}</ReactMarkdown>
-                    </div>
-                  </div>
+                  </ContentCard>
                 )}
                 {dashboard.competitiveSummary && (
-                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Swords className="w-4 h-4 text-rose-400" />
-                      <h3 className="text-xs font-bold text-white/80">Competitive Landscape</h3>
+                  <ContentCard icon={<Swords className="w-4 h-4" />} title="Competitive Landscape" color="text-rose-400">
+                    <div className="markdown-content-dark text-sm leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.competitiveSummary}</ReactMarkdown>
                     </div>
-                    <div className="markdown-content-dark text-[11px] leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.competitiveSummary.slice(0, 400)}</ReactMarkdown>
+                  </ContentCard>
+                )}
+                {dashboard.marketSummary && !dashboard.competitiveSummary && (
+                  <ContentCard icon={<TrendingUp className="w-4 h-4" />} title="Market Opportunity" color="text-blue-400">
+                    <div className="markdown-content-dark text-sm leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.marketSummary}</ReactMarkdown>
                     </div>
-                  </div>
+                  </ContentCard>
                 )}
               </div>
             </>
           )}
 
-          {/* ═══ STRATEGY TAB ═══ */}
+          {/* ═══ ACTION PLAN: What to do next ═══ */}
           {activeTab === 2 && (
             <>
-              <div className="space-y-4">
-                {dashboard.keyAssumptions && (
-                  <div className="rounded-xl bg-white/[0.03] border border-l-2 border-l-amber-500/40 border-white/[0.06] p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <HelpCircle className="w-4 h-4 text-amber-400" />
-                      <h3 className="text-xs font-bold text-white/80">Key Assumptions</h3>
-                    </div>
-                    <div className="markdown-content-dark text-[11px] leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.keyAssumptions.slice(0, 500)}</ReactMarkdown>
-                    </div>
-                  </div>
+              <div className="space-y-5">
+                {/* Validation Checklist — the core action item */}
+                {dashboard.recommendations.length > 0 && (
+                  <ContentCard icon={<CheckCircle2 className="w-4 h-4" />} title="Your Validation Checklist" color="text-indigo-400" className="border-indigo-500/10 bg-gradient-to-br from-indigo-500/[0.04] to-violet-500/[0.02]">
+                    <p className="text-sm text-white/40 mb-4">Complete these steps before writing a single line of code.</p>
+                    <ValidationChecklist items={dashboard.recommendations} />
+                  </ContentCard>
                 )}
-                {dashboard.timelineToLaunch && (
-                  <div className="rounded-xl bg-white/[0.03] border border-l-2 border-l-indigo-500/40 border-white/[0.06] p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Calendar className="w-4 h-4 text-indigo-400" />
-                      <h3 className="text-xs font-bold text-white/80">Timeline to Launch</h3>
+                {dashboard.keyAssumptions && (
+                  <ContentCard icon={<HelpCircle className="w-4 h-4" />} title="Key Assumptions to Validate" color="text-amber-400" className="border-l-2 border-l-amber-500/40">
+                    <div className="markdown-content-dark text-sm leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.keyAssumptions}</ReactMarkdown>
                     </div>
-                    <div className="markdown-content-dark text-[11px] leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.timelineToLaunch.slice(0, 500)}</ReactMarkdown>
-                    </div>
-                  </div>
+                  </ContentCard>
                 )}
               </div>
-              <div className="space-y-4">
-                {dashboard.financialSummary && (
-                  <div className="rounded-xl bg-white/[0.03] border border-l-2 border-l-emerald-500/40 border-white/[0.06] p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <DollarSign className="w-4 h-4 text-emerald-400" />
-                      <h3 className="text-xs font-bold text-white/80">Financial Snapshot</h3>
+              <div className="space-y-5">
+                {dashboard.timelineToLaunch && (
+                  <ContentCard icon={<Calendar className="w-4 h-4" />} title="Timeline to Launch" color="text-indigo-400" className="border-l-2 border-l-indigo-500/40">
+                    <div className="markdown-content-dark text-sm leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.timelineToLaunch}</ReactMarkdown>
                     </div>
-                    <div className="markdown-content-dark text-[11px] leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.financialSummary.slice(0, 500)}</ReactMarkdown>
-                    </div>
-                  </div>
+                  </ContentCard>
                 )}
-                {dashboard.summary && (
-                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Lightbulb className="w-4 h-4 text-amber-400" />
-                      <h3 className="text-xs font-bold text-white/80">Summary</h3>
+                {dashboard.financialSummary && (
+                  <ContentCard icon={<DollarSign className="w-4 h-4" />} title="Financial Snapshot" color="text-emerald-400" className="border-l-2 border-l-emerald-500/40">
+                    <div className="markdown-content-dark text-sm leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.financialSummary}</ReactMarkdown>
                     </div>
-                    <p className="text-white/45 text-[11px] leading-relaxed">{dashboard.summary.slice(0, 400)}</p>
-                  </div>
+                  </ContentCard>
                 )}
               </div>
             </>
           )}
 
-          {/* ═══ CANVAS & PLAN TAB ═══ */}
+          {/* ═══ CANVAS & PLAN ═══ */}
           {activeTab === 3 && (
-            <>
-              {/* Lean Canvas - full width */}
-              <div className="lg:col-span-2 space-y-4">
-                {dashboard.leanCanvas ? (
-                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Grid3X3 className="w-4 h-4 text-indigo-400" />
-                      <h3 className="text-xs font-bold text-white/80">Lean Canvas</h3>
+            <div className="lg:col-span-2 space-y-5">
+              {dashboard.leanCanvas ? (
+                <ContentCard icon={<Grid3X3 className="w-4 h-4" />} title="Lean Canvas" color="text-indigo-400">
+                  <LeanCanvas canvas={dashboard.leanCanvas} />
+                </ContentCard>
+              ) : (
+                <div className="rounded-xl bg-white/[0.02] border-2 border-dashed border-white/[0.06] p-8 text-center">
+                  <Grid3X3 className="w-12 h-12 text-white/10 mx-auto mb-3" />
+                  <p className="text-white/25 text-sm">Lean Canvas data not available for this report.</p>
+                </div>
+              )}
+
+              {/* Business Plan Generator */}
+              <ContentCard icon={<Briefcase className="w-5 h-5" />} title="Business Plan Generator" color="text-indigo-400" className="border-indigo-500/10">
+                <p className="text-sm text-white/40 mb-4">Generate a full investor-ready business plan with financials, go-to-market strategy, and projections based on your validation data.</p>
+                <button onClick={handleGenerateBusinessPlan} disabled={isGeneratingBusinessPlan || !!businessPlanContent}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500 disabled:opacity-30 transition-colors">
+                  {isGeneratingBusinessPlan ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : businessPlanContent ? <><Check className="w-4 h-4" /> Generated</> : <><Flame className="w-4 h-4" /> Generate Business Plan</>}
+                </button>
+                {displayBusinessPlan && (
+                  <div className="mt-6 pt-6 border-t border-white/[0.06]">
+                    <div className="markdown-content-dark text-sm leading-relaxed max-h-[600px] overflow-y-auto pr-2">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayBusinessPlan}</ReactMarkdown>
                     </div>
-                    <LeanCanvas canvas={dashboard.leanCanvas} />
-                  </div>
-                ) : (
-                  <div className="rounded-xl bg-white/[0.02] border-2 border-dashed border-white/[0.06] p-6 text-center">
-                    <Grid3X3 className="w-10 h-10 text-white/10 mx-auto mb-2" />
-                    <p className="text-white/25 text-xs">Lean Canvas data not available.</p>
+                    {isGeneratingBusinessPlan && (
+                      <div className="flex items-center gap-2 mt-4 text-white/30 text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Writing...</div>
+                    )}
                   </div>
                 )}
-
-                {/* Business Plan Generator */}
-                <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center shrink-0">
-                        <Briefcase className="w-4 h-4 text-indigo-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-bold text-white/80">Business Plan Generator</h3>
-                        <p className="text-[10px] text-white/25">Investor-ready plan with financials & GTM</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleGenerateBusinessPlan}
-                      disabled={isGeneratingBusinessPlan || !!businessPlanContent}
-                      className="flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-500 disabled:opacity-30 transition-colors shrink-0"
-                    >
-                      {isGeneratingBusinessPlan ? (
-                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</>
-                      ) : businessPlanContent ? (
-                        <><Check className="w-3.5 h-3.5" /> Generated</>
-                      ) : (
-                        <><Flame className="w-3.5 h-3.5" /> Generate</>
-                      )}
-                    </button>
-                  </div>
-                  {displayBusinessPlan && (
-                    <div className="mt-4 pt-4 border-t border-white/[0.06]">
-                      <div className="markdown-content-dark text-xs max-h-[400px] overflow-y-auto pr-2">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayBusinessPlan}</ReactMarkdown>
-                      </div>
-                      {isGeneratingBusinessPlan && (
-                        <div className="flex items-center gap-2 mt-3 text-white/25 text-[11px]">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Writing...
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
+              </ContentCard>
+            </div>
           )}
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            {error}
-            <button onClick={() => { setError(null); setBusinessPlanContent(""); }} className="ml-auto text-xs underline hover:no-underline">Retry</button>
+          <div className="mb-5 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <span className="flex-1">{error}</span>
+            <button onClick={() => { setError(null); setBusinessPlanContent(""); }} className="text-sm font-medium underline hover:no-underline shrink-0">Retry</button>
           </div>
         )}
 
-        {/* ── DEBATE CTA (always visible) ── */}
-        <div className="relative rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/15 p-5 overflow-hidden">
+        {/* ── DEBATE CTA ── */}
+        <div className="relative rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/15 p-6 overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(139,92,246,0.08)_0%,_transparent_60%)]" />
           <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-indigo-500/15 border border-indigo-500/20 shrink-0">
-                <Swords className="w-5 h-5 text-indigo-400" />
-              </div>
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-indigo-500/15 border border-indigo-500/20 shrink-0"><Swords className="w-6 h-6 text-indigo-400" /></div>
               <div>
-                <h3 className="text-sm font-bold text-white">Stress-test this idea</h3>
-                <p className="text-white/30 text-[11px]">Defend your position against The Adversary</p>
+                <h3 className="text-lg font-bold text-white">Ready to stress-test?</h3>
+                <p className="text-white/30 text-sm">Defend your position against The Adversary and find the blind spots.</p>
               </div>
             </div>
-            <Link href="/debate" className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-lg shadow-indigo-500/20 text-sm shrink-0">
-              <Swords className="w-4 h-4" /> Debate <ArrowRight className="w-4 h-4" />
+            <Link href="/debate" className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-lg shadow-indigo-500/20 text-sm shrink-0">
+              <Swords className="w-4 h-4" /> Debate This Idea <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
