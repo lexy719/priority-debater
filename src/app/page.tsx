@@ -325,7 +325,7 @@ export default function Home() {
           {/* Headline */}
           <motion.h1 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.1 }}
             className="text-2xl sm:text-3xl md:text-4xl lg:text-[3.5rem] font-bold tracking-tight leading-[1.1] mb-5">
-            ChatGPT tells you what you want to hear.{" "}
+            Most tools validate your ego.{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400">
               We tell you what you need to hear.
             </span>
@@ -356,7 +356,7 @@ export default function Home() {
           {/* Trust */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
             className="flex flex-wrap justify-center gap-5 text-[11px] text-white/25">
-            {["Powered by GPT-4.1", "Your idea stays private", "No credit card ever", "Full report in 2 min"].map((t) => (
+            {["Proprietary AI engine", "Your idea stays private", "No credit card ever", "Full report in 2 min"].map((t) => (
               <span key={t} className="flex items-center gap-1.5">
                 <Check className="w-3 h-3 text-emerald-500/60" />{t}
               </span>
@@ -554,7 +554,7 @@ export default function Home() {
       <section className="py-20 sm:py-28 border-y border-white/[0.06]">
         <div className="max-w-3xl mx-auto px-5">
           <Reveal className="text-center mb-12">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium mb-3">Why not just use ChatGPT?</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium mb-3">Why not just use a generic AI?</p>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Because yes-men don't build great companies</h2>
           </Reveal>
           <Reveal delay={0.15}>
@@ -564,7 +564,7 @@ export default function Home() {
                   <tr className="border-b border-white/[0.06]">
                     <th className="text-left py-3 px-4 text-white/30 font-medium">Feature</th>
                     <th className="text-center py-3 px-4 text-indigo-400 font-semibold bg-indigo-500/[0.06]">Priority Debater</th>
-                    <th className="text-center py-3 px-4 text-white/30 font-medium">ChatGPT / Others</th>
+                    <th className="text-center py-3 px-4 text-white/30 font-medium">Generic AI / Others</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -610,10 +610,10 @@ export default function Home() {
           </Reveal>
           <Stagger className="space-y-2">
             {[
-              { q: "Why not just ask ChatGPT to validate my idea?", a: "ChatGPT is a general-purpose assistant that tends to agree with you. We built 5 specialized personas (Adversary, Investor, Mentor, Customer, Operator) that are designed to challenge you. You also get structured scoring, lean canvas, financials, and a debate mode. It's the difference between a friend saying 'sounds cool' and a VC grilling you for 30 minutes." },
+              { q: "Why not just ask a generic AI to validate my idea?", a: "A generic AI is a yes-man that tells you what you want to hear. We built 5 specialized personas (Adversary, Investor, Mentor, Customer, Operator) specifically designed to challenge you. You also get structured scoring, lean canvas, financials, and a live debate mode. It's the difference between a friend saying 'sounds cool' and a VC grilling you for 30 minutes." },
               { q: "How long does it take?", a: "2 minutes to a full validation report with viability scores, market sizing, competitor analysis, risk flags, and actionable next steps. The debate can go as long as you want." },
               { q: "Is my idea kept private?", a: "Completely. No database, no logs, no accounts. Everything is processed in real-time and lives only in your browser session. We never see or store your idea." },
-              { q: "How accurate is the analysis?", a: "GPT-4.1 evaluates 15+ criteria using real market data and frameworks. But the real value isn't the score — it's the questions it forces you to answer. If you can't defend your idea against an AI, you won't be able to defend it against investors or the market." },
+              { q: "How accurate is the analysis?", a: "Our AI evaluates 15+ criteria using real market data and proven frameworks from top VCs and accelerators. But the real value isn't the score — it's the questions it forces you to answer. If you can't defend your idea against our personas, you won't be able to defend it against investors or the market." },
               { q: "What's the catch? Why is it free?", a: "No catch. No freemium upsell. No 'upgrade to unlock.' The full tool is free with no signup required. We built this because we needed it ourselves." },
               { q: "What if I don't have an idea yet?", a: "Use the Idea Generator. Tell us your interests, skills, and constraints — we'll generate tailored startup ideas you can immediately validate and stress-test." },
             ].map((item, i) => (

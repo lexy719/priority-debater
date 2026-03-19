@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s | Priority Debater",
   },
   description:
-    "ChatGPT tells you what you want to hear. We tell you what you need to hear. 5 AI personas rip your startup idea apart from every angle — investor, customer, operator, mentor, adversary. Viability scores, lean canvas, financials, and a brutal debate mode. Free, 2 minutes, no signup.",
+    "Most tools validate your ego. We validate your idea. 5 AI personas rip your startup idea apart from every angle — investor, customer, operator, mentor, adversary. Viability scores, lean canvas, financials, and a brutal debate mode. Free, 2 minutes, no signup.",
   keywords: ["startup validation", "idea validator", "AI validation", "business plan", "startup idea", "startup stress test", "idea validation tool", "lean canvas generator"],
   openGraph: {
     title: "Priority Debater — Stress-Test Your Startup Idea",

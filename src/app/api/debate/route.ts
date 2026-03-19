@@ -361,7 +361,7 @@ export async function POST(request: Request) {
 
     if (!process.env.OPENAI_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "API is not configured. Please set OPENAI_API_KEY." }),
+        JSON.stringify({ error: "AI engine is not configured. Please contact support." }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
