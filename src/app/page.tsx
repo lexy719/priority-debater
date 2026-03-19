@@ -400,21 +400,27 @@ export default function Home() {
 
           {/* Zigzag timeline */}
           <div className="relative">
-            {/* Vertical center line — hidden on mobile */}
-            <div className="hidden sm:block absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-indigo-500/30 via-violet-500/20 to-purple-500/30" style={{ backgroundImage: "repeating-linear-gradient(to bottom, rgba(99,102,241,0.3) 0px, rgba(99,102,241,0.3) 6px, transparent 6px, transparent 12px)" }} />
+            {/* Vertical line — left on mobile, center on desktop */}
+            <div className="absolute left-4 sm:left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-indigo-500/30 via-violet-500/20 to-purple-500/30" style={{ backgroundImage: "repeating-linear-gradient(to bottom, rgba(99,102,241,0.3) 0px, rgba(99,102,241,0.3) 6px, transparent 6px, transparent 12px)" }} />
 
             {[
-              { n: "01", title: "Pitch it", desc: "Describe your idea in plain English. No templates, no friction. 30 seconds.", badge: "30 SECONDS • ZERO FRICTION", icon: <FileText className="w-5 h-5" />, accent: "border-blue-500/30 bg-blue-500/[0.06]", badgeColor: "bg-blue-500/10 text-blue-400 border-blue-500/20", dotColor: "bg-blue-500" },
-              { n: "02", title: "Get torn apart", desc: "5 AI personas score your idea across 15+ criteria. Market sizing, competitor mapping, risk flags, lean canvas, financials — nothing is spared.", badge: "15+ CRITERIA • 5 PERSONAS", icon: <BarChart3 className="w-5 h-5" />, accent: "border-violet-500/30 bg-violet-500/[0.06]", badgeColor: "bg-violet-500/10 text-violet-400 border-violet-500/20", dotColor: "bg-violet-500" },
-              { n: "03", title: "Defend it", desc: "Step into debate mode and defend your idea against an AI that uses inversion, base rates, and pre-mortem thinking. If you can survive this, you can survive a VC pitch.", badge: "LIVE DEBATE • 5 PERSONAS", icon: <Swords className="w-5 h-5" />, accent: "border-emerald-500/30 bg-emerald-500/[0.06]", badgeColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", dotColor: "bg-emerald-500" },
-              { n: "04", title: "Ship it", desc: "Export your validation report as PDF, generate a business plan, share with co-founders. Build with conviction, not hope.", badge: "PDF EXPORT • SHARE LINK", icon: <Zap className="w-5 h-5" />, accent: "border-amber-500/30 bg-amber-500/[0.06]", badgeColor: "bg-amber-500/10 text-amber-400 border-amber-500/20", dotColor: "bg-amber-500" },
+              { n: "01", title: "Pitch it", desc: "Describe your idea in plain English. No templates, no friction. 30 seconds.", badge: "30 SECONDS • ZERO FRICTION", icon: <FileText className="w-5 h-5" />, accent: "border-blue-500/30 bg-blue-500/[0.06]", badgeColor: "bg-blue-500/10 text-blue-400 border-blue-500/20", dotColor: "bg-blue-500", glowColor: "rgba(59,130,246,0.4)" },
+              { n: "02", title: "Get torn apart", desc: "5 AI personas score your idea across 15+ criteria. Market sizing, competitor mapping, risk flags, lean canvas, financials — nothing is spared.", badge: "15+ CRITERIA • 5 PERSONAS", icon: <BarChart3 className="w-5 h-5" />, accent: "border-violet-500/30 bg-violet-500/[0.06]", badgeColor: "bg-violet-500/10 text-violet-400 border-violet-500/20", dotColor: "bg-violet-500", glowColor: "rgba(139,92,246,0.4)" },
+              { n: "03", title: "Defend it", desc: "Step into debate mode and defend your idea against an AI that uses inversion, base rates, and pre-mortem thinking. If you can survive this, you can survive a VC pitch.", badge: "LIVE DEBATE • 5 PERSONAS", icon: <Swords className="w-5 h-5" />, accent: "border-emerald-500/30 bg-emerald-500/[0.06]", badgeColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", dotColor: "bg-emerald-500", glowColor: "rgba(16,185,129,0.4)" },
+              { n: "04", title: "Ship it", desc: "Export your validation report as PDF, generate a business plan, share with co-founders. Build with conviction, not hope.", badge: "PDF EXPORT • SHARE LINK", icon: <Zap className="w-5 h-5" />, accent: "border-amber-500/30 bg-amber-500/[0.06]", badgeColor: "bg-amber-500/10 text-amber-400 border-amber-500/20", dotColor: "bg-amber-500", glowColor: "rgba(245,158,11,0.4)" },
             ].map((item, i) => {
               const isRight = i % 2 === 1;
               return (
                 <Reveal key={item.n} delay={i * 0.1}>
-                  <div className={`relative flex flex-col sm:flex-row ${isRight ? "sm:flex-row-reverse" : ""} items-center gap-6 mb-12 last:mb-0`}>
+                  <div className={`relative flex items-start sm:items-center gap-4 sm:gap-6 mb-10 sm:mb-12 last:mb-0 ${isRight ? "sm:flex-row-reverse" : "sm:flex-row"} flex-row`}>
+                    {/* Dot — left on mobile, center on desktop */}
+                    <div className="flex sm:absolute sm:left-1/2 sm:-translate-x-1/2 w-8 sm:w-4 h-8 sm:h-4 rounded-full border-2 border-[#08080e] z-10 items-center justify-center shrink-0"
+                      style={{ marginLeft: "0px" }}>
+                      <div className={`w-3 h-3 rounded-full ${item.dotColor} shadow-lg`} style={{ boxShadow: `0 0 10px 2px ${item.glowColor}` }} />
+                    </div>
+
                     {/* Card */}
-                    <div className={`w-full sm:w-[calc(50%-32px)] rounded-2xl border p-6 ${item.accent} transition-all hover:scale-[1.02] duration-300`}>
+                    <div className={`flex-1 sm:w-[calc(50%-32px)] sm:flex-none rounded-2xl border p-5 sm:p-6 ${item.accent} transition-all hover:scale-[1.02] duration-300`}>
                       <p className="text-[10px] font-semibold text-indigo-400/60 uppercase tracking-widest mb-1">{item.n}</p>
                       <h3 className="font-bold text-white text-lg mb-2">{item.title}</h3>
                       <p className="text-xs text-white/40 leading-relaxed mb-3">{item.desc}</p>
@@ -423,12 +429,7 @@ export default function Home() {
                       </span>
                     </div>
 
-                    {/* Center dot — hidden on mobile */}
-                    <div className="hidden sm:flex absolute left-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-2 border-[#08080e] z-10 items-center justify-center">
-                      <div className={`w-3 h-3 rounded-full ${item.dotColor} shadow-lg`} style={{ boxShadow: `0 0 10px 2px ${item.dotColor === "bg-blue-500" ? "rgba(59,130,246,0.4)" : item.dotColor === "bg-violet-500" ? "rgba(139,92,246,0.4)" : item.dotColor === "bg-emerald-500" ? "rgba(16,185,129,0.4)" : "rgba(245,158,11,0.4)"}` }} />
-                    </div>
-
-                    {/* Spacer for the other side */}
+                    {/* Spacer for the other side — desktop only */}
                     <div className="hidden sm:block w-[calc(50%-32px)]" />
                   </div>
                 </Reveal>
