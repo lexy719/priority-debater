@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ArrowLeft, ArrowRight, Loader2, FlaskConical, Wand2, CheckCircle2, Zap, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, FlaskConical, Wand2, CheckCircle2, Zap, Sparkles, BarChart3, Target, Users, Swords, AlertTriangle, DollarSign, Lightbulb, FileText } from "lucide-react";
 import { saveSession } from "@/lib/session";
 import { shouldBlock } from "@/lib/contentModeration";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -207,151 +207,192 @@ function ValidateForm() {
     }
   };
 
+  // ── Section parser: splits streaming markdown into section cards ──
+  const SECTION_META: Record<string, { icon: React.ReactNode; color: string; accent: string }> = {
+    "Viability Score": { icon: <BarChart3 className="w-4 h-4" />, color: "text-indigo-400", accent: "border-l-indigo-500/40" },
+    "Go/No-Go": { icon: <Target className="w-4 h-4" />, color: "text-emerald-400", accent: "border-l-emerald-500/40" },
+    "Category Scores": { icon: <BarChart3 className="w-4 h-4" />, color: "text-violet-400", accent: "border-l-violet-500/40" },
+    "Problem-Solution Fit": { icon: <Lightbulb className="w-4 h-4" />, color: "text-amber-400", accent: "border-l-amber-500/40" },
+    "Target Customer": { icon: <Users className="w-4 h-4" />, color: "text-sky-400", accent: "border-l-sky-500/40" },
+    "Value Proposition": { icon: <Sparkles className="w-4 h-4" />, color: "text-pink-400", accent: "border-l-pink-500/40" },
+    "Market Opportunity": { icon: <BarChart3 className="w-4 h-4" />, color: "text-blue-400", accent: "border-l-blue-500/40" },
+    "Competitive Landscape": { icon: <Swords className="w-4 h-4" />, color: "text-rose-400", accent: "border-l-rose-500/40" },
+    "Risk Assessment": { icon: <AlertTriangle className="w-4 h-4" />, color: "text-red-400", accent: "border-l-red-500/40" },
+    "Financial Snapshot": { icon: <DollarSign className="w-4 h-4" />, color: "text-emerald-400", accent: "border-l-emerald-500/40" },
+    "Recommendations": { icon: <CheckCircle2 className="w-4 h-4" />, color: "text-indigo-400", accent: "border-l-indigo-500/40" },
+    "Lean Canvas": { icon: <FileText className="w-4 h-4" />, color: "text-violet-400", accent: "border-l-violet-500/40" },
+  };
+
+  const parseSections = (content: string) => {
+    if (!content) return [];
+    // Split by ### headings
+    const parts = content.split(/(?=^###\s)/m);
+    const sections: { title: string; content: string }[] = [];
+    for (const part of parts) {
+      const match = part.match(/^###\s+(.+)/);
+      if (match) {
+        sections.push({ title: match[1].trim(), content: part });
+      } else if (part.trim()) {
+        // Intro content before first ### heading
+        sections.push({ title: "Overview", content: part });
+      }
+    }
+    return sections;
+  };
+
+  const sections = parseSections(streamingContent);
+  const overallProgress = Math.round(((progressStep + 1) / PROGRESS_STEPS.length) * 100);
+
   // Streaming view
   if (isLoading || streamingContent) {
     return (
       <div className="min-h-screen min-h-[100dvh] bg-[#08080e] flex flex-col">
         {/* Sticky header */}
         <div className="border-b border-white/[0.06] bg-[#08080e]/80 backdrop-blur-xl sticky top-0 z-10">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 shrink-0 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
+              <div className="relative">
+                <div className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+                  <Zap className="w-4.5 h-4.5 text-white" />
+                </div>
+                {isLoading && (
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-indigo-500 border-2 border-[#08080e] flex items-center justify-center">
+                    <Loader2 className="w-3 h-3 text-white animate-spin" />
+                  </div>
+                )}
               </div>
               <div className="min-w-0">
-                <span className="text-xs font-medium text-white/40 block leading-tight">Analyzing</span>
-                <span className="text-sm font-semibold text-white truncate block max-w-xs sm:max-w-md">
+                <span className="text-sm font-bold text-white block leading-tight truncate max-w-xs sm:max-w-md">
                   {setup.topic || "Your idea"}
                 </span>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[11px] text-white/30">
+                    {isLoading ? PROGRESS_STEPS[progressStep]?.label || "Analyzing..." : "Complete"}
+                  </span>
+                  <span className="text-[11px] font-bold text-indigo-400">{overallProgress}%</span>
+                </div>
               </div>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+            </div>
+          </div>
+          {/* Progress bar under header */}
+          <div className="h-0.5 bg-white/[0.04]">
+            <div
+              className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-1000 ease-out"
+              style={{ width: `${overallProgress}%` }}
+            />
           </div>
         </div>
 
-        {/* Mobile: horizontal compact step bar */}
-        <div className="lg:hidden border-b border-white/[0.06] bg-[#08080e]/50 backdrop-blur-md px-4 py-3 overflow-x-auto scrollbar-hide">
-          <div className="flex items-center gap-2">
-            {PROGRESS_STEPS.map((step, i) => (
-              <div
-                key={i}
-                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-500 ${
-                  i < progressStep
-                    ? "bg-emerald-500/15 text-emerald-400"
-                    : i === progressStep
-                      ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
-                      : "text-white/20"
-                }`}
-              >
-                {i < progressStep ? (
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                ) : i === progressStep ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <span className="w-3.5 h-3.5 rounded-full border border-white/10 inline-block" />
-                )}
-                <span className="hidden sm:inline">{step.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* Main content: section cards */}
+        <div ref={streamRef} className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-4">
 
-        {/* Main two-column layout */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Desktop: vertical step tracker */}
-          <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-white/[0.06] bg-[#08080e]/50 p-6 overflow-y-auto">
-            <div className="mb-6">
-              <span className="text-xs font-semibold uppercase tracking-wider text-white/25">Progress</span>
-              <div className="mt-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-700 ease-out"
-                  style={{ width: `${((progressStep + 1) / PROGRESS_STEPS.length) * 100}%` }}
-                />
-              </div>
-              <span className="text-xs text-white/30 mt-1.5 block">
-                Step {progressStep + 1} of {PROGRESS_STEPS.length}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-1">
+            {/* Step pills - compact horizontal */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide mb-2">
               {PROGRESS_STEPS.map((step, i) => (
                 <div
                   key={i}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-500 ${
+                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-500 ${
                     i < progressStep
-                      ? "text-emerald-400"
+                      ? "bg-emerald-500/10 text-emerald-400"
                       : i === progressStep
                         ? "bg-indigo-500/10 text-indigo-300 border border-indigo-500/20"
-                        : "text-white/20"
+                        : "text-white/15"
                   }`}
                 >
-                  <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center">
-                    {i < progressStep ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                    ) : i === progressStep ? (
-                      <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
-                    ) : (
-                      <div className="w-5 h-5 rounded-full border-2 border-white/10" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium block truncate">{step.label}</span>
-                  </div>
-                  {/* Connector line */}
-                  {i < PROGRESS_STEPS.length - 1 && (
-                    <div className="absolute left-[2.15rem] top-full w-0.5 h-1 bg-white/[0.06]" />
+                  {i < progressStep ? (
+                    <CheckCircle2 className="w-3 h-3" />
+                  ) : i === progressStep ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <span className="w-2 h-2 rounded-full bg-white/10 inline-block" />
                   )}
+                  <span className="hidden sm:inline">{step.label}</span>
                 </div>
               ))}
             </div>
-          </aside>
 
-          {/* Streaming content area */}
-          <div className="flex-1 flex flex-col min-w-0 p-4 sm:p-6 lg:p-8">
-            <div
-              ref={streamRef}
-              className={`flex-1 rounded-2xl bg-white/[0.03] border p-5 sm:p-8 lg:p-10 overflow-y-auto markdown-content-dark relative ${
-                isLoading
-                  ? "border-indigo-500/20 shadow-[0_0_30px_-5px_rgba(99,102,241,0.15)] animate-pulse-border"
-                  : "border-white/[0.06]"
-              }`}
-              style={{
-                maxHeight: "calc(100vh - 10rem)",
-              }}
-            >
-              {streamingContent ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full gap-4 py-20">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center">
-                    <Loader2 className="w-7 h-7 text-indigo-400 animate-spin" />
+            {/* Empty state */}
+            {sections.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-24 gap-4">
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/15 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
                   </div>
-                  <div className="text-center">
-                    <p className="text-white/60 font-medium">Preparing your report</p>
-                    <p className="text-white/25 text-sm mt-1">This usually takes 30-60 seconds</p>
+                  <div className="absolute -inset-4 rounded-[2rem] bg-indigo-500/5 animate-pulse" />
+                </div>
+                <div className="text-center mt-2">
+                  <p className="text-white/70 font-semibold text-lg">Analyzing your idea</p>
+                  <p className="text-white/25 text-sm mt-1.5 max-w-sm">
+                    GPT-4.1 is evaluating viability, market opportunity, competition, and more...
+                  </p>
+                </div>
+                {/* Skeleton cards */}
+                <div className="w-full max-w-2xl mt-6 space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="rounded-xl bg-white/[0.02] border border-white/[0.04] p-5 animate-pulse" style={{ animationDelay: `${i * 200}ms` }}>
+                      <div className="h-3 w-32 bg-white/[0.06] rounded mb-3" />
+                      <div className="h-2 w-full bg-white/[0.04] rounded mb-2" />
+                      <div className="h-2 w-3/4 bg-white/[0.04] rounded" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Section cards */}
+            {sections.map((section, i) => {
+              const meta = Object.entries(SECTION_META).find(([key]) =>
+                section.title.toLowerCase().includes(key.toLowerCase())
+              );
+              const icon = meta ? meta[1].icon : <FileText className="w-4 h-4" />;
+              const color = meta ? meta[1].color : "text-white/40";
+              const accent = meta ? meta[1].accent : "border-l-white/10";
+              const isLast = i === sections.length - 1 && isLoading;
+
+              return (
+                <div
+                  key={i}
+                  className={`rounded-xl bg-white/[0.03] border border-white/[0.06] border-l-[3px] ${accent} p-5 sm:p-6 transition-all duration-500 msg-fade-in ${
+                    isLast ? "pulse-border-active" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className={color}>{icon}</span>
+                    <h3 className="text-sm font-bold text-white/90">{section.title}</h3>
+                    {isLast && (
+                      <Loader2 className="w-3.5 h-3.5 text-indigo-400 animate-spin ml-auto" />
+                    )}
+                  </div>
+                  <div className="markdown-content-dark text-sm">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {section.content.replace(/^###\s+.+\n?/, "")}
+                    </ReactMarkdown>
                   </div>
                 </div>
-              )}
-            </div>
+              );
+            })}
 
-            {error && (
-              <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                {error}
+            {/* Loading next section indicator */}
+            {isLoading && sections.length > 0 && (
+              <div className="flex items-center gap-3 px-4 py-3 text-white/20 msg-fade-in">
+                <Loader2 className="w-4 h-4 animate-spin text-indigo-400/50" />
+                <span className="text-xs">{PROGRESS_STEPS[progressStep]?.label || "Processing"}...</span>
               </div>
             )}
           </div>
         </div>
 
-        {/* Animated border pulse keyframes */}
-        <style jsx>{`
-          @keyframes pulse-border {
-            0%, 100% { border-color: rgba(99, 102, 241, 0.2); box-shadow: 0 0 30px -5px rgba(99, 102, 241, 0.1); }
-            50% { border-color: rgba(99, 102, 241, 0.4); box-shadow: 0 0 40px -5px rgba(99, 102, 241, 0.25); }
-          }
-          .animate-pulse-border {
-            animation: pulse-border 2.5s ease-in-out infinite;
-          }
-        `}</style>
+        {error && (
+          <div className="shrink-0 px-4 sm:px-6 pb-4">
+            <div className="max-w-4xl mx-auto p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+              {error}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
