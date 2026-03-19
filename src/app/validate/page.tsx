@@ -51,13 +51,9 @@ const MAX_CONTEXT_LENGTH = 1000;
 
 const PROGRESS_STEPS = [
   { label: "Analyzing idea", icon: "🔍" },
-  { label: "Problem-solution fit", icon: "🎯" },
-  { label: "Sizing the market", icon: "📊" },
-  { label: "Scanning competitors", icon: "⚔️" },
-  { label: "Assessing risks", icon: "⚠️" },
-  { label: "Financial snapshot", icon: "💰" },
-  { label: "Recommendations", icon: "✅" },
-  { label: "Finalizing report", icon: "📋" },
+  { label: "Market & competition", icon: "📊" },
+  { label: "Risks & financials", icon: "⚠️" },
+  { label: "Building report", icon: "📋" },
 ];
 
 function sanitize(text: string, maxLen: number): string {
@@ -130,7 +126,7 @@ function ValidateForm() {
 
     progressInterval.current = setInterval(() => {
       setProgressStep((prev) => Math.min(prev + 1, PROGRESS_STEPS.length - 1));
-    }, 8000);
+    }, 12000);
 
     try {
       const response = await fetch("/api/debate", {
@@ -164,13 +160,9 @@ function ValidateForm() {
                 accumulated += parsed.content;
                 setStreamingContent(accumulated);
 
-                if (accumulated.includes("### Problem-Solution") && progressStep < 1) setProgressStep(1);
-                if (accumulated.includes("### Market Opportunity") && progressStep < 2) setProgressStep(2);
-                if (accumulated.includes("### Competitive") && progressStep < 3) setProgressStep(3);
-                if (accumulated.includes("### Risk") && progressStep < 4) setProgressStep(4);
-                if (accumulated.includes("### Financial") && progressStep < 5) setProgressStep(5);
-                if (accumulated.includes("### Top") && progressStep < 6) setProgressStep(6);
-                if (accumulated.includes("### One-Line") && progressStep < 7) setProgressStep(7);
+                if ((accumulated.includes("### Market") || accumulated.includes("### Competitive")) && progressStep < 1) setProgressStep(1);
+                if ((accumulated.includes("### Risk") || accumulated.includes("### Financial")) && progressStep < 2) setProgressStep(2);
+                if ((accumulated.includes("### Top") || accumulated.includes("### One-Line") || accumulated.includes("### Lean")) && progressStep < 3) setProgressStep(3);
               }
             } catch {
               // skip
@@ -210,16 +202,12 @@ function ValidateForm() {
   // Progress percentage
   const overallProgress = Math.round(((progressStep + 1) / PROGRESS_STEPS.length) * 100);
 
-  // All loading steps with icons and descriptions
+  // 4 loading steps — fast and clean
   const LOADING_STEPS = [
-    { icon: <Sparkles className="w-5 h-5" />, label: "Analyzing idea", desc: "Understanding your concept and thesis", color: "text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20" },
-    { icon: <Lightbulb className="w-5 h-5" />, label: "Problem-solution fit", desc: "Evaluating pain point severity and solution match", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
-    { icon: <BarChart3 className="w-5 h-5" />, label: "Sizing the market", desc: "Calculating TAM, SAM, and SOM", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
-    { icon: <Swords className="w-5 h-5" />, label: "Scanning competitors", desc: "Mapping the competitive landscape", color: "text-rose-400", bg: "bg-rose-500/10 border-rose-500/20" },
-    { icon: <AlertTriangle className="w-5 h-5" />, label: "Assessing risks", desc: "Identifying blind spots and red flags", color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
-    { icon: <DollarSign className="w-5 h-5" />, label: "Financial snapshot", desc: "Unit economics and revenue potential", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
-    { icon: <CheckCircle2 className="w-5 h-5" />, label: "Recommendations", desc: "Building your action plan", color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/20" },
-    { icon: <Target className="w-5 h-5" />, label: "Finalizing report", desc: "Scoring viability and generating dashboard", color: "text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20" },
+    { icon: <Sparkles className="w-5 h-5" />, label: "Analyzing idea", desc: "Evaluating problem-solution fit and viability", color: "text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20" },
+    { icon: <BarChart3 className="w-5 h-5" />, label: "Market & competition", desc: "Sizing the market and mapping competitors", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+    { icon: <AlertTriangle className="w-5 h-5" />, label: "Risks & financials", desc: "Assessing risks and unit economics", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+    { icon: <Target className="w-5 h-5" />, label: "Building report", desc: "Scoring, recommendations, and lean canvas", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
   ];
 
   // Streaming view — PURE LOADING SCREEN, no content shown

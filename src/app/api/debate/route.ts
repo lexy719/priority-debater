@@ -473,30 +473,45 @@ Create a complete business plan with these sections. Use markdown headers. Be sp
 [2-4 critical assumptions to validate]
 
 Be investor-ready. Use realistic numbers. Flag assumptions clearly.`;
-      const stream = await openai.chat.completions.create({
-        model: "gpt-4.1",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: businessPlanPrompt },
-        ],
-        temperature: 0.7,
-        max_completion_tokens: 4000,
-        stream: true,
-      });
-      const encoder = new TextEncoder();
-      const readable = new ReadableStream({
-        async start(controller) {
-          for await (const chunk of stream) {
-            const content = chunk.choices[0]?.delta?.content || "";
-            if (content) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
-          }
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-        },
-      });
-      return new Response(readable, {
-        headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
-      });
+      try {
+        const stream = await openai.chat.completions.create({
+          model: "gpt-4.1",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: businessPlanPrompt },
+          ],
+          temperature: 0.7,
+          max_completion_tokens: 4000,
+          stream: true,
+        });
+        const encoder = new TextEncoder();
+        const readable = new ReadableStream({
+          async start(controller) {
+            try {
+              for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content || "";
+                if (content) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+              }
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            } catch (streamError) {
+              console.error("Business plan stream error:", streamError);
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`));
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            }
+          },
+        });
+        return new Response(readable, {
+          headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+        });
+      } catch (bpError) {
+        console.error("Business plan generation error:", bpError);
+        return new Response(
+          JSON.stringify({ error: "Failed to generate business plan. Please try again." }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Handle quick actions
