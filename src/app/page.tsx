@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuroraBackground, InteractiveParticles, GridPattern } from "@/components/ui/animated-background";
+import { Timeline } from "@/components/ui/timeline";
 
 // ── Animated counter ────────────────────────────────────────────────────
 function Counter({ value, suffix = "", duration = 2 }: { value: number; suffix?: string; duration?: number }) {
@@ -434,64 +435,165 @@ export default function Home() {
         </Stagger>
       </section>
 
-      {/* ═══ HOW IT WORKS — Zigzag Timeline ═══ */}
+      {/* ═══ HOW IT WORKS — Aceternity Scroll Timeline ═══ */}
       <section className="py-20 sm:py-28">
-        <div className="max-w-4xl mx-auto px-5">
-          <Reveal className="text-center mb-16">
+        <div className="max-w-5xl mx-auto px-5">
+          <Reveal className="text-center mb-4">
             <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium mb-3">How it works</p>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">From napkin sketch to investor-ready in 4 steps</h2>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight mb-4">From napkin sketch to investor-ready</h2>
+            <p className="text-white/30 text-sm max-w-md mx-auto">Four steps. Two minutes. Zero sugar-coating.</p>
           </Reveal>
 
-          {/* Zigzag timeline */}
-          <div className="relative">
-            {/* Vertical line — left on mobile, center on desktop */}
-            <div className="absolute left-4 sm:left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-indigo-500/30 via-violet-500/20 to-purple-500/30" style={{ backgroundImage: "repeating-linear-gradient(to bottom, rgba(99,102,241,0.3) 0px, rgba(99,102,241,0.3) 6px, transparent 6px, transparent 12px)" }} />
-
-            {[
-              { n: "01", title: "Pitch it", desc: "Describe your idea in plain English. No templates, no friction. 30 seconds.", badge: "30 SECONDS • ZERO FRICTION", icon: <FileText className="w-5 h-5" />, accent: "border-blue-500/30 bg-blue-500/[0.06]", badgeColor: "bg-blue-500/10 text-blue-400 border-blue-500/20", dotColor: "bg-blue-500", glowColor: "rgba(59,130,246,0.4)" },
-              { n: "02", title: "Get torn apart", desc: "5 AI personas score your idea across 15+ criteria. Market sizing, competitor mapping, risk flags, lean canvas, financials — nothing is spared.", badge: "15+ CRITERIA • 5 PERSONAS", icon: <BarChart3 className="w-5 h-5" />, accent: "border-violet-500/30 bg-violet-500/[0.06]", badgeColor: "bg-violet-500/10 text-violet-400 border-violet-500/20", dotColor: "bg-violet-500", glowColor: "rgba(139,92,246,0.4)" },
-              { n: "03", title: "Defend it", desc: "Step into debate mode and defend your idea against an AI that uses inversion, base rates, and pre-mortem thinking. If you can survive this, you can survive a VC pitch.", badge: "LIVE DEBATE • 5 PERSONAS", icon: <Swords className="w-5 h-5" />, accent: "border-emerald-500/30 bg-emerald-500/[0.06]", badgeColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", dotColor: "bg-emerald-500", glowColor: "rgba(16,185,129,0.4)" },
-              { n: "04", title: "Ship it", desc: "Export your validation report as PDF, generate a business plan, share with co-founders. Build with conviction, not hope.", badge: "PDF EXPORT • SHARE LINK", icon: <Zap className="w-5 h-5" />, accent: "border-amber-500/30 bg-amber-500/[0.06]", badgeColor: "bg-amber-500/10 text-amber-400 border-amber-500/20", dotColor: "bg-amber-500", glowColor: "rgba(245,158,11,0.4)" },
-            ].map((item, i) => {
-              const isRight = i % 2 === 1;
-              return (
-                <Reveal key={item.n} delay={i * 0.1}>
-                  <div className={`relative flex items-start sm:items-center gap-4 sm:gap-6 mb-10 sm:mb-12 last:mb-0 ${isRight ? "sm:flex-row-reverse" : "sm:flex-row"} flex-row`}>
-                    {/* Dot — left on mobile, center on desktop */}
-                    <div className="flex sm:absolute sm:left-1/2 sm:-translate-x-1/2 w-8 sm:w-4 h-8 sm:h-4 rounded-full border-2 border-[#08080e] z-10 items-center justify-center shrink-0"
-                      style={{ marginLeft: "0px" }}>
-                      <div className={`w-3 h-3 rounded-full ${item.dotColor} shadow-lg`} style={{ boxShadow: `0 0 10px 2px ${item.glowColor}` }} />
-                    </div>
-
-                    {/* Card */}
-                    <motion.div
-                      whileHover={{ scale: 1.03, y: -4 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      className={`flex-1 sm:w-[calc(50%-32px)] sm:flex-none rounded-2xl border p-5 sm:p-6 ${item.accent} transition-shadow duration-300 cursor-default`}
-                      style={{ willChange: "transform" }}
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-10 h-10 rounded-xl ${item.badgeColor} border flex items-center justify-center`}>
-                          {item.icon}
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-semibold text-indigo-400/60 uppercase tracking-widest">{item.n}</p>
-                          <h3 className="font-bold text-white text-lg leading-tight">{item.title}</h3>
-                        </div>
+          <Timeline data={[
+            {
+              title: "Pitch it",
+              content: (
+                <div>
+                  <p className="text-white/60 text-xs md:text-sm font-normal mb-4">
+                    Describe your startup idea in plain English. No templates, no forms, no friction — just tell us what you&apos;re building.
+                  </p>
+                  <div className="mb-6 space-y-2">
+                    {["30 seconds to submit", "No signup required", "Plain language — no jargon needed", "We handle the rest"].map((item) => (
+                      <div key={item} className="flex gap-2 items-center text-white/40 text-xs md:text-sm">
+                        <Check className="w-4 h-4 text-blue-400 shrink-0" />
+                        {item}
                       </div>
-                      <p className="text-xs text-white/40 leading-relaxed mb-3">{item.desc}</p>
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-semibold uppercase tracking-wider border ${item.badgeColor}`}>
-                        {item.badge}
-                      </span>
-                    </motion.div>
-
-                    {/* Spacer for the other side — desktop only */}
-                    <div className="hidden sm:block w-[calc(50%-32px)]" />
+                    ))}
                   </div>
-                </Reveal>
-              );
-            })}
-          </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <motion.div
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                      className="rounded-xl border border-blue-500/20 bg-blue-500/[0.06] p-4 backdrop-blur-sm"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileText className="w-4 h-4 text-blue-400" />
+                        <span className="text-[11px] font-semibold text-blue-400 uppercase tracking-wider">Your input</span>
+                      </div>
+                      <p className="text-[11px] text-white/30 leading-relaxed italic">&quot;AI-powered meeting summarizer for remote teams that integrates with Zoom and Slack&quot;</p>
+                    </motion.div>
+                    <motion.div
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                      className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] p-4 backdrop-blur-sm"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <Zap className="w-4 h-4 text-emerald-400" />
+                        <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">What happens</span>
+                      </div>
+                      <p className="text-[11px] text-white/30 leading-relaxed">5 AI personas start analyzing your idea across 15+ criteria simultaneously</p>
+                    </motion.div>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              title: "Get torn apart",
+              content: (
+                <div>
+                  <p className="text-white/60 text-xs md:text-sm font-normal mb-4">
+                    5 AI personas — Investor, Customer, Operator, Mentor, Adversary — score your idea across 15+ criteria. Market sizing, competitor mapping, risk flags, lean canvas, financials — nothing is spared.
+                  </p>
+                  <div className="mb-6 space-y-2">
+                    {["Viability score (0-10 Go/No-Go)", "6-dimension radar chart", "TAM/SAM/SOM market sizing", "Competitive landscape analysis", "Lean Canvas generation", "Risk flags & blind spots"].map((item) => (
+                      <div key={item} className="flex gap-2 items-center text-white/40 text-xs md:text-sm">
+                        <Check className="w-4 h-4 text-violet-400 shrink-0" />
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: "Problem Fit", score: "8/10", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+                      { label: "Market Size", score: "7/10", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+                      { label: "Timing", score: "9/10", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+                    ].map((item) => (
+                      <motion.div
+                        key={item.label}
+                        whileHover={{ scale: 1.05 }}
+                        className={`rounded-xl border ${item.bg} p-3 text-center`}
+                      >
+                        <p className={`text-lg font-bold ${item.color}`}>{item.score}</p>
+                        <p className="text-[10px] text-white/30 mt-0.5">{item.label}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              ),
+            },
+            {
+              title: "Defend it",
+              content: (
+                <div>
+                  <p className="text-white/60 text-xs md:text-sm font-normal mb-4">
+                    Step into debate mode and defend your idea against AI personas that use inversion, base rates, and pre-mortem thinking. If you can survive this, you can survive a VC pitch.
+                  </p>
+                  <div className="mb-6 space-y-2">
+                    {["Adversary rips holes in your logic", "Investor asks about unit economics", "Customer tells you they wouldn't buy", "Operator flags scaling challenges", "Real-time argument scoring"].map((item) => (
+                      <div key={item} className="flex gap-2 items-center text-white/40 text-xs md:text-sm">
+                        <Swords className="w-4 h-4 text-emerald-400 shrink-0" />
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                  {/* Mock debate preview */}
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-3"
+                  >
+                    <div className="flex gap-2 items-start">
+                      <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0 text-[10px]">🗡️</div>
+                      <div className="bg-white/[0.06] rounded-xl rounded-tl-none px-3 py-2 text-[11px] text-white/50 leading-relaxed">
+                        Your TAM assumes every business needs this. What&apos;s your actual serviceable market?
+                      </div>
+                    </div>
+                    <div className="flex gap-2 items-start flex-row-reverse">
+                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 text-[10px]">👤</div>
+                      <div className="bg-indigo-500/10 rounded-xl rounded-tr-none px-3 py-2 text-[11px] text-white/50 leading-relaxed">
+                        SAM is $3.2B — remote-first companies with 50+ employees...
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              ),
+            },
+            {
+              title: "Ship it",
+              content: (
+                <div>
+                  <p className="text-white/60 text-xs md:text-sm font-normal mb-4">
+                    Export your validation report as PDF, generate a pitch deck, create a business plan, share with co-founders. Build with conviction, not hope.
+                  </p>
+                  <div className="mb-6 space-y-2">
+                    {["PDF & Markdown export", "AI-generated landing page", "Business plan & financial model", "Share link for co-founders", "Pitch deck generation"].map((item) => (
+                      <div key={item} className="flex gap-2 items-center text-white/40 text-xs md:text-sm">
+                        <Check className="w-4 h-4 text-amber-400 shrink-0" />
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { icon: <Download className="w-5 h-5" />, label: "Export PDF", color: "text-teal-400", bg: "bg-teal-500/10 border-teal-500/20" },
+                      { icon: <Share2 className="w-5 h-5" />, label: "Share Link", color: "text-orange-400", bg: "bg-orange-500/10 border-orange-500/20" },
+                      { icon: <Briefcase className="w-5 h-5" />, label: "Business Plan", color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/20" },
+                      { icon: <Wand2 className="w-5 h-5" />, label: "Landing Page", color: "text-pink-400", bg: "bg-pink-500/10 border-pink-500/20" },
+                    ].map((item) => (
+                      <motion.div
+                        key={item.label}
+                        whileHover={{ scale: 1.05, y: -2 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                        className={`flex items-center gap-3 rounded-xl border ${item.bg} p-3 cursor-default`}
+                      >
+                        <div className={item.color}>{item.icon}</div>
+                        <span className="text-xs text-white/50 font-medium">{item.label}</span>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              ),
+            },
+          ]} />
         </div>
       </section>
 
