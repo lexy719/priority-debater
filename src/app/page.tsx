@@ -310,63 +310,95 @@ export default function Home() {
 
       {/* ═══ HERO ═══ */}
       <section ref={heroRef} className="relative pt-28 sm:pt-36 pb-20 sm:pb-28 overflow-hidden">
-        {/* Aurora flowing background */}
-        <AuroraBackground />
-        {/* Interactive particle field — follows your cursor */}
-        <InteractiveParticles count={60} magneticRadius={220} magneticStrength={0.1} connectionDistance={160} />
-        {/* Grid overlay */}
-        <div className="pointer-events-none absolute inset-0 opacity-[0.04]"
-          style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)", backgroundSize: "80px 80px", maskImage: "radial-gradient(ellipse at center, black 20%, transparent 70%)", WebkitMaskImage: "radial-gradient(ellipse at center, black 20%, transparent 70%)" }} />
+        {/* ── Animated background: big visible glowing orbs + grid ── */}
+        <div className="pointer-events-none absolute inset-0 -z-10">
+          {/* Large animated gradient orbs — very visible */}
+          <motion.div
+            animate={{ x: [0, 80, -40, 0], y: [0, -60, 40, 0], scale: [1, 1.2, 0.9, 1] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-[-30%] left-[-10%] w-[700px] h-[700px] rounded-full opacity-70"
+            style={{ background: "radial-gradient(circle, rgba(99,102,241,0.35) 0%, rgba(99,102,241,0) 70%)" }}
+          />
+          <motion.div
+            animate={{ x: [0, -60, 50, 0], y: [0, 50, -70, 0], scale: [1, 0.85, 1.15, 1] }}
+            transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-[10%] right-[-15%] w-[600px] h-[600px] rounded-full opacity-60"
+            style={{ background: "radial-gradient(circle, rgba(139,92,246,0.3) 0%, rgba(139,92,246,0) 70%)" }}
+          />
+          <motion.div
+            animate={{ x: [0, 40, -60, 0], y: [0, -40, 30, 0], scale: [1, 1.1, 0.95, 1] }}
+            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute bottom-[-20%] left-[20%] w-[500px] h-[500px] rounded-full opacity-50"
+            style={{ background: "radial-gradient(circle, rgba(236,72,153,0.2) 0%, rgba(236,72,153,0) 70%)" }}
+          />
+          {/* Grid overlay */}
+          <div className="absolute inset-0 opacity-[0.06]"
+            style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "64px 64px", maskImage: "radial-gradient(ellipse at center, black 30%, transparent 70%)", WebkitMaskImage: "radial-gradient(ellipse at center, black 30%, transparent 70%)" }} />
+          {/* Radial center glow */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] rounded-full opacity-40"
+            style={{ background: "radial-gradient(ellipse, rgba(99,102,241,0.2) 0%, transparent 60%)" }} />
+        </div>
+
+        {/* Interactive particles */}
+        <InteractiveParticles count={70} magneticRadius={250} magneticStrength={0.12} connectionDistance={170} />
 
         <div className="relative max-w-5xl mx-auto px-5 text-center">
           {/* Badge */}
           <motion.div initial={{ opacity: 0, y: 16, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.5, type: "spring" }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-indigo-500/20 bg-indigo-500/[0.08] text-[11px] text-indigo-300 mb-8 backdrop-blur-sm">
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/[0.1] text-[11px] text-indigo-300 mb-8 backdrop-blur-sm shadow-[0_0_20px_rgba(99,102,241,0.15)]">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             Free forever &middot; No signup &middot; 2-minute full report
           </motion.div>
 
-          {/* Headline — much bigger, bolder */}
-          <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.1, ease: [0.25, 0.4, 0.25, 1] }}
+          {/* Headline */}
+          <motion.h1 initial={{ opacity: 0, y: 30, filter: "blur(10px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={{ duration: 0.8, delay: 0.1 }}
             className="text-3xl sm:text-4xl md:text-5xl lg:text-[4.5rem] font-extrabold tracking-tight leading-[1.05] mb-6">
             <span className="block">Stop guessing.</span>
-            <span className="block mt-1 text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-pink-400 animate-gradient-shift bg-[length:200%_auto]">
+            <motion.span
+              animate={{ backgroundPosition: ["0% center", "200% center"] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+              className="block mt-1 text-transparent bg-clip-text"
+              style={{ backgroundImage: "linear-gradient(90deg, #818cf8, #a78bfa, #ec4899, #818cf8)", backgroundSize: "200% auto" }}>
               Start validating.
-            </span>
+            </motion.span>
           </motion.h1>
 
-          {/* Sub — cleaner, more impactful */}
+          {/* Sub */}
           <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }}
             className="text-white/50 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed font-light">
             5 AI personas rip your startup idea apart — investor, customer, operator, mentor, adversary.
             <span className="text-white/80 font-normal"> Get a brutal viability score, lean canvas, and action plan in 2 minutes.</span>
           </motion.p>
 
-          {/* CTAs — bigger, more dramatic */}
+          {/* CTAs */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.45 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
-            <Link href="/validate" className="cta-primary group relative overflow-hidden inline-flex items-center gap-2.5 px-8 py-4 rounded-2xl bg-white text-[#08080e] font-bold text-base hover:bg-white/95 transition-all shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_60px_rgba(255,255,255,0.25)] hover:scale-[1.02] active:scale-[0.98]">
-              <span className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-indigo-300/30 to-transparent" />
-              Stress-Test My Idea
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link href="/validate?mode=generate"
-              className="cta-secondary inline-flex items-center gap-2.5 px-7 py-4 rounded-2xl bg-white/[0.06] text-white/80 font-semibold text-base hover:bg-white/[0.12] transition-all border border-white/[0.1] hover:border-white/[0.2] backdrop-blur-sm">
-              <Wand2 className="w-5 h-5" />
-              Generate an Idea
-            </Link>
+            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
+              <Link href="/validate" className="cta-primary group relative overflow-hidden inline-flex items-center gap-2.5 px-8 py-4 rounded-2xl bg-white text-[#08080e] font-bold text-base transition-all shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_80px_rgba(255,255,255,0.3)]">
+                <span className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-indigo-400/25 to-transparent" />
+                Stress-Test My Idea
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
+              <Link href="/validate?mode=generate"
+                className="cta-secondary inline-flex items-center gap-2.5 px-7 py-4 rounded-2xl bg-white/[0.07] text-white/80 font-semibold text-base hover:bg-white/[0.14] transition-all border border-white/[0.1] hover:border-indigo-400/30 backdrop-blur-sm hover:shadow-[0_0_30px_rgba(99,102,241,0.15)]">
+                <Wand2 className="w-5 h-5" />
+                Generate an Idea
+              </Link>
+            </motion.div>
           </motion.div>
 
-          {/* Trust badges — more visible */}
+          {/* Trust badges */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
-            className="flex flex-wrap justify-center gap-6 text-xs text-white/35">
+            className="flex flex-wrap justify-center gap-6 text-xs text-white/40">
             {[
-              { icon: <Shield className="w-3.5 h-3.5 text-emerald-400/80" />, t: "100% private" },
-              { icon: <Clock className="w-3.5 h-3.5 text-blue-400/80" />, t: "2-min report" },
-              { icon: <Zap className="w-3.5 h-3.5 text-amber-400/80" />, t: "No signup" },
-              { icon: <Target className="w-3.5 h-3.5 text-violet-400/80" />, t: "15+ criteria" },
+              { icon: <Shield className="w-3.5 h-3.5 text-emerald-400" />, t: "100% private" },
+              { icon: <Clock className="w-3.5 h-3.5 text-blue-400" />, t: "2-min report" },
+              { icon: <Zap className="w-3.5 h-3.5 text-amber-400" />, t: "No signup" },
+              { icon: <Target className="w-3.5 h-3.5 text-violet-400" />, t: "15+ criteria" },
             ].map((item) => (
-              <span key={item.t} className="flex items-center gap-2">
+              <span key={item.t} className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.06] bg-white/[0.03]">
                 {item.icon}{item.t}
               </span>
             ))}
@@ -432,14 +464,26 @@ export default function Home() {
                     </div>
 
                     {/* Card */}
-                    <div className={`flex-1 sm:w-[calc(50%-32px)] sm:flex-none rounded-2xl border p-5 sm:p-6 ${item.accent} transition-all hover:scale-[1.02] duration-300`}>
-                      <p className="text-[10px] font-semibold text-indigo-400/60 uppercase tracking-widest mb-1">{item.n}</p>
-                      <h3 className="font-bold text-white text-lg mb-2">{item.title}</h3>
+                    <motion.div
+                      whileHover={{ scale: 1.03, y: -4 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                      className={`flex-1 sm:w-[calc(50%-32px)] sm:flex-none rounded-2xl border p-5 sm:p-6 ${item.accent} transition-shadow duration-300 cursor-default`}
+                      style={{ willChange: "transform" }}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`w-10 h-10 rounded-xl ${item.badgeColor} border flex items-center justify-center`}>
+                          {item.icon}
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-semibold text-indigo-400/60 uppercase tracking-widest">{item.n}</p>
+                          <h3 className="font-bold text-white text-lg leading-tight">{item.title}</h3>
+                        </div>
+                      </div>
                       <p className="text-xs text-white/40 leading-relaxed mb-3">{item.desc}</p>
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-semibold uppercase tracking-wider border ${item.badgeColor}`}>
                         {item.badge}
                       </span>
-                    </div>
+                    </motion.div>
 
                     {/* Spacer for the other side — desktop only */}
                     <div className="hidden sm:block w-[calc(50%-32px)]" />
@@ -462,27 +506,33 @@ export default function Home() {
 
           <Stagger className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {[
-              { icon: <Sparkles className="w-4 h-4" />, title: "Viability Score", desc: "Brutal 0-10 Go/No-Go verdict", c: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
-              { icon: <Target className="w-4 h-4" />, title: "Radar Chart", desc: "6 dimensions, zero hiding", c: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20" },
-              { icon: <TrendingUp className="w-4 h-4" />, title: "Market Sizing", desc: "TAM / SAM / SOM with sources", c: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
-              { icon: <Eye className="w-4 h-4" />, title: "Competition Map", desc: "5+ rivals you forgot about", c: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-              { icon: <AlertTriangle className="w-4 h-4" />, title: "Risk Flags", desc: "The blind spots that kill startups", c: "text-red-400 bg-red-500/10 border-red-500/20" },
-              { icon: <Grid3x3 className="w-4 h-4" />, title: "Lean Canvas", desc: "Full 9-cell, ready to iterate", c: "text-violet-400 bg-violet-500/10 border-violet-500/20" },
-              { icon: <Briefcase className="w-4 h-4" />, title: "Business Plan", desc: "Investor-ready in one click", c: "text-slate-300 bg-white/[0.06] border-white/[0.08]" },
-              { icon: <Users className="w-4 h-4" />, title: "ICP & Positioning", desc: "Who buys and why they care", c: "text-sky-400 bg-sky-500/10 border-sky-500/20" },
-              { icon: <MessageSquare className="w-4 h-4" />, title: "Value Proposition", desc: "Messaging that actually lands", c: "text-pink-400 bg-pink-500/10 border-pink-500/20" },
-              { icon: <Download className="w-4 h-4" />, title: "PDF & MD Export", desc: "Take it anywhere", c: "text-teal-400 bg-teal-500/10 border-teal-500/20" },
-              { icon: <Share2 className="w-4 h-4" />, title: "Share Link", desc: "Loop in your co-founder", c: "text-orange-400 bg-orange-500/10 border-orange-500/20" },
-              { icon: <Swords className="w-4 h-4" />, title: "AI Debate Mode", desc: "Defend it or kill it", c: "text-purple-400 bg-purple-500/10 border-purple-500/20" },
+              { icon: <Sparkles className="w-4 h-4" />, title: "Viability Score", desc: "Brutal 0-10 Go/No-Go verdict", c: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20", glow: "rgba(16,185,129,0.15)" },
+              { icon: <Target className="w-4 h-4" />, title: "Radar Chart", desc: "6 dimensions, zero hiding", c: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20", glow: "rgba(99,102,241,0.15)" },
+              { icon: <TrendingUp className="w-4 h-4" />, title: "Market Sizing", desc: "TAM / SAM / SOM with sources", c: "text-blue-400 bg-blue-500/10 border-blue-500/20", glow: "rgba(59,130,246,0.15)" },
+              { icon: <Eye className="w-4 h-4" />, title: "Competition Map", desc: "5+ rivals you forgot about", c: "text-amber-400 bg-amber-500/10 border-amber-500/20", glow: "rgba(245,158,11,0.15)" },
+              { icon: <AlertTriangle className="w-4 h-4" />, title: "Risk Flags", desc: "The blind spots that kill startups", c: "text-red-400 bg-red-500/10 border-red-500/20", glow: "rgba(239,68,68,0.15)" },
+              { icon: <Grid3x3 className="w-4 h-4" />, title: "Lean Canvas", desc: "Full 9-cell, ready to iterate", c: "text-violet-400 bg-violet-500/10 border-violet-500/20", glow: "rgba(139,92,246,0.15)" },
+              { icon: <Briefcase className="w-4 h-4" />, title: "Business Plan", desc: "Investor-ready in one click", c: "text-slate-300 bg-white/[0.06] border-white/[0.08]", glow: "rgba(255,255,255,0.08)" },
+              { icon: <Users className="w-4 h-4" />, title: "ICP & Positioning", desc: "Who buys and why they care", c: "text-sky-400 bg-sky-500/10 border-sky-500/20", glow: "rgba(14,165,233,0.15)" },
+              { icon: <MessageSquare className="w-4 h-4" />, title: "Value Proposition", desc: "Messaging that actually lands", c: "text-pink-400 bg-pink-500/10 border-pink-500/20", glow: "rgba(236,72,153,0.15)" },
+              { icon: <Download className="w-4 h-4" />, title: "PDF & MD Export", desc: "Take it anywhere", c: "text-teal-400 bg-teal-500/10 border-teal-500/20", glow: "rgba(20,184,166,0.15)" },
+              { icon: <Share2 className="w-4 h-4" />, title: "Share Link", desc: "Loop in your co-founder", c: "text-orange-400 bg-orange-500/10 border-orange-500/20", glow: "rgba(249,115,22,0.15)" },
+              { icon: <Swords className="w-4 h-4" />, title: "AI Debate Mode", desc: "Defend it or kill it", c: "text-purple-400 bg-purple-500/10 border-purple-500/20", glow: "rgba(168,85,247,0.15)" },
             ].map((f, i) => (
               <StaggerChild key={i}>
-                <div className="group p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-all h-full">
-                  <div className={`w-8 h-8 rounded-lg ${f.c} border flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                <motion.div
+                  whileHover={{ scale: 1.05, y: -6 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                  className="group p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] transition-all h-full cursor-default"
+                  style={{ willChange: "transform" }}
+                >
+                  <div className={`w-9 h-9 rounded-lg ${f.c} border flex items-center justify-center mb-3 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300`}
+                    style={{ "--tw-shadow-color": f.glow } as React.CSSProperties}>
                     {f.icon}
                   </div>
-                  <p className="font-medium text-white text-[13px]">{f.title}</p>
-                  <p className="text-[11px] text-white/30 mt-0.5">{f.desc}</p>
-                </div>
+                  <p className="font-semibold text-white text-[13px]">{f.title}</p>
+                  <p className="text-[11px] text-white/30 mt-0.5 leading-relaxed">{f.desc}</p>
+                </motion.div>
               </StaggerChild>
             ))}
           </Stagger>
@@ -647,33 +697,57 @@ export default function Home() {
       <section className="pb-20 sm:pb-28">
         <Reveal>
           <div className="max-w-4xl mx-auto px-5">
-            <div className="relative text-center py-16 px-6 rounded-3xl overflow-hidden">
-              {/* Glow */}
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/10 via-transparent to-violet-600/10" />
-              <div className="absolute inset-0 border border-white/[0.06] rounded-3xl" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[200px] bg-indigo-500/15 rounded-full blur-[100px]" />
-              <InteractiveParticles count={25} magneticRadius={150} magneticStrength={0.06} connectionDistance={120} />
+            {/* Animated gradient border wrapper */}
+            <motion.div
+              animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
+              transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+              className="rounded-3xl p-[1px]"
+              style={{ backgroundImage: "linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899, #6366f1)", backgroundSize: "300% 300%" }}
+            >
+              <div className="relative text-center py-16 px-6 rounded-3xl overflow-hidden bg-[#0a0a12]">
+                {/* Background glow orbs */}
+                <motion.div
+                  animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.5, 0.3] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] rounded-full"
+                  style={{ background: "radial-gradient(ellipse, rgba(99,102,241,0.25) 0%, transparent 60%)" }}
+                />
+                <InteractiveParticles count={30} magneticRadius={180} magneticStrength={0.08} connectionDistance={130} />
 
-              <div className="relative">
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3">
-                  Stop building on hope. Start building on evidence.
-                </h2>
-                <p className="text-white/30 text-sm mb-8 max-w-md mx-auto">
-                  2 minutes. 5 AI personas. Zero sugar-coating. Free forever.
-                </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <Link href="/validate"
-                    className="cta-primary group inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-[#08080e] font-semibold text-sm hover:bg-white/90 transition-all shadow-lg shadow-white/5">
-                    Stress-Test My Idea Now
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                  </Link>
-                  <Link href="/validate?mode=generate"
-                    className="cta-secondary inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/[0.06] text-white/70 text-sm font-medium hover:bg-white/[0.1] transition-all border border-white/[0.08]">
-                    <Wand2 className="w-4 h-4" /> No Idea Yet? Generate One
-                  </Link>
+                <div className="relative">
+                  <motion.h2
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight mb-3"
+                  >
+                    Stop building on hope.{" "}
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
+                      Start building on evidence.
+                    </span>
+                  </motion.h2>
+                  <p className="text-white/35 text-sm sm:text-base mb-8 max-w-md mx-auto">
+                    2 minutes. 5 AI personas. Zero sugar-coating. Free forever.
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
+                      <Link href="/validate"
+                        className="cta-primary group relative overflow-hidden inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-white text-[#08080e] font-bold text-sm transition-all shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_60px_rgba(255,255,255,0.25)]">
+                        <span className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-indigo-400/25 to-transparent" />
+                        Stress-Test My Idea Now
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </Link>
+                    </motion.div>
+                    <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
+                      <Link href="/validate?mode=generate"
+                        className="cta-secondary inline-flex items-center gap-2 px-7 py-4 rounded-2xl bg-white/[0.07] text-white/80 text-sm font-semibold transition-all border border-white/[0.1] hover:border-indigo-400/30 hover:shadow-[0_0_30px_rgba(99,102,241,0.12)]">
+                        <Wand2 className="w-4 h-4" /> Generate an Idea
+                      </Link>
+                    </motion.div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
         </Reveal>
       </section>
