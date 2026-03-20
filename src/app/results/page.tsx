@@ -773,75 +773,79 @@ export default function ResultsPage() {
           </div>
         )}
 
-        {/* ── CTAs ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* ── NEXT STEPS ── */}
+        <div className="mb-4">
+          <h2 className="text-lg font-bold text-white mb-1">Take the next step</h2>
+          <p className="text-white/30 text-sm">Turn your validation into action with these tools.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Debate CTA */}
-          <div className="relative rounded-2xl bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/15 p-6 overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(139,92,246,0.08)_0%,_transparent_60%)]" />
-            <div className="relative flex flex-col gap-4">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-indigo-500/15 border border-indigo-500/20 shrink-0"><Swords className="w-6 h-6 text-indigo-400" /></div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">Stress-Test It</h3>
-                  <p className="text-white/30 text-sm">Defend your position against The Adversary and find the blind spots.</p>
-                </div>
+          <Link href="/debate" className="group relative rounded-2xl border border-white/[0.06] hover:border-indigo-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/5 bg-white/[0.02] hover:bg-indigo-500/[0.04]">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-all duration-500" />
+            <div className="relative flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Swords className="w-5 h-5 text-indigo-400" />
               </div>
-              <Link href="/debate" className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-lg shadow-indigo-500/20 text-sm">
-                <Swords className="w-4 h-4" /> Debate This Idea <ArrowRight className="w-4 h-4" />
-              </Link>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <h3 className="text-sm font-bold text-white group-hover:text-indigo-200 transition-colors">Stress-Test with AI Debate</h3>
+                  <ArrowRight className="w-4 h-4 text-white/15 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+                </div>
+                <p className="text-white/30 text-xs leading-relaxed">5 AI personas challenge your idea from every angle — investor, customer, competitor, mentor, operator.</p>
+              </div>
             </div>
-          </div>
+          </Link>
 
           {/* Pitch Deck CTA */}
-          <div className="relative rounded-2xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/15 p-6 overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(245,158,11,0.08)_0%,_transparent_60%)]" />
-            <div className="relative flex flex-col gap-4">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/20 shrink-0"><Presentation className="w-6 h-6 text-amber-400" /></div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">Pitch Deck</h3>
-                  <p className="text-white/30 text-sm">Generate a 10-slide investor pitch deck with speaker notes from your data.</p>
-                </div>
+          <Link href="/pitch" className="group relative rounded-2xl border border-white/[0.06] hover:border-amber-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/5 bg-white/[0.02] hover:bg-amber-500/[0.04]">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/10 transition-all duration-500" />
+            <div className="relative flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Presentation className="w-5 h-5 text-amber-400" />
               </div>
-              <Link href="/pitch" className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold transition-all shadow-lg shadow-amber-500/20 text-sm">
-                <Presentation className="w-4 h-4" /> Generate Pitch Deck <ArrowRight className="w-4 h-4" />
-              </Link>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <h3 className="text-sm font-bold text-white group-hover:text-amber-200 transition-colors">Investor Pitch Deck</h3>
+                  <ArrowRight className="w-4 h-4 text-white/15 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+                </div>
+                <p className="text-white/30 text-xs leading-relaxed">10-slide deck with speaker notes, market data, and financial projections — ready to present.</p>
+              </div>
             </div>
-          </div>
+          </Link>
 
           {/* Landing Page CTA */}
-          <div className="relative rounded-2xl bg-gradient-to-br from-teal-500/10 to-emerald-500/10 border border-teal-500/15 p-6 overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(20,184,166,0.08)_0%,_transparent_60%)]" />
-            <div className="relative flex flex-col gap-4">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-teal-500/15 border border-teal-500/20 shrink-0"><Globe className="w-6 h-6 text-teal-400" /></div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">Landing Page</h3>
-                  <p className="text-white/30 text-sm">Agency-style single-page site from your validation data — download one HTML file and host anywhere.</p>
-                </div>
+          <Link href="/landing-generator" className="group relative rounded-2xl border border-white/[0.06] hover:border-teal-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-teal-500/5 bg-white/[0.02] hover:bg-teal-500/[0.04]">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full blur-3xl group-hover:bg-teal-500/10 transition-all duration-500" />
+            <div className="relative flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Globe className="w-5 h-5 text-teal-400" />
               </div>
-              <Link href="/landing-generator" className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold transition-all shadow-lg shadow-teal-500/20 text-sm">
-                <Globe className="w-4 h-4" /> Generate Landing Page <ArrowRight className="w-4 h-4" />
-              </Link>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <h3 className="text-sm font-bold text-white group-hover:text-teal-200 transition-colors">Landing Page Generator</h3>
+                  <ArrowRight className="w-4 h-4 text-white/15 group-hover:text-teal-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+                </div>
+                <p className="text-white/30 text-xs leading-relaxed">Production-ready marketing site with animated backgrounds, conversion copy, and responsive design. One HTML file.</p>
+              </div>
             </div>
-          </div>
+          </Link>
 
           {/* Strategy CTA */}
-          <div className="relative rounded-2xl bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 border border-violet-500/15 p-6 overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(139,92,246,0.08)_0%,_transparent_60%)]" />
-            <div className="relative flex flex-col gap-4">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-violet-500/15 border border-violet-500/20 shrink-0"><Briefcase className="w-6 h-6 text-violet-400" /></div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">Strategy</h3>
-                  <p className="text-white/30 text-sm">Full GTM playbook with pricing, roadmap, and competitive positioning.</p>
-                </div>
+          <Link href="/strategy" className="group relative rounded-2xl border border-white/[0.06] hover:border-violet-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-violet-500/5 bg-white/[0.02] hover:bg-violet-500/[0.04]">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/5 rounded-full blur-3xl group-hover:bg-violet-500/10 transition-all duration-500" />
+            <div className="relative flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 border border-violet-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Briefcase className="w-5 h-5 text-violet-400" />
               </div>
-              <Link href="/strategy" className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold transition-all shadow-lg shadow-violet-500/20 text-sm">
-                <Briefcase className="w-4 h-4" /> Generate Strategy <ArrowRight className="w-4 h-4" />
-              </Link>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <h3 className="text-sm font-bold text-white group-hover:text-violet-200 transition-colors">GTM Strategy Playbook</h3>
+                  <ArrowRight className="w-4 h-4 text-white/15 group-hover:text-violet-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+                </div>
+                <p className="text-white/30 text-xs leading-relaxed">Full go-to-market plan with pricing tiers, 90-day roadmap, competitive positioning, and growth metrics.</p>
+              </div>
             </div>
-          </div>
+          </Link>
         </div>
       </main>
     </div>
