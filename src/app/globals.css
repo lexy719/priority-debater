@@ -229,6 +229,11 @@ html, body {
   50% { transform: translateY(-8px); }
 }
 
+@keyframes aurora {
+  from { background-position: 50% 50%, 50% 50%; }
+  to { background-position: 350% 50%, 350% 50%; }
+}
+
 .animate-mesh-float-1 { animation: mesh-float-1 20s ease-in-out infinite; }
 .animate-mesh-float-2 { animation: mesh-float-2 25s ease-in-out infinite; }
 .animate-mesh-float-3 { animation: mesh-float-3 18s ease-in-out infinite; }
@@ -236,6 +241,7 @@ html, body {
 .animate-shimmer { animation: shimmer 2s ease-in-out infinite; }
 .animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
 .animate-float { animation: float-subtle 4s ease-in-out infinite; }
+.animate-aurora { animation: aurora 60s linear infinite; }
 
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
@@ -245,7 +251,8 @@ html, body {
   .animate-gradient-shift,
   .animate-shimmer,
   .animate-pulse-glow,
-  .animate-float {
+  .animate-float,
+  .animate-aurora {
     animation: none;
   }
 }

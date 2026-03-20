@@ -32,7 +32,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { GradientMesh, ParticleField, GridPattern } from "@/components/ui/animated-background";
+import { AuroraBackground, InteractiveParticles, GridPattern } from "@/components/ui/animated-background";
 
 // ── Animated counter ────────────────────────────────────────────────────
 function Counter({ value, suffix = "", duration = 2 }: { value: number; suffix?: string; duration?: number }) {
@@ -310,16 +310,13 @@ export default function Home() {
 
       {/* ═══ HERO ═══ */}
       <section ref={heroRef} className="relative pt-28 sm:pt-36 pb-20 sm:pb-28 overflow-hidden">
-        {/* Dramatic background — visible gradient orbs */}
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute top-[-20%] left-[5%] w-[600px] h-[600px] rounded-full bg-indigo-600/25 blur-[120px] animate-mesh-float-1" />
-          <div className="absolute top-[10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-violet-600/20 blur-[100px] animate-mesh-float-2" />
-          <div className="absolute bottom-[-10%] left-[30%] w-[400px] h-[400px] rounded-full bg-purple-600/15 blur-[80px] animate-mesh-float-3" />
-        </div>
+        {/* Aurora flowing background */}
+        <AuroraBackground />
+        {/* Interactive particle field — follows your cursor */}
+        <InteractiveParticles count={60} magneticRadius={220} magneticStrength={0.1} connectionDistance={160} />
         {/* Grid overlay */}
         <div className="pointer-events-none absolute inset-0 opacity-[0.04]"
           style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)", backgroundSize: "80px 80px", maskImage: "radial-gradient(ellipse at center, black 20%, transparent 70%)", WebkitMaskImage: "radial-gradient(ellipse at center, black 20%, transparent 70%)" }} />
-        <ParticleField count={35} />
 
         <div className="relative max-w-5xl mx-auto px-5 text-center">
           {/* Badge */}
@@ -655,7 +652,7 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/10 via-transparent to-violet-600/10" />
               <div className="absolute inset-0 border border-white/[0.06] rounded-3xl" />
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[200px] bg-indigo-500/15 rounded-full blur-[100px]" />
-              <ParticleField count={30} />
+              <InteractiveParticles count={25} magneticRadius={150} magneticStrength={0.06} connectionDistance={120} />
 
               <div className="relative">
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3">
