@@ -301,64 +301,76 @@ export default function Home() {
             </Link>
             <ThemeToggle />
             <Link href="/validate"
-              className="ml-1 px-4 py-1.5 rounded-lg text-white text-xs font-semibold hover:opacity-90 transition-all" style={{ background: "var(--accent-primary)" }}>
-              Test My Idea
+              className="ml-2 px-5 py-2 rounded-xl text-white text-xs font-bold hover:opacity-90 transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40" style={{ background: "linear-gradient(135deg, var(--accent-gradient-from), var(--accent-gradient-to))" }}>
+              Test My Idea →
             </Link>
           </div>
         </div>
       </nav>
 
       {/* ═══ HERO ═══ */}
-      <section ref={heroRef} className="relative pt-32 sm:pt-40 pb-20 sm:pb-28">
-        {/* Background effects */}
-        <GradientMesh />
-        <ParticleField count={30} />
+      <section ref={heroRef} className="relative pt-28 sm:pt-36 pb-20 sm:pb-28 overflow-hidden">
+        {/* Dramatic background — visible gradient orbs */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute top-[-20%] left-[5%] w-[600px] h-[600px] rounded-full bg-indigo-600/25 blur-[120px] animate-mesh-float-1" />
+          <div className="absolute top-[10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-violet-600/20 blur-[100px] animate-mesh-float-2" />
+          <div className="absolute bottom-[-10%] left-[30%] w-[400px] h-[400px] rounded-full bg-purple-600/15 blur-[80px] animate-mesh-float-3" />
+        </div>
+        {/* Grid overlay */}
+        <div className="pointer-events-none absolute inset-0 opacity-[0.04]"
+          style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)", backgroundSize: "80px 80px", maskImage: "radial-gradient(ellipse at center, black 20%, transparent 70%)", WebkitMaskImage: "radial-gradient(ellipse at center, black 20%, transparent 70%)" }} />
+        <ParticleField count={35} />
 
-        <div className="relative max-w-4xl mx-auto px-5 text-center">
+        <div className="relative max-w-5xl mx-auto px-5 text-center">
           {/* Badge */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-white/[0.08] bg-white/[0.04] text-[11px] text-white/50 mb-7">
+          <motion.div initial={{ opacity: 0, y: 16, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.5, type: "spring" }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-indigo-500/20 bg-indigo-500/[0.08] text-[11px] text-indigo-300 mb-8 backdrop-blur-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            100% free &middot; No signup &middot; 90% of startups fail from skipping this
+            Free forever &middot; No signup &middot; 2-minute full report
           </motion.div>
 
-          {/* Headline */}
-          <motion.h1 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.1 }}
-            className="text-2xl sm:text-3xl md:text-4xl lg:text-[3.5rem] font-bold tracking-tight leading-[1.1] mb-5">
-            Most tools validate your ego.{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400">
-              We tell you what you need to hear.
+          {/* Headline — much bigger, bolder */}
+          <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.1, ease: [0.25, 0.4, 0.25, 1] }}
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-[4.5rem] font-extrabold tracking-tight leading-[1.05] mb-6">
+            <span className="block">Stop guessing.</span>
+            <span className="block mt-1 text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-pink-400 animate-gradient-shift bg-[length:200%_auto]">
+              Start validating.
             </span>
           </motion.h1>
 
-          {/* Sub */}
-          <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.25 }}
-            className="text-white/40 text-base sm:text-lg max-w-2xl mx-auto mb-9 leading-relaxed">
-            5 AI personas — Adversary, Investor, Mentor, Customer, Operator — rip your idea apart from every angle. Viability scores, lean canvas, financials, and a{" "}
-            <span className="text-white/70 font-medium">brutal debate mode</span> that stress-tests every assumption you have. In 2 minutes, free.
+          {/* Sub — cleaner, more impactful */}
+          <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }}
+            className="text-white/50 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed font-light">
+            5 AI personas rip your startup idea apart — investor, customer, operator, mentor, adversary.
+            <span className="text-white/80 font-normal"> Get a brutal viability score, lean canvas, and action plan in 2 minutes.</span>
           </motion.p>
 
-          {/* CTAs */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-7">
-            <Link href="/validate" className="cta-primary group relative overflow-hidden inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-[#08080e] font-semibold text-sm hover:bg-white/90 transition-all shadow-lg shadow-white/5 hover:shadow-xl hover:shadow-white/10">
-              <span className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-              Stress-Test My Idea Now
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+          {/* CTAs — bigger, more dramatic */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.45 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
+            <Link href="/validate" className="cta-primary group relative overflow-hidden inline-flex items-center gap-2.5 px-8 py-4 rounded-2xl bg-white text-[#08080e] font-bold text-base hover:bg-white/95 transition-all shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_60px_rgba(255,255,255,0.25)] hover:scale-[1.02] active:scale-[0.98]">
+              <span className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-indigo-300/30 to-transparent" />
+              Stress-Test My Idea
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link href="/validate?mode=generate"
-              className="cta-secondary inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/[0.06] text-white/70 font-medium text-sm hover:bg-white/[0.1] transition-all border border-white/[0.08]">
-              <Wand2 className="w-4 h-4" />
-              No Idea Yet? Generate One
+              className="cta-secondary inline-flex items-center gap-2.5 px-7 py-4 rounded-2xl bg-white/[0.06] text-white/80 font-semibold text-base hover:bg-white/[0.12] transition-all border border-white/[0.1] hover:border-white/[0.2] backdrop-blur-sm">
+              <Wand2 className="w-5 h-5" />
+              Generate an Idea
             </Link>
           </motion.div>
 
-          {/* Trust */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-            className="flex flex-wrap justify-center gap-5 text-[11px] text-white/25">
-            {["Proprietary AI engine", "Your idea stays private", "No credit card ever", "Full report in 2 min"].map((t) => (
-              <span key={t} className="flex items-center gap-1.5">
-                <Check className="w-3 h-3 text-emerald-500/60" />{t}
+          {/* Trust badges — more visible */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
+            className="flex flex-wrap justify-center gap-6 text-xs text-white/35">
+            {[
+              { icon: <Shield className="w-3.5 h-3.5 text-emerald-400/80" />, t: "100% private" },
+              { icon: <Clock className="w-3.5 h-3.5 text-blue-400/80" />, t: "2-min report" },
+              { icon: <Zap className="w-3.5 h-3.5 text-amber-400/80" />, t: "No signup" },
+              { icon: <Target className="w-3.5 h-3.5 text-violet-400/80" />, t: "15+ criteria" },
+            ].map((item) => (
+              <span key={item.t} className="flex items-center gap-2">
+                {item.icon}{item.t}
               </span>
             ))}
           </motion.div>
@@ -373,19 +385,21 @@ export default function Home() {
       </section>
 
       {/* ═══ STATS ═══ */}
-      <section className="relative border-y border-white/[0.06] py-14">
+      <section className="relative border-y border-white/[0.06] py-16 sm:py-20">
         <GridPattern />
-        <Stagger className="max-w-5xl mx-auto px-5 grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
+        <Stagger className="max-w-5xl mx-auto px-5 grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
           {[
-            { v: 15, s: "+", label: "Blind spots checked", icon: <BarChart3 className="w-4 h-4" /> },
-            { v: 5, s: "", label: "AI personas grilling you", icon: <Target className="w-4 h-4" /> },
-            { v: 2, s: " min", label: "To a full validation report", icon: <Clock className="w-4 h-4" /> },
-            { v: 0, s: "$", label: "Forever. No catch.", icon: <Shield className="w-4 h-4" /> },
+            { v: 15, s: "+", label: "Blind spots checked", icon: <BarChart3 className="w-5 h-5" />, color: "text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20" },
+            { v: 5, s: "", label: "AI personas grilling you", icon: <Target className="w-5 h-5" />, color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/20" },
+            { v: 2, s: " min", label: "To a full validation report", icon: <Clock className="w-5 h-5" />, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+            { v: 0, s: "$", label: "Forever. No catch.", icon: <Shield className="w-5 h-5" />, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
           ].map((s, i) => (
             <StaggerChild key={i}>
-              <div className="text-white/20 mb-2 flex justify-center">{s.icon}</div>
-              <p className="text-2xl font-bold text-white"><Counter value={s.v} suffix={s.s} /></p>
-              <p className="text-[11px] text-white/30 mt-0.5">{s.label}</p>
+              <div className="text-center p-5 sm:p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-all">
+                <div className={`w-10 h-10 rounded-xl ${s.bg} border ${s.color} flex items-center justify-center mx-auto mb-3`}>{s.icon}</div>
+                <p className="text-3xl sm:text-4xl font-extrabold text-white"><Counter value={s.v} suffix={s.s} /></p>
+                <p className="text-xs text-white/40 mt-1.5 font-medium">{s.label}</p>
+              </div>
             </StaggerChild>
           ))}
         </Stagger>
