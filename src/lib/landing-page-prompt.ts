@@ -110,6 +110,18 @@ ${LANDING_PAGE_SCRIPT_KIT}
    - footer.lp-footer
    - **Scroll animations:** use .lp-fade-up class on sections for CSS scroll-driven animations (progressive enhancement, works without JS)
 
+## Premium Effects (use at least 3 per page):
+- .lp-noise — add to <body> for subtle grain texture overlay. Never skip the noise texture — it adds instant premium feel.
+- .lp-spotlight — add to hero or feature sections for cursor-following glow effect (JS tracks the mouse automatically).
+- .lp-card--gradient-border — wrap the most important card/CTA; child gets the background, parent shows the animated gradient border.
+- .lp-text-shine — on hero headline for a travelling shimmer/shine effect.
+- .lp-marquee + .lp-marquee__track — for social proof logos or badges; duplicate items inside .lp-marquee__track so the loop is seamless.
+- .lp-stagger — on feature grids / card containers for cascading staggered reveal (up to 6 children).
+- .lp-blob — as decorative background elements (use 2-3 with different colors + sizes positioned absolutely inside a relative container).
+- .lp-card--lift — on all feature/pricing cards for dramatic hover lift with glow shadow.
+- .lp-counter-css — CSS @property counter (set --lp-num via style attribute for target value).
+Combine these freely: e.g. .lp-noise on body + .lp-spotlight on hero + .lp-text-shine on headline + .lp-stagger on feature grid + .lp-card--lift on cards + .lp-blob decorations behind CTA.
+
 ${LANDING_PAGE_COPY_SKILL}
 
 FACT RULES:

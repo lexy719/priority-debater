@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { loadSession, loadSessionWithStatus, clearSession, updateSessionMessages } from "@/lib/session";
 import { shouldBlock, hasSensitiveTopic } from "@/lib/contentModeration";
+import { GradientMesh } from "@/components/ui/animated-background";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { Message, ValidationSession } from "@/lib/types";
 
@@ -400,7 +401,8 @@ export default function DebatePage() {
   );
 
   return (
-    <div className="h-screen h-[100dvh] flex flex-col bg-[#08080e]">
+    <div className="relative h-screen h-[100dvh] flex flex-col bg-[#08080e]">
+      <GradientMesh className="opacity-50" />
       {/* Header */}
       <header className="shrink-0 border-b border-white/[0.06] bg-[#08080e]/90 backdrop-blur-xl z-20">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 h-13 flex items-center justify-between">

@@ -555,6 +555,153 @@ body.lp-layout--centered-editorial .lp-nav__inner { max-width: 1120px; }
     to { opacity: 1; transform: translateY(0); }
   }
 }
+
+/* === PREMIUM EFFECTS (21st.dev-level) === */
+
+/* Noise texture overlay — adds grain like premium sites */
+.lp-noise::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Spotlight cursor follower */
+.lp-spotlight {
+  position: relative;
+  overflow: hidden;
+}
+.lp-spotlight::before {
+  content: '';
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  left: var(--mouse-x, 50%);
+  top: var(--mouse-y, 50%);
+  transition: opacity 0.3s;
+  opacity: 0;
+  z-index: 1;
+}
+.lp-spotlight:hover::before { opacity: 1; }
+
+/* Animated gradient border card */
+.lp-card--gradient-border {
+  position: relative;
+  border-radius: 1rem;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.4), rgba(139,92,246,0.4), rgba(236,72,153,0.4));
+  background-size: 200% 200%;
+  animation: lp-border-shift 4s ease infinite;
+}
+.lp-card--gradient-border > * {
+  background: var(--lp-bg, #0a0a0f);
+  border-radius: calc(1rem - 1px);
+}
+@keyframes lp-border-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Text shimmer/shine effect */
+.lp-text-shine {
+  background: linear-gradient(90deg, currentColor 40%, rgba(255,255,255,0.8) 50%, currentColor 60%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: lp-text-shine 3s linear infinite;
+}
+@keyframes lp-text-shine {
+  to { background-position: 200% center; }
+}
+
+/* Marquee / infinite scroll for logos or badges */
+.lp-marquee {
+  display: flex;
+  overflow: hidden;
+  gap: 2rem;
+  mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+}
+.lp-marquee__track {
+  display: flex;
+  gap: 2rem;
+  animation: lp-scroll 20s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes lp-scroll {
+  to { transform: translateX(-50%); }
+}
+
+/* Staggered fade-in for lists/grids */
+.lp-stagger > * {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: lp-stagger-in 0.5s ease forwards;
+}
+.lp-stagger > *:nth-child(1) { animation-delay: 0s; }
+.lp-stagger > *:nth-child(2) { animation-delay: 0.1s; }
+.lp-stagger > *:nth-child(3) { animation-delay: 0.2s; }
+.lp-stagger > *:nth-child(4) { animation-delay: 0.3s; }
+.lp-stagger > *:nth-child(5) { animation-delay: 0.4s; }
+.lp-stagger > *:nth-child(6) { animation-delay: 0.5s; }
+@keyframes lp-stagger-in {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Blob morphing background */
+.lp-blob {
+  position: absolute;
+  border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+  filter: blur(40px);
+  animation: lp-morph 8s ease-in-out infinite;
+  opacity: 0.3;
+}
+@keyframes lp-morph {
+  0%, 100% { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; }
+  25% { border-radius: 58% 42% 75% 25% / 76% 46% 54% 24%; }
+  50% { border-radius: 50% 50% 33% 67% / 55% 27% 73% 45%; }
+  75% { border-radius: 33% 67% 58% 42% / 63% 68% 32% 37%; }
+}
+
+/* Hover lift card */
+.lp-card--lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.lp-card--lift:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3), 0 0 30px rgba(99,102,241,0.1);
+}
+
+/* Smooth number counter (CSS-only with @property) */
+@property --lp-num {
+  syntax: "<integer>";
+  initial-value: 0;
+  inherits: false;
+}
+.lp-counter-css {
+  transition: --lp-num 2s ease-out;
+  counter-reset: num var(--lp-num);
+}
+.lp-counter-css::after {
+  content: counter(num);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-text-shine,
+  .lp-marquee__track,
+  .lp-stagger > *,
+  .lp-blob,
+  .lp-card--gradient-border { animation: none !important; }
+  .lp-stagger > * { opacity: 1; transform: none; }
+}
 `.trim();
 
 /** JS kit: mobile nav + animated counters + nav blur on scroll */
@@ -603,6 +750,15 @@ export const LANDING_PAGE_SCRIPT_KIT = `
       var target=document.querySelector(id);
       if(target){ e.preventDefault(); target.scrollIntoView({behavior:"smooth",block:"start"}); }
       if(m&&m.classList.contains("is-open")) m.classList.remove("is-open");
+    });
+  });
+
+  /* Spotlight mouse tracker — cursor-following glow for .lp-spotlight elements */
+  document.querySelectorAll('.lp-spotlight').forEach(function(el){
+    el.addEventListener('mousemove',function(e){
+      var rect=el.getBoundingClientRect();
+      el.style.setProperty('--mouse-x',(e.clientX-rect.left)+'px');
+      el.style.setProperty('--mouse-y',(e.clientY-rect.top)+'px');
     });
   });
 })();

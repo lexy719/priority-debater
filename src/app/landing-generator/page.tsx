@@ -22,6 +22,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { loadSessionWithStatus } from "@/lib/session";
+import { GradientMesh } from "@/components/ui/animated-background";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { ValidationSession } from "@/lib/types";
 
@@ -237,7 +238,8 @@ export default function LandingGeneratorPage() {
   const isReady = htmlContent && !isGenerating;
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-[#08080e]">
+    <div className="relative min-h-screen min-h-[100dvh] bg-[#08080e]">
+      <GradientMesh className="opacity-40" />
       {/* Top bar */}
       <div className="sticky top-0 z-10 bg-[#08080e]/80 backdrop-blur-xl border-b border-white/[0.06]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">

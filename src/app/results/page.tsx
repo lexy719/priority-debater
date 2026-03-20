@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { loadSession, loadSessionWithStatus, clearSession } from "@/lib/session";
 import { extractDashboardData } from "@/lib/parse";
+import { GradientMesh } from "@/components/ui/animated-background";
 import { RadarChart, ScoreBreakdownBars } from "@/components/RadarChart";
 import { LeanCanvas } from "@/components/LeanCanvas";
 import { TamSamSomChart } from "@/components/TamSamSom";
@@ -296,7 +297,8 @@ export default function ResultsPage() {
   ];
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-[#08080e]">
+    <div className="relative min-h-screen min-h-[100dvh] bg-[#08080e]">
+      <GradientMesh className="opacity-40" />
       {/* Top bar */}
       <div className="sticky top-0 z-10 bg-[#08080e]/80 backdrop-blur-xl border-b border-white/[0.06]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">

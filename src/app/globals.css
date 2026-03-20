@@ -187,6 +187,69 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ========================================
+   Premium Animations (21st.dev-inspired)
+   ======================================== */
+
+@keyframes mesh-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 30px) scale(0.95); }
+}
+
+@keyframes mesh-float-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-40px, 30px) scale(1.05); }
+  66% { transform: translate(30px, -40px) scale(0.9); }
+}
+
+@keyframes mesh-float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(20px, 40px) scale(1.1); }
+  66% { transform: translate(-30px, -20px) scale(0.95); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px var(--glow-accent); }
+  50% { box-shadow: 0 0 40px var(--glow-accent), 0 0 60px var(--glow-accent); }
+}
+
+@keyframes float-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-mesh-float-1 { animation: mesh-float-1 20s ease-in-out infinite; }
+.animate-mesh-float-2 { animation: mesh-float-2 25s ease-in-out infinite; }
+.animate-mesh-float-3 { animation: mesh-float-3 18s ease-in-out infinite; }
+.animate-gradient-shift { animation: gradient-shift 3s linear infinite; }
+.animate-shimmer { animation: shimmer 2s ease-in-out infinite; }
+.animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+.animate-float { animation: float-subtle 4s ease-in-out infinite; }
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-mesh-float-1,
+  .animate-mesh-float-2,
+  .animate-mesh-float-3,
+  .animate-gradient-shift,
+  .animate-shimmer,
+  .animate-pulse-glow,
+  .animate-float {
+    animation: none;
+  }
+}
+
 /* Smooth scrolling on iOS */
 .overflow-y-auto {
   -webkit-overflow-scrolling: touch;

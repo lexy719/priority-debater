@@ -6,6 +6,7 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ArrowLeft, ArrowRight, Loader2, FlaskConical, Wand2, CheckCircle2, Zap, Sparkles, BarChart3, Target, Users, Swords, AlertTriangle, DollarSign, Lightbulb, FileText } from "lucide-react";
+import { GradientMesh } from "@/components/ui/animated-background";
 import { saveSession } from "@/lib/session";
 import { shouldBlock } from "@/lib/contentModeration";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -211,7 +212,8 @@ function ValidateForm() {
   // Streaming view — PURE LOADING SCREEN, no content shown
   if (isLoading || streamingContent) {
     return (
-      <div className="min-h-screen min-h-[100dvh] bg-[#08080e] flex flex-col">
+      <div className="relative min-h-screen min-h-[100dvh] bg-[#08080e] flex flex-col">
+        <GradientMesh />
         {/* Header */}
         <div className="border-b border-white/[0.06] bg-[#08080e]/80 backdrop-blur-xl sticky top-0 z-10">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
@@ -340,7 +342,8 @@ function ValidateForm() {
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-[#08080e] flex flex-col">
+    <div className="relative min-h-screen min-h-[100dvh] bg-[#08080e] flex flex-col">
+      <GradientMesh />
       {/* Header */}
       <div className="border-b border-white/[0.06] bg-[#08080e]/80 backdrop-blur-xl sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
@@ -474,10 +477,11 @@ function ValidateForm() {
           <button
             onClick={handleSubmit}
             disabled={!valid || isLoading}
-            className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold hover:from-indigo-500 hover:to-violet-500 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm shadow-lg shadow-indigo-500/20"
+            className="group relative w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold hover:from-indigo-500 hover:to-violet-500 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 overflow-hidden"
           >
+            <span className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
             {isGenerate ? "Generate Ideas" : "Validate My Idea"}
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           </button>
           {!valid && !isLoading && humanCheck && (
             <p className="text-xs text-white/25 text-center">

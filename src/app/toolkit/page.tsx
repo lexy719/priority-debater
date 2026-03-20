@@ -30,6 +30,9 @@ import {
 } from "lucide-react";
 import { loadSessionWithStatus } from "@/lib/session";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { GradientMesh } from "@/components/ui/animated-background";
+import { GlowCard } from "@/components/ui/glow-card";
+import { FadeIn } from "@/components/ui/animated-text";
 import type { ValidationSession } from "@/lib/types";
 
 // ────────────────────────────────────────────────────────────
@@ -459,51 +462,68 @@ function ToolkitPageInner() {
 
   function renderPreGenCTA() {
     const Icon = currentTool.icon;
+    const glowColorMap: Record<ToolId, string> = {
+      "pitch-deck": "rgba(245,158,11,0.4)",
+      "business-plan": "rgba(99,102,241,0.4)",
+      "financial-model": "rgba(16,185,129,0.4)",
+      "business-strategy": "rgba(139,92,246,0.4)",
+    };
     return (
-      <div className="max-w-xl mx-auto">
-        <div className={`relative rounded-2xl bg-gradient-to-br ${currentTool.gradient} border border-white/[0.08] p-8 sm:p-10 overflow-hidden text-center`}>
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.06)_0%,_transparent_50%)]" />
-          <div className="relative">
-            <div className={`w-16 h-16 rounded-2xl ${currentTool.accentBg} border flex items-center justify-center mx-auto mb-5`}>
-              <Icon className={`w-8 h-8 ${currentTool.color}`} />
+      <FadeIn delay={0}>
+        <div className="max-w-xl mx-auto">
+          <GlowCard glowColor={glowColorMap[activeTool]} className={`relative rounded-2xl bg-gradient-to-br ${currentTool.gradient} border border-white/[0.08] p-8 sm:p-10 overflow-hidden text-center`}>
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.06)_0%,_transparent_50%)]" />
+            <div className="relative">
+              <div className={`w-16 h-16 rounded-2xl ${currentTool.accentBg} border flex items-center justify-center mx-auto mb-5`}>
+                <Icon className={`w-8 h-8 ${currentTool.color}`} />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-3">Generate {currentTool.label}</h2>
+              <p className="text-white/40 text-sm leading-relaxed mb-4 max-w-md mx-auto">{currentTool.description}</p>
+              <div className="flex flex-wrap justify-center gap-2 mb-6">
+                {currentTool.tags.map((tag) => (
+                  <span key={tag} className="px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.08] text-white/50 text-xs font-medium">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              <button
+                onClick={() => handleGenerate(activeTool)}
+                className={`group inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-white font-bold transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] text-sm ${
+                  activeTool === "pitch-deck" ? "bg-amber-600 hover:bg-amber-500 shadow-amber-500/20 hover:shadow-amber-500/30" :
+                  activeTool === "business-plan" ? "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20 hover:shadow-indigo-500/30" :
+                  activeTool === "financial-model" ? "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20 hover:shadow-emerald-500/30" :
+                  "bg-violet-600 hover:bg-violet-500 shadow-violet-500/20 hover:shadow-violet-500/30"
+                }`}
+              >
+                <Sparkles className="w-4 h-4 group-hover:animate-pulse" />
+                Generate {currentTool.shortLabel}
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+              </button>
             </div>
-            <h2 className="text-xl font-bold text-white mb-3">Generate {currentTool.label}</h2>
-            <p className="text-white/40 text-sm leading-relaxed mb-4 max-w-md mx-auto">{currentTool.description}</p>
-            <div className="flex flex-wrap justify-center gap-2 mb-6">
-              {currentTool.tags.map((tag) => (
-                <span key={tag} className="px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.08] text-white/50 text-xs font-medium">
-                  {tag}
-                </span>
-              ))}
-            </div>
-            <button
-              onClick={() => handleGenerate(activeTool)}
-              className={`inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-white font-bold transition-all shadow-lg text-sm ${
-                activeTool === "pitch-deck" ? "bg-amber-600 hover:bg-amber-500 shadow-amber-500/20" :
-                activeTool === "business-plan" ? "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20" :
-                activeTool === "financial-model" ? "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20" :
-                "bg-violet-600 hover:bg-violet-500 shadow-violet-500/20"
-              }`}
-            >
-              <Sparkles className="w-4 h-4" />
-              Generate {currentTool.shortLabel}
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
+          </GlowCard>
         </div>
-      </div>
+      </FadeIn>
     );
   }
 
   function renderGeneratingState() {
     return (
-      <div className="max-w-3xl mx-auto">
-        <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-12 animate-pulse text-center">
-          <Loader2 className={`w-10 h-10 animate-spin mx-auto mb-4 ${currentTool.color} opacity-50`} />
-          <p className="text-white/30 text-sm">Generating your {currentTool.label.toLowerCase()}...</p>
-          <p className="text-white/15 text-xs mt-2">This usually takes 20-40 seconds</p>
+      <FadeIn delay={0}>
+        <div className="max-w-3xl mx-auto">
+          <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-12 text-center">
+            <Loader2 className={`w-10 h-10 animate-spin mx-auto mb-4 ${currentTool.color} opacity-50`} />
+            <p className="text-white/30 text-sm">
+              Generating your {currentTool.label.toLowerCase()}
+              <span className="inline-flex ml-1">
+                <span className="animate-bounce [animation-delay:0ms]">.</span>
+                <span className="animate-bounce [animation-delay:150ms]">.</span>
+                <span className="animate-bounce [animation-delay:300ms]">.</span>
+              </span>
+            </p>
+            <p className="text-white/15 text-xs mt-2">This usually takes 20-40 seconds</p>
+          </div>
         </div>
-      </div>
+      </FadeIn>
     );
   }
 
@@ -691,17 +711,19 @@ function ToolkitPageInner() {
     if (!displayContent && !isGenerating) return renderPreGenCTA();
     if (isGenerating && !displayContent) return renderGeneratingState();
 
-    if (activeTool === "pitch-deck" && slides.length > 0) return renderPitchDeck();
-    if (activeTool === "business-strategy" && displayContent) return renderStrategyContent();
+    if (activeTool === "pitch-deck" && slides.length > 0) return <FadeIn delay={0.1}>{renderPitchDeck()}</FadeIn>;
+    if (activeTool === "business-strategy" && displayContent) return <FadeIn delay={0.1}>{renderStrategyContent()}</FadeIn>;
 
     // Business plan & financial model — standard markdown
-    if (displayContent) return renderMarkdownContent(displayContent);
+    if (displayContent) return <FadeIn delay={0.1}>{renderMarkdownContent(displayContent)}</FadeIn>;
 
     return null;
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-[#08080e]">
+    <div className="min-h-screen min-h-[100dvh] bg-[#08080e] relative">
+      <GradientMesh />
+
       {/* Top bar */}
       <div className="sticky top-0 z-30 bg-[#08080e]/80 backdrop-blur-xl border-b border-white/[0.06]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
@@ -747,7 +769,7 @@ function ToolkitPageInner() {
         </div>
 
         {/* Tool tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-6 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-6 scrollbar-hide rounded-2xl backdrop-blur-xl bg-[var(--bg-primary)]/60 p-2 border border-white/[0.06]">
           {TOOLS.map((tool) => {
             const Icon = tool.icon;
             const hasContent = !!contents[tool.id];

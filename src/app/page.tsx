@@ -32,6 +32,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { GradientMesh, ParticleField, GridPattern } from "@/components/ui/animated-background";
 
 // ── Animated counter ────────────────────────────────────────────────────
 function Counter({ value, suffix = "", duration = 2 }: { value: number; suffix?: string; duration?: number }) {
@@ -292,6 +293,9 @@ export default function Home() {
             <Link href="/validate" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs transition-colors" style={{ color: "var(--text-tertiary)" }}>
               Validate
             </Link>
+            <Link href="/toolkit" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs transition-colors" style={{ color: "var(--text-tertiary)" }}>
+              Toolkit
+            </Link>
             <Link href="/debate" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs transition-colors" style={{ color: "var(--text-tertiary)" }}>
               Debate
             </Link>
@@ -307,12 +311,8 @@ export default function Home() {
       {/* ═══ HERO ═══ */}
       <section ref={heroRef} className="relative pt-32 sm:pt-40 pb-20 sm:pb-28">
         {/* Background effects */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 opacity-[0.03]"
-            style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-indigo-500/15 rounded-full blur-[120px]" />
-          <div className="absolute top-40 left-1/4 w-[300px] h-[300px] bg-violet-500/10 rounded-full blur-[100px]" />
-        </div>
+        <GradientMesh />
+        <ParticleField count={30} />
 
         <div className="relative max-w-4xl mx-auto px-5 text-center">
           {/* Badge */}
@@ -341,8 +341,8 @@ export default function Home() {
           {/* CTAs */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-7">
-            <Link href="/validate"
-              className="cta-primary group relative inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-[#08080e] font-semibold text-sm hover:bg-white/90 transition-all shadow-lg shadow-white/5 hover:shadow-xl hover:shadow-white/10">
+            <Link href="/validate" className="cta-primary group relative overflow-hidden inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-[#08080e] font-semibold text-sm hover:bg-white/90 transition-all shadow-lg shadow-white/5 hover:shadow-xl hover:shadow-white/10">
+              <span className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/20 to-transparent" />
               Stress-Test My Idea Now
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
@@ -373,7 +373,8 @@ export default function Home() {
       </section>
 
       {/* ═══ STATS ═══ */}
-      <section className="border-y border-white/[0.06] py-14">
+      <section className="relative border-y border-white/[0.06] py-14">
+        <GridPattern />
         <Stagger className="max-w-5xl mx-auto px-5 grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
           {[
             { v: 15, s: "+", label: "Blind spots checked", icon: <BarChart3 className="w-4 h-4" /> },
@@ -614,7 +615,7 @@ export default function Home() {
               { q: "How long does it take?", a: "2 minutes to a full validation report with viability scores, market sizing, competitor analysis, risk flags, and actionable next steps. The debate can go as long as you want." },
               { q: "Is my idea kept private?", a: "Completely. No database, no logs, no accounts. Everything is processed in real-time and lives only in your browser session. We never see or store your idea." },
               { q: "How accurate is the analysis?", a: "Our AI evaluates 15+ criteria using real market data and proven frameworks from top VCs and accelerators. But the real value isn't the score — it's the questions it forces you to answer. If you can't defend your idea against our personas, you won't be able to defend it against investors or the market." },
-              { q: "What's the catch? Why is it free?", a: "No catch. No freemium upsell. No 'upgrade to unlock.' The full tool is free with no signup required. We built this because we needed it ourselves." },
+              { q: "What's the catch? Why is it free?", a: "No catch on the core validation tool — it's free with no signup, and always will be. In the future, premium features like AI-powered landing page generation will be offered as a paid upgrade, but the full idea validation, debate mode, and export tools remain completely free." },
               { q: "What if I don't have an idea yet?", a: "Use the Idea Generator. Tell us your interests, skills, and constraints — we'll generate tailored startup ideas you can immediately validate and stress-test." },
             ].map((item, i) => (
               <StaggerChild key={i}>
@@ -640,6 +641,7 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/10 via-transparent to-violet-600/10" />
               <div className="absolute inset-0 border border-white/[0.06] rounded-3xl" />
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[200px] bg-indigo-500/15 rounded-full blur-[100px]" />
+              <ParticleField count={30} />
 
               <div className="relative">
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3">
@@ -674,6 +676,7 @@ export default function Home() {
           </div>
           <div className="flex gap-5 text-[11px] text-white/20">
             <Link href="/validate" className="hover:text-white/50 transition-colors">Validate</Link>
+            <Link href="/toolkit" className="hover:text-white/50 transition-colors">Toolkit</Link>
             <Link href="/debate" className="hover:text-white/50 transition-colors">Debate</Link>
           </div>
           <p className="text-[11px] text-white/15">&copy; {new Date().getFullYear()}</p>
