@@ -26,7 +26,7 @@ import {
   Brain,
   ChevronDown,
 } from "lucide-react";
-import { loadSession, clearSession, updateSessionMessages } from "@/lib/session";
+import { loadSession, loadSessionWithStatus, clearSession, updateSessionMessages } from "@/lib/session";
 import { shouldBlock, hasSensitiveTopic } from "@/lib/contentModeration";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { Message, ValidationSession } from "@/lib/types";
@@ -169,8 +169,14 @@ export default function DebatePage() {
   const [debateStarted, setDebateStarted] = useState(false);
 
   useEffect(() => {
-    const s = loadSession();
-    if (!s) { router.replace("/validate"); return; }
+    const result = loadSessionWithStatus();
+    if (result.status === "expired") {
+      alert("Your session has expired (24h limit). Please start a new validation.");
+      router.replace("/validate");
+      return;
+    }
+    if (result.status === "none") { router.replace("/validate"); return; }
+    const s = result.session;
     setSession(s);
     const isValidationReport = s.messages.length > 0 && s.messages[0].role === "opponent" && s.messages[0].content.length > 500;
     const chatMessages = isValidationReport ? s.messages.slice(1) : s.messages;

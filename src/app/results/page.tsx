@@ -32,11 +32,10 @@ import {
   TrendingUp,
   Clock,
   DollarSign,
-  Flame,
-  Presentation,
+  Sparkles,
   Globe,
 } from "lucide-react";
-import { loadSession, clearSession } from "@/lib/session";
+import { loadSession, loadSessionWithStatus, clearSession } from "@/lib/session";
 import { extractDashboardData } from "@/lib/parse";
 import { RadarChart, ScoreBreakdownBars } from "@/components/RadarChart";
 import { LeanCanvas } from "@/components/LeanCanvas";
@@ -170,9 +169,6 @@ export default function ResultsPage() {
   const router = useRouter();
   const [session, setSession] = useState<ValidationSession | null>(null);
   const [activeTab, setActiveTab] = useState(0);
-  const [businessPlanContent, setBusinessPlanContent] = useState("");
-  const [businessPlanStreaming, setBusinessPlanStreaming] = useState("");
-  const [isGeneratingBusinessPlan, setIsGeneratingBusinessPlan] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shareToast, setShareToast] = useState(false);
   const [pivotData, setPivotData] = useState<Record<string, { analysis: string; pivots: { title: string; description: string; estimatedScore: number }[] }>>({});
@@ -182,8 +178,14 @@ export default function ResultsPage() {
   const [customPivotText, setCustomPivotText] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const s = loadSession();
-    if (!s || s.setup.template === "generate") { router.replace("/validate"); return; }
+    const result = loadSessionWithStatus();
+    if (result.status === "expired") {
+      alert("Your session has expired (24h limit). Please start a new validation.");
+      router.replace("/validate");
+      return;
+    }
+    if (result.status === "none") { router.replace("/validate"); return; }
+    const s = result.session;
     setSession(s);
   }, [router]);
 
@@ -210,36 +212,8 @@ export default function ResultsPage() {
     goNoGoLabel === "NO-GO" ? "bg-red-500/15 text-red-400 border-red-500/30" :
     "bg-white/5 text-white/30 border-white/10";
 
-  const handleGenerateBusinessPlan = async () => {
-    setIsGeneratingBusinessPlan(true); setError(null); setBusinessPlanStreaming("");
-    try {
-      const response = await fetch("/api/debate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "business-plan", setup, validationContent }) });
-      if (!response.ok) { const errData = await response.json().catch(() => null); throw new Error(errData?.error || `Server error (${response.status})`); }
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No response stream");
-      const decoder = new TextDecoder();
-      let content = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split("\n")) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") break;
-            try { const parsed = JSON.parse(data); if (parsed.content) { content += parsed.content; setBusinessPlanStreaming(content); } if (parsed.error) throw new Error(parsed.error); } catch (e) { if (e instanceof Error && e.message !== "Stream interrupted") { /* skip */ } else throw e; }
-          }
-        }
-      }
-      if (!content) throw new Error("No content received");
-      setBusinessPlanContent(content); setBusinessPlanStreaming("");
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed to generate business plan."); setBusinessPlanContent(""); }
-    finally { setIsGeneratingBusinessPlan(false); }
-  };
-
   const handleRevalidate = () => { sessionStorage.setItem("revalidate", JSON.stringify(setup)); router.push("/validate"); };
   const handleValidateNew = () => { clearSession(); router.push("/validate"); };
-  const displayBusinessPlan = businessPlanContent || businessPlanStreaming;
 
   const cs = dashboard.categoryScores;
   const categoryMetrics = [
@@ -573,24 +547,20 @@ export default function ResultsPage() {
                 </div>
               )}
 
-              {/* Business Plan Generator */}
-              <ContentCard icon={<Briefcase className="w-5 h-5" />} title="Business Plan Generator" color="text-indigo-400" className="border-indigo-500/10">
-                <p className="text-sm text-white/40 mb-4">Generate a full investor-ready business plan with financials, go-to-market strategy, and projections based on your validation data.</p>
-                <button onClick={handleGenerateBusinessPlan} disabled={isGeneratingBusinessPlan || !!businessPlanContent}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500 disabled:opacity-30 transition-colors">
-                  {isGeneratingBusinessPlan ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : businessPlanContent ? <><Check className="w-4 h-4" /> Generated</> : <><Flame className="w-4 h-4" /> Generate Business Plan</>}
-                </button>
-                {displayBusinessPlan && (
-                  <div className="mt-6 pt-6 border-t border-white/[0.06]">
-                    <div className="markdown-content-dark text-sm leading-relaxed max-h-[600px] overflow-y-auto pr-2">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayBusinessPlan}</ReactMarkdown>
-                    </div>
-                    {isGeneratingBusinessPlan && (
-                      <div className="flex items-center gap-2 mt-4 text-white/30 text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Writing...</div>
-                    )}
+              {/* Business Toolkit link */}
+              <div className="rounded-xl bg-gradient-to-br from-amber-500/[0.06] to-indigo-500/[0.04] border border-amber-500/15 p-5 sm:p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-lg bg-amber-500/15 border border-amber-500/20">
+                    <Briefcase className="w-5 h-5 text-amber-400" />
                   </div>
-                )}
-              </ContentCard>
+                  <h3 className="text-sm font-bold text-white">Business Toolkit</h3>
+                </div>
+                <p className="text-sm text-white/40 mb-4">Generate pitch deck, business plan, financial model, and GTM strategy — all from your validation data.</p>
+                <Link href="/toolkit"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition-all">
+                  <Sparkles className="w-4 h-4" /> Open Toolkit <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
             </div>
           )}
 
@@ -769,7 +739,7 @@ export default function ResultsPage() {
           <div className="mb-5 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 shrink-0" />
             <span className="flex-1">{error}</span>
-            <button onClick={() => { setError(null); setBusinessPlanContent(""); }} className="text-sm font-medium underline hover:no-underline shrink-0">Retry</button>
+            <button onClick={() => setError(null)} className="text-sm font-medium underline hover:no-underline shrink-0">Dismiss</button>
           </div>
         )}
 
@@ -796,25 +766,25 @@ export default function ResultsPage() {
             </div>
           </Link>
 
-          {/* Pitch Deck CTA */}
-          <Link href="/pitch" className="group relative rounded-2xl border border-white/[0.06] hover:border-amber-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/5 bg-white/[0.02] hover:bg-amber-500/[0.04]">
+          {/* Business Toolkit CTA — unified pitch deck + business plan + financial model + strategy */}
+          <Link href="/toolkit" className="group relative rounded-2xl border border-white/[0.06] hover:border-amber-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/5 bg-white/[0.02] hover:bg-amber-500/[0.04]">
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/10 transition-all duration-500" />
             <div className="relative flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Presentation className="w-5 h-5 text-amber-400" />
+                <Briefcase className="w-5 h-5 text-amber-400" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-1">
-                  <h3 className="text-sm font-bold text-white group-hover:text-amber-200 transition-colors">Investor Pitch Deck</h3>
+                  <h3 className="text-sm font-bold text-white group-hover:text-amber-200 transition-colors">Business Toolkit</h3>
                   <ArrowRight className="w-4 h-4 text-white/15 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all shrink-0" />
                 </div>
-                <p className="text-white/30 text-xs leading-relaxed">10-slide deck with speaker notes, market data, and financial projections — ready to present.</p>
+                <p className="text-white/30 text-xs leading-relaxed">Pitch deck, business plan, financial model, and GTM strategy — all in one place, powered by your validation data.</p>
               </div>
             </div>
           </Link>
 
           {/* Landing Page CTA */}
-          <Link href="/landing-generator" className="group relative rounded-2xl border border-white/[0.06] hover:border-teal-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-teal-500/5 bg-white/[0.02] hover:bg-teal-500/[0.04]">
+          <Link href="/landing-generator" className="group relative rounded-2xl border border-white/[0.06] hover:border-teal-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-teal-500/5 bg-white/[0.02] hover:bg-teal-500/[0.04] sm:col-span-2">
             <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full blur-3xl group-hover:bg-teal-500/10 transition-all duration-500" />
             <div className="relative flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -825,24 +795,7 @@ export default function ResultsPage() {
                   <h3 className="text-sm font-bold text-white group-hover:text-teal-200 transition-colors">Landing Page Generator</h3>
                   <ArrowRight className="w-4 h-4 text-white/15 group-hover:text-teal-400 group-hover:translate-x-0.5 transition-all shrink-0" />
                 </div>
-                <p className="text-white/30 text-xs leading-relaxed">Production-ready marketing site with animated backgrounds, conversion copy, and responsive design. One HTML file.</p>
-              </div>
-            </div>
-          </Link>
-
-          {/* Strategy CTA */}
-          <Link href="/strategy" className="group relative rounded-2xl border border-white/[0.06] hover:border-violet-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-violet-500/5 bg-white/[0.02] hover:bg-violet-500/[0.04]">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/5 rounded-full blur-3xl group-hover:bg-violet-500/10 transition-all duration-500" />
-            <div className="relative flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 border border-violet-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Briefcase className="w-5 h-5 text-violet-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <h3 className="text-sm font-bold text-white group-hover:text-violet-200 transition-colors">GTM Strategy Playbook</h3>
-                  <ArrowRight className="w-4 h-4 text-white/15 group-hover:text-violet-400 group-hover:translate-x-0.5 transition-all shrink-0" />
-                </div>
-                <p className="text-white/30 text-xs leading-relaxed">Full go-to-market plan with pricing tiers, 90-day roadmap, competitive positioning, and growth metrics.</p>
+                <p className="text-white/30 text-xs leading-relaxed">Production-ready marketing site with animated backgrounds, conversion copy, and responsive design. One downloadable HTML file.</p>
               </div>
             </div>
           </Link>

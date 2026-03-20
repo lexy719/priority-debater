@@ -21,7 +21,7 @@ import {
   Eye,
   RotateCcw,
 } from "lucide-react";
-import { loadSession } from "@/lib/session";
+import { loadSessionWithStatus } from "@/lib/session";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { ValidationSession } from "@/lib/types";
 
@@ -64,11 +64,15 @@ export default function LandingGeneratorPage() {
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const s = loadSession();
-    if (!s || s.setup.template === "generate") {
+    const result = loadSessionWithStatus();
+    if (result.status === "expired") {
+      alert("Your session has expired (24h limit). Please start a new validation.");
       router.replace("/validate");
       return;
     }
+    if (result.status === "none") { router.replace("/validate"); return; }
+    const s = result.session;
+    if (s.setup.template === "generate") { router.replace("/validate"); return; }
     setSession(s);
   }, [router]);
 

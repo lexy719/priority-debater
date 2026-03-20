@@ -186,11 +186,9 @@ function ValidateForm() {
         createdAt: Date.now(),
       });
 
-      if (setup.template === "validate") {
-        router.push("/results");
-      } else {
-        router.push("/debate");
-      }
+      // Both validate and generate modes route to /results
+      // The session has validationContent which /results will display
+      router.push("/results");
     } catch (e) {
       if (progressInterval.current) clearInterval(progressInterval.current);
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
