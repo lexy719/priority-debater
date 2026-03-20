@@ -26,9 +26,10 @@ import {
   Brain,
   ChevronDown,
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { loadSession, loadSessionWithStatus, clearSession, updateSessionMessages } from "@/lib/session";
 import { shouldBlock, hasSensitiveTopic } from "@/lib/contentModeration";
-import { GradientMesh } from "@/components/ui/animated-background";
+import { InteractiveParticles } from "@/components/ui/animated-background";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { Message, ValidationSession } from "@/lib/types";
 
@@ -381,7 +382,7 @@ export default function DebatePage() {
   const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
 
   const renderAiMessage = (content: string, id?: string) => (
-    <div className="flex gap-3 max-w-2xl msg-fade-in group">
+    <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }} className="flex gap-3 max-w-2xl msg-fade-in group">
       <div className={`shrink-0 w-7 h-7 rounded-full bg-gradient-to-br ${persona.avatarGradient} flex items-center justify-center mt-0.5`}>
         {persona.avatarIcon}
       </div>
@@ -397,12 +398,16 @@ export default function DebatePage() {
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 
   return (
     <div className="relative h-screen h-[100dvh] flex flex-col bg-[#08080e]">
-      <GradientMesh className="opacity-50" />
+      <InteractiveParticles count={30} magneticRadius={150} magneticStrength={0.06} />
+      {/* Subtle animated gradient orb */}
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div className="absolute -top-32 -right-32 w-[420px] h-[420px] rounded-full bg-indigo-500/[0.04] blur-[120px] animate-pulse" style={{ animationDuration: "8s" }} />
+      </div>
       {/* Header */}
       <header className="shrink-0 border-b border-white/[0.06] bg-[#08080e]/90 backdrop-blur-xl z-20">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 h-13 flex items-center justify-between">
@@ -422,7 +427,7 @@ export default function DebatePage() {
 
               {/* Dropdown */}
               {showPersonaPicker && (
-                <div className="absolute top-full left-0 mt-1.5 w-64 rounded-xl bg-[#12121a] border border-white/[0.08] shadow-xl shadow-black/40 overflow-hidden z-30">
+                <motion.div initial={{ opacity: 0, y: -5, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.15 }} className="absolute top-full left-0 mt-1.5 w-64 rounded-xl bg-[#12121a] border border-white/[0.08] shadow-xl shadow-black/40 overflow-hidden z-30">
                   <div className="p-1.5">
                     {PERSONAS.map((p) => (
                       <button
@@ -443,7 +448,7 @@ export default function DebatePage() {
                       </button>
                     ))}
                   </div>
-                </div>
+                </motion.div>
               )}
             </div>
 
@@ -477,11 +482,11 @@ export default function DebatePage() {
             message.role === "opponent" ? (
               <div key={message.id}>{renderAiMessage(message.content, message.id)}</div>
             ) : (
-              <div key={message.id} className="flex justify-end msg-fade-in">
+              <motion.div key={message.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }} className="flex justify-end msg-fade-in">
                 <div className={`max-w-[80%] sm:max-w-[70%] ${message.isQuickAction ? "px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium" : "px-4 py-2.5 rounded-2xl rounded-br-md bg-white/[0.07] text-white/85 text-[13px] leading-relaxed"}`}>
                   <p className="whitespace-pre-wrap">{message.content}</p>
                 </div>
-              </div>
+              </motion.div>
             )
           )}
 
@@ -528,10 +533,10 @@ export default function DebatePage() {
           {showQuickActions && (
             <div className="flex flex-wrap gap-1.5 mb-3">
               {QUICK_ACTIONS.map((action) => (
-                <button key={action.id} onClick={() => handleQuickAction(action.id)} disabled={isLoading}
+                <motion.button key={action.id} whileHover={{ scale: 1.02 }} onClick={() => handleQuickAction(action.id)} disabled={isLoading}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-medium transition-colors disabled:opacity-25 disabled:cursor-not-allowed ${action.color}`}>
                   {action.icon}{action.label}
-                </button>
+                </motion.button>
               ))}
             </div>
           )}

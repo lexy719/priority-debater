@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Loader2, FlaskConical, Wand2, CheckCircle2, Zap, Sparkles, BarChart3, Target, Users, Swords, AlertTriangle, DollarSign, Lightbulb, FileText } from "lucide-react";
-import { GradientMesh } from "@/components/ui/animated-background";
+import { InteractiveParticles } from "@/components/ui/animated-background";
 import { saveSession } from "@/lib/session";
 import { shouldBlock } from "@/lib/contentModeration";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -213,7 +214,20 @@ function ValidateForm() {
   if (isLoading || streamingContent) {
     return (
       <div className="relative min-h-screen min-h-[100dvh] bg-[#08080e] flex flex-col">
-        <GradientMesh />
+        <InteractiveParticles count={40} magneticRadius={180} magneticStrength={0.08} />
+        {/* Animated gradient orbs */}
+        <div className="pointer-events-none absolute inset-0 -z-[5] overflow-hidden" aria-hidden="true">
+          <motion.div
+            className="absolute -top-[30%] left-[5%] h-[60vh] w-[60vh] rounded-full bg-[radial-gradient(circle,rgba(99,102,241,0.12)_0%,transparent_70%)] blur-3xl"
+            animate={{ x: [0, 40, -20, 0], y: [0, -30, 20, 0] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div
+            className="absolute -bottom-[20%] right-[0%] h-[50vh] w-[50vh] rounded-full bg-[radial-gradient(circle,rgba(139,92,246,0.10)_0%,transparent_70%)] blur-3xl"
+            animate={{ x: [0, -30, 20, 0], y: [0, 25, -15, 0] }}
+            transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+          />
+        </div>
         {/* Header */}
         <div className="border-b border-white/[0.06] bg-[#08080e]/80 backdrop-blur-xl sticky top-0 z-10">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
@@ -233,7 +247,11 @@ function ValidateForm() {
 
             {/* Big animated icon */}
             <div className="flex flex-col items-center mb-10">
-              <div className="relative mb-6">
+              <motion.div
+                className="relative mb-6"
+                animate={{ scale: [1, 1.06, 1] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+              >
                 <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500/15 to-violet-500/15 border border-indigo-500/20 flex items-center justify-center">
                   <div className={`transition-all duration-500 ${LOADING_STEPS[progressStep]?.color || "text-indigo-400"}`}>
                     {LOADING_STEPS[progressStep]?.icon || <Loader2 className="w-8 h-8 animate-spin" />}
@@ -242,7 +260,7 @@ function ValidateForm() {
                 {/* Pulsing ring */}
                 <div className="absolute -inset-3 rounded-[2rem] border border-indigo-500/10 animate-pulse" />
                 <div className="absolute -inset-6 rounded-[2.5rem] border border-indigo-500/5 animate-pulse" style={{ animationDelay: "500ms" }} />
-              </div>
+              </motion.div>
 
               <h2 className="text-xl font-bold text-white text-center mb-1">
                 {LOADING_STEPS[progressStep]?.label || "Analyzing..."}
@@ -343,7 +361,25 @@ function ValidateForm() {
 
   return (
     <div className="relative min-h-screen min-h-[100dvh] bg-[#08080e] flex flex-col">
-      <GradientMesh />
+      <InteractiveParticles count={40} magneticRadius={180} magneticStrength={0.08} />
+      {/* Animated gradient orbs */}
+      <div className="pointer-events-none absolute inset-0 -z-[5] overflow-hidden" aria-hidden="true">
+        <motion.div
+          className="absolute -top-[30%] left-[5%] h-[60vh] w-[60vh] rounded-full bg-[radial-gradient(circle,rgba(99,102,241,0.12)_0%,transparent_70%)] blur-3xl"
+          animate={{ x: [0, 40, -20, 0], y: [0, -30, 20, 0] }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute -bottom-[20%] right-[0%] h-[50vh] w-[50vh] rounded-full bg-[radial-gradient(circle,rgba(139,92,246,0.10)_0%,transparent_70%)] blur-3xl"
+          animate={{ x: [0, -30, 20, 0], y: [0, 25, -15, 0] }}
+          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute top-[40%] right-[20%] h-[35vh] w-[35vh] rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.07)_0%,transparent_70%)] blur-3xl"
+          animate={{ x: [0, -25, 15, 0], y: [0, 20, -25, 0] }}
+          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+        />
+      </div>
       {/* Header */}
       <div className="border-b border-white/[0.06] bg-[#08080e]/80 backdrop-blur-xl sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
@@ -368,7 +404,12 @@ function ValidateForm() {
 
       <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         {/* Title section */}
-        <div className="mb-8">
+        <motion.div
+          className="mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        >
           <div className="flex items-center gap-3 mb-3">
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
               {template.icon}
@@ -398,11 +439,17 @@ function ValidateForm() {
               <Sparkles className="w-3.5 h-3.5" /> Generate
             </Link>
           </div>
-        </div>
+        </motion.div>
 
         {/* Form */}
+        <div className="relative rounded-2xl p-[1px] bg-gradient-to-b from-indigo-500/20 via-violet-500/10 to-transparent">
+          <div className="rounded-2xl bg-[#08080e]/90 backdrop-blur-sm p-5 sm:p-6">
         <div className="space-y-5">
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1, ease: "easeOut" }}
+          >
             <label className="block text-sm font-medium text-white/60 mb-2">
               {template.labels.topic}
             </label>
@@ -417,9 +464,13 @@ function ValidateForm() {
             {setup.topic.length > 0 && (
               <p className="text-xs text-white/20 mt-1.5">{setup.topic.length}/{MAX_TOPIC_LENGTH}</p>
             )}
-          </div>
+          </motion.div>
 
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2, ease: "easeOut" }}
+          >
             <label className="block text-sm font-medium text-white/60 mb-2">
               {template.labels.position}
             </label>
@@ -434,9 +485,13 @@ function ValidateForm() {
             {setup.position.length > 0 && (
               <p className="text-xs text-white/20 mt-1.5">{setup.position.length}/{MAX_POSITION_LENGTH}</p>
             )}
-          </div>
+          </motion.div>
 
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.3, ease: "easeOut" }}
+          >
             <label className="block text-sm font-medium text-white/60 mb-2">
               {template.labels.context} <span className="text-white/20">(optional)</span>
             </label>
@@ -448,9 +503,14 @@ function ValidateForm() {
               rows={2}
               className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all resize-none text-sm"
             />
-          </div>
+          </motion.div>
 
           {/* Human check */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.4, ease: "easeOut" }}
+          >
           <label
             htmlFor="human"
             className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] cursor-pointer hover:bg-white/[0.04] transition-colors"
@@ -467,6 +527,7 @@ function ValidateForm() {
               to generate the validation report.
             </span>
           </label>
+          </motion.div>
 
           {error && (
             <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
@@ -474,6 +535,12 @@ function ValidateForm() {
             </div>
           )}
 
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.5, ease: "easeOut" }}
+            whileHover={{ scale: 1.02 }}
+          >
           <button
             onClick={handleSubmit}
             disabled={!valid || isLoading}
@@ -489,6 +556,9 @@ function ValidateForm() {
               {setup.position.trim().length < 10 && "Add at least 10 characters to your reasoning."}
             </p>
           )}
+          </motion.div>
+        </div>
+          </div>
         </div>
       </div>
     </div>

@@ -37,7 +37,8 @@ import {
 } from "lucide-react";
 import { loadSession, loadSessionWithStatus, clearSession } from "@/lib/session";
 import { extractDashboardData } from "@/lib/parse";
-import { GradientMesh } from "@/components/ui/animated-background";
+import { InteractiveParticles } from "@/components/ui/animated-background";
+import { motion } from "framer-motion";
 import { RadarChart, ScoreBreakdownBars } from "@/components/RadarChart";
 import { LeanCanvas } from "@/components/LeanCanvas";
 import { TamSamSomChart } from "@/components/TamSamSom";
@@ -298,7 +299,12 @@ export default function ResultsPage() {
 
   return (
     <div className="relative min-h-screen min-h-[100dvh] bg-[#08080e]">
-      <GradientMesh className="opacity-40" />
+      <InteractiveParticles count={35} magneticRadius={180} magneticStrength={0.07} />
+      {/* Animated gradient orbs */}
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div className="absolute -top-32 -left-32 w-[420px] h-[420px] rounded-full bg-indigo-600/10 blur-[120px] animate-[pulse_8s_ease-in-out_infinite]" />
+        <div className="absolute -bottom-32 -right-32 w-[380px] h-[380px] rounded-full bg-violet-600/10 blur-[120px] animate-[pulse_10s_ease-in-out_infinite_1s]" />
+      </div>
       {/* Top bar */}
       <div className="sticky top-0 z-10 bg-[#08080e]/80 backdrop-blur-xl border-b border-white/[0.06]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
@@ -333,7 +339,7 @@ export default function ResultsPage() {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
         {/* ── HERO ── */}
-        <div className="relative rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.06] overflow-hidden mb-5">
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, ease: "easeOut" }} className="relative rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.06] overflow-hidden mb-5">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.08)_0%,_transparent_50%)]" />
           <div className="relative p-6 sm:p-8">
             <div className="flex flex-col sm:flex-row sm:items-center gap-6">
@@ -366,15 +372,19 @@ export default function ResultsPage() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* ── TABS ── */}
         <div className="flex gap-1 overflow-x-auto pb-1 mb-5 scrollbar-hide">
           {tabs.map((tab, i) => (
-            <button key={tab.label} onClick={() => setActiveTab(i)}
+            <motion.button key={tab.label} onClick={() => setActiveTab(i)}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: i * 0.06 }}
+              whileHover={{ scale: 1.03 }}
               className={`shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === i ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30" : "bg-white/[0.02] text-white/30 hover:text-white/50 border border-white/[0.04] hover:border-white/[0.08]"}`}>
               {tab.icon}{tab.label}
-            </button>
+            </motion.button>
           ))}
         </div>
 
@@ -752,7 +762,8 @@ export default function ResultsPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Debate CTA */}
-          <Link href="/debate" className="group relative rounded-2xl border border-white/[0.06] hover:border-indigo-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/5 bg-white/[0.02] hover:bg-indigo-500/[0.04]">
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4 }} whileHover={{ scale: 1.03, y: -3 }}>
+          <Link href="/debate" className="group relative rounded-2xl border border-white/[0.06] hover:border-indigo-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/5 bg-white/[0.02] hover:bg-indigo-500/[0.04] block">
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-all duration-500" />
             <div className="relative flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -767,9 +778,11 @@ export default function ResultsPage() {
               </div>
             </div>
           </Link>
+          </motion.div>
 
           {/* Business Toolkit CTA — unified pitch deck + business plan + financial model + strategy */}
-          <Link href="/toolkit" className="group relative rounded-2xl border border-white/[0.06] hover:border-amber-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/5 bg-white/[0.02] hover:bg-amber-500/[0.04]">
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.1 }} whileHover={{ scale: 1.03, y: -3 }}>
+          <Link href="/toolkit" className="group relative rounded-2xl border border-white/[0.06] hover:border-amber-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/5 bg-white/[0.02] hover:bg-amber-500/[0.04] block">
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/10 transition-all duration-500" />
             <div className="relative flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -784,9 +797,11 @@ export default function ResultsPage() {
               </div>
             </div>
           </Link>
+          </motion.div>
 
           {/* Landing Page CTA */}
-          <Link href="/landing-generator" className="group relative rounded-2xl border border-white/[0.06] hover:border-teal-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-teal-500/5 bg-white/[0.02] hover:bg-teal-500/[0.04] sm:col-span-2">
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.2 }} whileHover={{ scale: 1.03, y: -3 }} className="sm:col-span-2">
+          <Link href="/landing-generator" className="group relative rounded-2xl border border-white/[0.06] hover:border-teal-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-teal-500/5 bg-white/[0.02] hover:bg-teal-500/[0.04] block">
             <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full blur-3xl group-hover:bg-teal-500/10 transition-all duration-500" />
             <div className="relative flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -801,6 +816,7 @@ export default function ResultsPage() {
               </div>
             </div>
           </Link>
+          </motion.div>
         </div>
       </main>
     </div>
