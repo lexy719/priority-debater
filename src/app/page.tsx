@@ -131,7 +131,7 @@ function MiniRadar() {
       .join(" ") + " Z";
 
   return (
-    <svg viewBox="0 0 120 120" className="h-auto w-full drop-shadow-[0_0_12px_rgba(99,102,241,0.25)]">
+    <svg viewBox="0 0 120 120" className="h-auto w-full drop-shadow-[0_0_12px_rgba(99,102,241,0.2)]">
       <defs>
         <linearGradient id="demoRadarFill" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#6366f1" stopOpacity="0.35" />
@@ -143,12 +143,12 @@ function MiniRadar() {
         </linearGradient>
       </defs>
       {[3, 6, 10].map((r) => (
-        <path key={r} d={gridPath(r)} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={0.45} />
+        <path key={r} d={gridPath(r)} fill="none" stroke="rgb(99 102 241 / 0.18)" strokeWidth={0.45} />
       ))}
       {Array.from({ length: n }, (_, i) => {
         const p = pt(maxR, i);
         return (
-          <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(255,255,255,0.06)" strokeWidth={0.45} />
+          <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgb(99 102 241 / 0.12)" strokeWidth={0.45} />
         );
       })}
       <motion.path
@@ -188,10 +188,10 @@ function MiniRadar() {
             y={p.y}
             textAnchor="middle"
             dominantBaseline="central"
-            fill="rgba(255,255,255,0.38)"
+            fill="var(--text-tertiary)"
             fontSize={6}
             fontWeight={600}
-            style={{ letterSpacing: "0.02em" }}
+            style={{ letterSpacing: "0.02em", opacity: 0.9 }}
           >
             {l}
           </text>
@@ -243,35 +243,57 @@ function DemoPreview({ play }: { play: boolean }) {
       />
       <div className="pointer-events-none absolute -inset-px rounded-[1.35rem] bg-gradient-to-br from-white/[0.12] via-transparent to-indigo-500/20 opacity-80" />
 
-      <div className="relative overflow-hidden rounded-[1.25rem] border border-white/[0.09] bg-[#07070c] shadow-[0_24px_80px_-12px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.06)]">
+      <div
+        className="relative overflow-hidden rounded-[1.15rem] border"
+        style={{
+          borderColor: "var(--border-primary)",
+          background: "var(--bg-card)",
+          boxShadow:
+            "var(--shadow-elevated), inset 0 1px 0 color-mix(in srgb, var(--text-primary) 6%, transparent)",
+        }}
+      >
         {/* Window chrome */}
-        <div className="flex items-center gap-3 border-b border-white/[0.06] bg-[#0c0c12]/95 px-4 py-3 sm:px-5">
+        <div
+          className="flex items-center gap-3 border-b px-3 py-2.5 sm:px-4"
+          style={{ borderColor: "var(--border-primary)", background: "var(--bg-secondary)" }}
+        >
           <div className="flex gap-1.5">
-            <span className="h-3 w-3 rounded-full bg-[#ff5f57] shadow-[inset_0_-1px_0_rgba(0,0,0,0.2)]" />
-            <span className="h-3 w-3 rounded-full bg-[#febc2e] shadow-[inset_0_-1px_0_rgba(0,0,0,0.15)]" />
-            <span className="h-3 w-3 rounded-full bg-[#28c840] shadow-[inset_0_-1px_0_rgba(0,0,0,0.15)]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57] shadow-[inset_0_-1px_0_rgba(0,0,0,0.2)]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e] shadow-[inset_0_-1px_0_rgba(0,0,0,0.15)]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#28c840] shadow-[inset_0_-1px_0_rgba(0,0,0,0.15)]" />
           </div>
           <div className="flex min-w-0 flex-1 items-center justify-center sm:justify-start">
-            <div className="flex max-w-full items-center gap-2 rounded-lg border border-white/[0.07] bg-black/40 px-3 py-1.5 shadow-inner">
-              <Lock className="h-3 w-3 shrink-0 text-emerald-400/90" aria-hidden />
-              <span className="truncate font-mono text-[10px] text-white/45 sm:text-[11px]">
-                prioritydebater.com<span className="text-white/25">/results</span>
+            <div
+              className="flex max-w-full items-center gap-2 rounded-lg border px-2.5 py-1 shadow-inner"
+              style={{ borderColor: "var(--border-primary)", background: "var(--bg-input)" }}
+            >
+              <Lock className="h-3 w-3 shrink-0 text-emerald-500" aria-hidden />
+              <span className="truncate font-mono text-[10px] sm:text-[11px]" style={{ color: "var(--text-secondary)" }}>
+                prioritydebater.com<span style={{ color: "var(--text-muted)" }}>/results</span>
               </span>
             </div>
           </div>
         </div>
 
-        <div className="relative p-5 sm:p-7">
+        <div className="relative p-4 sm:p-5">
           <div
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(99,102,241,0.12),transparent)]"
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(99,102,241,0.1),transparent)]"
             aria-hidden
           />
 
           <div className="relative">
             {/* Idea input */}
-            <div className="mb-6 rounded-xl border border-white/[0.07] bg-black/30 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-              <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-white/35">Your idea</p>
-              <p className="min-h-[2.75rem] font-mono text-[13px] leading-relaxed text-white/90 sm:text-sm">
+            <div
+              className="mb-4 rounded-lg border p-3 sm:mb-5 sm:p-3.5"
+              style={{
+                borderColor: "var(--border-primary)",
+                background: "var(--bg-input)",
+              }}
+            >
+              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+                Your idea
+              </p>
+              <p className="min-h-11 font-mono text-[12px] leading-relaxed sm:text-[13px]" style={{ color: "var(--text-primary)" }}>
                 {typedText}
                 {typedText.length < DEMO_IDEA_TEXT.length && (
                   <span className="ml-0.5 inline-block h-4 w-px animate-pulse bg-indigo-400 align-middle" />
@@ -280,8 +302,8 @@ function DemoPreview({ play }: { play: boolean }) {
             </div>
 
             {/* Pipeline */}
-            <div className="relative mb-2">
-              <div className="absolute bottom-2 left-[15px] top-2 w-px bg-gradient-to-b from-indigo-500/40 via-violet-500/25 to-emerald-500/20" aria-hidden />
+            <div className="relative mb-1">
+              <div className="absolute bottom-1 left-[13px] top-1 w-px bg-gradient-to-b from-indigo-500/35 via-violet-500/20 to-emerald-500/15" aria-hidden />
               <div className="space-y-0">
                 {steps.map((s, i) => (
                   <motion.div
@@ -289,26 +311,34 @@ function DemoPreview({ play }: { play: boolean }) {
                     initial={{ opacity: 0.35, x: -6 }}
                     animate={{ opacity: i <= step ? 1 : 0.35, x: i <= step ? 0 : -6 }}
                     transition={{ duration: 0.35 }}
-                    className="relative flex gap-3.5 py-2.5 pl-1"
+                    className="relative flex gap-2.5 py-2 pl-0.5"
                   >
-                    <div className="relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center">
+                    <div className="relative z-[1] flex h-7 w-7 shrink-0 items-center justify-center">
                       {i < step ? (
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/20 ring-2 ring-emerald-400/30">
-                          <Check className="h-3.5 w-3.5 text-emerald-400" />
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 ring-2 ring-emerald-500/25">
+                          <Check className="h-3 w-3 text-emerald-500" />
                         </div>
                       ) : i === step ? (
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500/20 ring-2 ring-indigo-400/40">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-300" />
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-500/15 ring-2 ring-indigo-400/35">
+                          <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />
                         </div>
                       ) : (
-                        <div className="h-7 w-7 rounded-full border border-white/[0.08] bg-white/[0.03]" />
+                        <div
+                          className="h-6 w-6 rounded-full border"
+                          style={{ borderColor: "var(--border-primary)", background: "var(--bg-elevated)" }}
+                        />
                       )}
                     </div>
                     <div className="min-w-0 pt-0.5">
-                      <p className={`text-[13px] font-medium leading-tight ${i <= step ? s.color : "text-white/25"}`}>
+                      <p
+                        className={`text-[12px] font-medium leading-tight sm:text-[13px] ${i <= step ? s.color : ""}`}
+                        style={i > step ? { color: "var(--text-muted)" } : undefined}
+                      >
                         {s.label}
                       </p>
-                      <p className="mt-0.5 text-[11px] text-white/25">{s.sub}</p>
+                      <p className="mt-0.5 text-[10px] sm:text-[11px]" style={{ color: "var(--text-muted)" }}>
+                        {s.sub}
+                      </p>
                     </div>
                   </motion.div>
                 ))}
@@ -321,32 +351,41 @@ function DemoPreview({ play }: { play: boolean }) {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ type: "spring", stiffness: 320, damping: 28 }}
-                className="mt-6 rounded-xl border border-white/[0.07] bg-gradient-to-b from-white/[0.04] to-transparent p-4 sm:p-5"
+                className="mt-4 rounded-lg border p-3 sm:mt-5 sm:p-4"
+                style={{
+                  borderColor: "var(--border-primary)",
+                  background: "color-mix(in srgb, var(--bg-elevated) 85%, transparent)",
+                }}
               >
-                <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400/20 to-emerald-600/10 text-2xl font-bold tabular-nums text-emerald-400 ring-1 ring-emerald-400/25">
+                <div className="mb-4 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400/20 to-emerald-600/10 text-xl font-bold tabular-nums text-emerald-500 ring-1 ring-emerald-500/20 sm:h-12 sm:w-12 sm:text-2xl">
                       7
                     </div>
                     <div>
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400">
-                        <Check className="h-3 w-3" /> GO
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        <Check className="h-2.5 w-2.5" /> GO
                       </span>
-                      <p className="mt-1 text-[11px] text-white/35">Viability score</p>
+                      <p className="mt-0.5 text-[10px]" style={{ color: "var(--text-tertiary)" }}>
+                        Viability score
+                      </p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 sm:max-w-[280px] sm:shrink-0">
+                  <div className="grid grid-cols-3 gap-1.5 sm:max-w-[260px] sm:shrink-0">
                     {[
-                      { n: "4", label: "Strengths", color: "text-emerald-400" },
-                      { n: "3", label: "Risks", color: "text-amber-400" },
-                      { n: "5", label: "Actions", color: "text-sky-400" },
+                      { n: "4", label: "Strengths", color: "text-emerald-500" },
+                      { n: "3", label: "Risks", color: "text-amber-500" },
+                      { n: "5", label: "Actions", color: "text-sky-500" },
                     ].map((m) => (
                       <div
                         key={m.label}
-                        className="rounded-lg border border-white/[0.06] bg-black/25 px-2 py-2.5 text-center"
+                        className="rounded-md border px-1.5 py-2 text-center"
+                        style={{ borderColor: "var(--border-primary)", background: "var(--bg-card)" }}
                       >
-                        <p className={`text-lg font-bold tabular-nums ${m.color}`}>{m.n}</p>
-                        <p className="text-[10px] text-white/35">{m.label}</p>
+                        <p className={`text-base font-bold tabular-nums sm:text-lg ${m.color}`}>{m.n}</p>
+                        <p className="text-[9px] sm:text-[10px]" style={{ color: "var(--text-tertiary)" }}>
+                          {m.label}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -357,12 +396,13 @@ function DemoPreview({ play }: { play: boolean }) {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.45 }}
-                    className="flex flex-col gap-5 border-t border-white/[0.06] pt-5 sm:flex-row sm:items-stretch sm:gap-6"
+                    className="flex flex-col gap-4 border-t pt-4 sm:flex-row sm:items-stretch sm:gap-5"
+                    style={{ borderColor: "var(--border-primary)" }}
                   >
-                    <div className="mx-auto w-[9.5rem] shrink-0 sm:mx-0 sm:w-32">
+                    <div className="mx-auto w-36 shrink-0 sm:mx-0 sm:w-28">
                       <MiniRadar />
                     </div>
-                    <div className="min-w-0 flex-1 space-y-2.5">
+                    <div className="min-w-0 flex-1 space-y-2">
                       {[
                         { label: "Problem-Solution Fit", v: 8, color: "from-indigo-400 to-violet-500" },
                         { label: "Market Opportunity", v: 7, color: "from-violet-400 to-purple-500" },
@@ -370,11 +410,18 @@ function DemoPreview({ play }: { play: boolean }) {
                         { label: "Timing & Trends", v: 9, color: "from-amber-400 to-orange-500" },
                       ].map((b) => (
                         <div key={b.label}>
-                          <div className="mb-1 flex justify-between gap-2">
-                            <span className="text-[11px] text-white/45">{b.label}</span>
-                            <span className="text-[11px] font-semibold tabular-nums text-white/70">{b.v}/10</span>
+                          <div className="mb-0.5 flex justify-between gap-2">
+                            <span className="text-[10px] sm:text-[11px]" style={{ color: "var(--text-secondary)" }}>
+                              {b.label}
+                            </span>
+                            <span className="text-[10px] font-semibold tabular-nums sm:text-[11px]" style={{ color: "var(--text-primary)" }}>
+                              {b.v}/10
+                            </span>
                           </div>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+                          <div
+                            className="h-1.5 overflow-hidden rounded-full"
+                            style={{ background: "color-mix(in srgb, var(--text-primary) 8%, transparent)" }}
+                          >
                             <motion.div
                               className={`h-full rounded-full bg-gradient-to-r ${b.color}`}
                               initial={{ width: 0 }}
@@ -562,12 +609,12 @@ export default function Home() {
           style={{ opacity: demoOpacity, y: demoY, scale: demoScale }}
           className="relative mx-auto mt-2 w-full max-w-5xl px-4 sm:mt-4"
         >
-          <div className="mb-6 text-center sm:mb-8">
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.22em] text-indigo-400/90">Live preview</p>
-            <h2 className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: "var(--text-primary)" }}>
+          <div className="mb-4 text-center sm:mb-5">
+            <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.2em] text-indigo-400/90">Live preview</p>
+            <h2 className="text-lg font-bold tracking-tight sm:text-xl" style={{ color: "var(--text-primary)" }}>
               Watch a validation run
             </h2>
-            <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: "var(--text-tertiary)" }}>
+            <p className="mx-auto mt-1 max-w-md text-xs sm:text-sm" style={{ color: "var(--text-tertiary)" }}>
               Unlocks as you scroll — same flow as the real report.
             </p>
           </div>
@@ -575,8 +622,8 @@ export default function Home() {
         </motion.div>
 
         <motion.p
-          style={{ opacity: scrollHintOpacity }}
-          className="pointer-events-none absolute bottom-6 left-0 right-0 text-center text-[11px] text-white/35"
+          style={{ opacity: scrollHintOpacity, color: "var(--text-tertiary)" }}
+          className="pointer-events-none absolute bottom-6 left-0 right-0 text-center text-[11px]"
         >
           <span className="inline-flex items-center gap-2">
             Scroll for live preview
@@ -608,12 +655,16 @@ export default function Home() {
       </section>
 
       {/* ═══ HOW IT WORKS — Aceternity Scroll Timeline ═══ */}
-      <section className="py-20 sm:py-28">
-        <div className="max-w-5xl mx-auto px-5">
-          <Reveal className="text-center mb-4">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium mb-3">How it works</p>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight mb-4">From napkin sketch to investor-ready</h2>
-            <p className="text-white/30 text-sm max-w-md mx-auto">Four steps. Two minutes. Zero sugar-coating.</p>
+      <section className="py-14 sm:py-20">
+        <div className="mx-auto max-w-3xl px-5">
+          <Reveal className="mb-8 text-center">
+            <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.2em] text-indigo-400/80">How it works</p>
+            <h2 className="mb-2 text-xl font-bold tracking-tight sm:text-2xl" style={{ color: "var(--text-primary)" }}>
+              From napkin sketch to investor-ready
+            </h2>
+            <p className="mx-auto max-w-md text-xs sm:text-sm" style={{ color: "var(--text-tertiary)" }}>
+              Four steps. Two minutes. Zero sugar-coating.
+            </p>
           </Reveal>
 
           <Timeline data={[
@@ -621,12 +672,12 @@ export default function Home() {
               title: "Pitch it",
               content: (
                 <div>
-                  <p className="text-white/60 text-xs md:text-sm font-normal mb-4">
+                  <p className="mb-2 text-xs font-normal md:text-sm" style={{ color: "var(--text-secondary)" }}>
                     Describe your startup idea in plain English. No templates, no forms, no friction — just tell us what you&apos;re building.
                   </p>
-                  <div className="mb-6 space-y-2">
+                  <div className="mb-3 space-y-1.5">
                     {["30 seconds to submit", "No signup required", "Plain language — no jargon needed", "We handle the rest"].map((item) => (
-                      <div key={item} className="flex gap-2 items-center text-white/40 text-xs md:text-sm">
+                      <div key={item} className="flex items-center gap-2 text-xs md:text-sm" style={{ color: "var(--text-tertiary)" }}>
                         <Check className="w-4 h-4 text-blue-400 shrink-0" />
                         {item}
                       </div>
@@ -663,12 +714,12 @@ export default function Home() {
               title: "Get torn apart",
               content: (
                 <div>
-                  <p className="text-white/60 text-xs md:text-sm font-normal mb-4">
+                  <p className="mb-2 text-xs font-normal md:text-sm" style={{ color: "var(--text-secondary)" }}>
                     5 AI personas — Investor, Customer, Operator, Mentor, Adversary — score your idea across 15+ criteria. Market sizing, competitor mapping, risk flags, lean canvas, financials — nothing is spared.
                   </p>
-                  <div className="mb-6 space-y-2">
+                  <div className="mb-3 space-y-1.5">
                     {["Viability score (0-10 Go/No-Go)", "6-dimension radar chart", "TAM/SAM/SOM market sizing", "Competitive landscape analysis", "Lean Canvas generation", "Risk flags & blind spots"].map((item) => (
-                      <div key={item} className="flex gap-2 items-center text-white/40 text-xs md:text-sm">
+                      <div key={item} className="flex items-center gap-2 text-xs md:text-sm" style={{ color: "var(--text-tertiary)" }}>
                         <Check className="w-4 h-4 text-violet-400 shrink-0" />
                         {item}
                       </div>
@@ -697,12 +748,12 @@ export default function Home() {
               title: "Defend it",
               content: (
                 <div>
-                  <p className="text-white/60 text-xs md:text-sm font-normal mb-4">
+                  <p className="mb-2 text-xs font-normal md:text-sm" style={{ color: "var(--text-secondary)" }}>
                     Step into debate mode and defend your idea against AI personas that use inversion, base rates, and pre-mortem thinking. If you can survive this, you can survive a VC pitch.
                   </p>
-                  <div className="mb-6 space-y-2">
+                  <div className="mb-3 space-y-1.5">
                     {["Adversary rips holes in your logic", "Investor asks about unit economics", "Customer tells you they wouldn't buy", "Operator flags scaling challenges", "Real-time argument scoring"].map((item) => (
-                      <div key={item} className="flex gap-2 items-center text-white/40 text-xs md:text-sm">
+                      <div key={item} className="flex items-center gap-2 text-xs md:text-sm" style={{ color: "var(--text-tertiary)" }}>
                         <Swords className="w-4 h-4 text-emerald-400 shrink-0" />
                         {item}
                       </div>
@@ -733,12 +784,12 @@ export default function Home() {
               title: "Ship it",
               content: (
                 <div>
-                  <p className="text-white/60 text-xs md:text-sm font-normal mb-4">
+                  <p className="mb-2 text-xs font-normal md:text-sm" style={{ color: "var(--text-secondary)" }}>
                     Export your validation report as PDF, generate a pitch deck, create a business plan, share with co-founders. Build with conviction, not hope.
                   </p>
-                  <div className="mb-6 space-y-2">
+                  <div className="mb-3 space-y-1.5">
                     {["PDF & Markdown export", "AI-generated landing page", "Business plan & financial model", "Share link for co-founders", "Pitch deck generation"].map((item) => (
-                      <div key={item} className="flex gap-2 items-center text-white/40 text-xs md:text-sm">
+                      <div key={item} className="flex items-center gap-2 text-xs md:text-sm" style={{ color: "var(--text-tertiary)" }}>
                         <Check className="w-4 h-4 text-amber-400 shrink-0" />
                         {item}
                       </div>
@@ -937,21 +988,21 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══ FAQ — bento / glass (paste-in style from registries like 21st) ═══ */}
-      <section className="relative py-20 sm:py-28">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" aria-hidden />
-        <div className="mx-auto max-w-4xl px-5">
-          <Reveal className="mb-12 text-center">
-            <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.22em] text-indigo-400/80">FAQ</p>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--text-primary)" }}>
+      {/* ═══ FAQ ═══ */}
+      <section className="relative py-14 sm:py-20">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/25 to-transparent" aria-hidden />
+        <div className="mx-auto max-w-2xl px-5">
+          <Reveal className="mb-8 text-center">
+            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.2em] text-indigo-400/80">FAQ</p>
+            <h2 className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: "var(--text-primary)" }}>
               Before you ask
             </h2>
-            <p className="mx-auto mt-3 max-w-lg text-sm" style={{ color: "var(--text-tertiary)" }}>
-              Straight answers — open any card.
+            <p className="mx-auto mt-2 max-w-md text-xs" style={{ color: "var(--text-tertiary)" }}>
+              Tap a row to expand.
             </p>
           </Reveal>
 
-          <Accordion type="single" collapsible className="grid gap-4">
+          <Accordion type="single" collapsible className="grid gap-2.5">
             {[
               { q: "Why not just ask a generic AI to validate my idea?", a: "A generic AI is a yes-man that tells you what you want to hear. We built 5 specialized personas (Adversary, Investor, Mentor, Customer, Operator) specifically designed to challenge you. You also get structured scoring, lean canvas, financials, and a live debate mode. It's the difference between a friend saying 'sounds cool' and a VC grilling you for 30 minutes." },
               { q: "How long does it take?", a: "2 minutes to a full validation report with viability scores, market sizing, competitor analysis, risk flags, and actionable next steps. The debate can go as long as you want." },
@@ -963,22 +1014,31 @@ export default function Home() {
               <AccordionItem
                 key={item.q}
                 value={`faq-${i}`}
-                className="group border-b-0 border-0 bg-transparent data-[state=open]:shadow-[0_24px_80px_-24px_rgba(99,102,241,0.35)]"
+                className="group border-b-0 border-0 bg-transparent data-[state=open]:shadow-[0_12px_40px_-16px_rgba(99,102,241,0.2)]"
               >
-                <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.06] via-[#0c0c12]/90 to-[#07070c] p-[1px] transition-colors group-data-[state=open]:border-indigo-400/35">
-                  <div className="overflow-hidden rounded-[0.95rem] bg-[#08080e]/95 backdrop-blur-xl">
-                    <AccordionTrigger className="gap-4 px-5 py-5 text-left hover:no-underline sm:px-6 sm:py-6 [&>svg]:mt-1 [&>svg]:size-5 [&>svg]:shrink-0 [&>svg]:text-indigo-400/90 [&[data-state=open]>svg]:rotate-180">
-                      <span className="flex min-w-0 flex-1 items-start gap-4">
-                        <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/25 to-violet-600/10 text-indigo-300 ring-1 ring-white/10">
-                          <CircleHelp className="h-5 w-5" strokeWidth={1.75} />
+                <div
+                  className="rounded-xl border p-px transition-colors group-data-[state=open]:border-indigo-400/30"
+                  style={{ borderColor: "var(--border-primary)", background: "var(--bg-card)" }}
+                >
+                  <div className="overflow-hidden rounded-[0.7rem]" style={{ background: "var(--bg-card)" }}>
+                    <AccordionTrigger className="gap-3 px-3.5 py-3.5 text-left hover:no-underline sm:px-4 sm:py-4 [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-indigo-500 [&[data-state=open]>svg]:rotate-180">
+                      <span className="flex min-w-0 flex-1 items-start gap-3">
+                        <span
+                          className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+                          style={{ boxShadow: "inset 0 1px 0 color-mix(in srgb, var(--text-primary) 8%, transparent)" }}
+                        >
+                          <CircleHelp className="h-4 w-4" strokeWidth={2} />
                         </span>
-                        <span className="min-w-0 pt-0.5 text-[15px] font-semibold leading-snug text-white/90 sm:text-base">
+                        <span className="min-w-0 pt-0.5 text-left text-[13px] font-semibold leading-snug sm:text-sm" style={{ color: "var(--text-primary)" }}>
                           {item.q}
                         </span>
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="border-t border-white/[0.06] px-5 pb-6 pt-0 text-[13px] leading-relaxed text-white/45 sm:px-6">
-                      <p className="pl-0 pt-4 sm:pl-14">{item.a}</p>
+                    <AccordionContent
+                      className="border-t px-3.5 pb-3.5 pt-0 text-[12px] leading-relaxed sm:px-4"
+                      style={{ borderColor: "var(--border-primary)", color: "var(--text-secondary)" }}
+                    >
+                      <p className="pt-3 pl-0 sm:pl-11">{item.a}</p>
                     </AccordionContent>
                   </div>
                 </div>
