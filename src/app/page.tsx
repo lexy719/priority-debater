@@ -28,10 +28,18 @@ import {
   Grid3x3,
   Download,
   Share2,
-  ChevronDown,
   AlertTriangle,
+  Loader2,
+  Lock,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 import { AuroraBackground, InteractiveParticles, GridPattern } from "@/components/ui/animated-background";
 import { Timeline } from "@/components/ui/timeline";
 
@@ -98,24 +106,91 @@ function StaggerChild({ children, className = "" }: { children: React.ReactNode;
 function MiniRadar() {
   const scores = [8, 7, 6, 8, 7, 9];
   const labels = ["Problem", "Market", "Edge", "Model", "Team", "Timing"];
-  const n = 6; const cx = 60; const cy = 60; const maxR = 48;
+  const n = 6;
+  const cx = 60;
+  const cy = 60;
+  const maxR = 46;
   const pt = (r: number, i: number) => {
     const a = (Math.PI * 2 * i) / n - Math.PI / 2;
     return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
   };
-  const dataPath = scores.map((v, i) => pt((v / 10) * maxR, i)).map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
-  const gridPath = (ring: number) => Array.from({ length: n }, (_, i) => pt((ring / 10) * maxR, i)).map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
+  const dataPath =
+    scores
+      .map((v, i) => pt((v / 10) * maxR, i))
+      .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
+      .join(" ") + " Z";
+  const gridPath = (ring: number) =>
+    Array.from({ length: n }, (_, i) => pt((ring / 10) * maxR, i))
+      .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
+      .join(" ") + " Z";
 
   return (
-    <svg viewBox="0 0 120 120" className="w-full h-auto">
-      {[4, 7, 10].map((r) => <path key={r} d={gridPath(r)} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={0.5} />)}
-      {Array.from({ length: n }, (_, i) => { const p = pt(maxR, i); return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(255,255,255,0.06)" strokeWidth={0.5} />; })}
-      <motion.path d={dataPath} fill="rgba(99,102,241,0.15)" stroke="#6366f1" strokeWidth={1.5}
-        initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8, delay: 0.2, type: "spring" }}
-        style={{ transformOrigin: "60px 60px" }} />
-      {scores.map((v, i) => { const p = pt((v / 10) * maxR, i); return <motion.circle key={i} cx={p.x} cy={p.y} r={2.5} fill="#6366f1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 + i * 0.1 }} />; })}
-      {labels.map((l, i) => { const p = pt(maxR + 10, i); return <text key={i} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="central" fill="rgba(255,255,255,0.25)" fontSize={5.5} fontWeight={500}>{l}</text>; })}
+    <svg viewBox="0 0 120 120" className="h-auto w-full drop-shadow-[0_0_12px_rgba(99,102,241,0.25)]">
+      <defs>
+        <linearGradient id="demoRadarFill" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#6366f1" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.12" />
+        </linearGradient>
+        <linearGradient id="demoRadarStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#818cf8" />
+          <stop offset="100%" stopColor="#c4b5fd" />
+        </linearGradient>
+      </defs>
+      {[3, 6, 10].map((r) => (
+        <path key={r} d={gridPath(r)} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={0.45} />
+      ))}
+      {Array.from({ length: n }, (_, i) => {
+        const p = pt(maxR, i);
+        return (
+          <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(255,255,255,0.06)" strokeWidth={0.45} />
+        );
+      })}
+      <motion.path
+        d={dataPath}
+        fill="url(#demoRadarFill)"
+        stroke="url(#demoRadarStroke)"
+        strokeWidth={1.25}
+        strokeLinejoin="round"
+        initial={{ opacity: 0, scale: 0.88 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.75, delay: 0.15, type: "spring", stiffness: 120, damping: 18 }}
+        style={{ transformOrigin: "60px 60px" }}
+      />
+      {scores.map((v, i) => {
+        const p = pt((v / 10) * maxR, i);
+        return (
+          <motion.circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r={2.75}
+            fill="#a5b4fc"
+            stroke="#e0e7ff"
+            strokeWidth={0.4}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.35 + i * 0.06, type: "spring", stiffness: 400, damping: 22 }}
+          />
+        );
+      })}
+      {labels.map((l, i) => {
+        const p = pt(maxR + 12, i);
+        return (
+          <text
+            key={i}
+            x={p.x}
+            y={p.y}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fill="rgba(255,255,255,0.38)"
+            fontSize={6}
+            fontWeight={600}
+            style={{ letterSpacing: "0.02em" }}
+          >
+            {l}
+          </text>
+        );
+      })}
     </svg>
   );
 }
@@ -129,146 +204,198 @@ function DemoPreview() {
 
   useEffect(() => {
     if (!inView) return;
-    // Typing effect
     let i = 0;
     const typeInterval = setInterval(() => {
       i++;
       setTypedText(fullText.slice(0, i));
       if (i >= fullText.length) clearInterval(typeInterval);
-    }, 35);
+    }, 32);
     const t = [
-      setTimeout(() => setStep(0), 1800),
-      setTimeout(() => setStep(1), 2800),
-      setTimeout(() => setStep(2), 3800),
-      setTimeout(() => setStep(3), 5000),
-      setTimeout(() => setStep(4), 5800), // radar reveal
+      setTimeout(() => setStep(0), 1600),
+      setTimeout(() => setStep(1), 2600),
+      setTimeout(() => setStep(2), 3600),
+      setTimeout(() => setStep(3), 4700),
+      setTimeout(() => setStep(4), 5600),
     ];
-    return () => { clearInterval(typeInterval); t.forEach(clearTimeout); };
+    return () => {
+      clearInterval(typeInterval);
+      t.forEach(clearTimeout);
+    };
   }, [inView]);
 
   const steps = [
-    { label: "Analyzing market...", color: "text-blue-400" },
-    { label: "Mapping competitors...", color: "text-violet-400" },
-    { label: "Scoring viability...", color: "text-amber-400" },
-    { label: "Report ready", color: "text-emerald-400" },
+    { label: "Analyzing market", sub: "TAM / SAM / signals", color: "text-sky-400" },
+    { label: "Mapping competitors", sub: "Positioning & gaps", color: "text-violet-400" },
+    { label: "Scoring viability", sub: "15+ criteria", color: "text-amber-400" },
+    { label: "Report ready", sub: "Export & share", color: "text-emerald-400" },
   ];
 
   return (
-    <div ref={ref} className="relative mx-auto max-w-2xl">
-      {/* Glow behind the card */}
-      <div className="absolute -inset-4 bg-gradient-to-r from-indigo-500/20 via-violet-500/20 to-purple-500/20 rounded-3xl blur-2xl opacity-60" />
+    <div ref={ref} className="relative mx-auto max-w-xl px-4 sm:max-w-2xl sm:px-0">
+      <div
+        className="pointer-events-none absolute -inset-8 rounded-[2rem] bg-gradient-to-b from-indigo-500/15 via-violet-500/10 to-transparent blur-3xl"
+        aria-hidden
+      />
+      <div className="pointer-events-none absolute -inset-px rounded-[1.35rem] bg-gradient-to-br from-white/[0.12] via-transparent to-indigo-500/20 opacity-80" />
 
-      <div className="relative rounded-2xl border border-white/[0.08] bg-[#0c0c14]/90 backdrop-blur-xl p-6 sm:p-8 shadow-2xl">
-        {/* Browser dots */}
-        <div className="flex items-center gap-1.5 mb-5">
-          <div className="w-2.5 h-2.5 rounded-full bg-red-500/40" />
-          <div className="w-2.5 h-2.5 rounded-full bg-amber-500/40" />
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/40" />
-          <span className="ml-3 text-[10px] text-white/20 font-mono">prioritydebater.com/results</span>
+      <div className="relative overflow-hidden rounded-[1.25rem] border border-white/[0.09] bg-[#07070c] shadow-[0_24px_80px_-12px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.06)]">
+        {/* Window chrome */}
+        <div className="flex items-center gap-3 border-b border-white/[0.06] bg-[#0c0c12]/95 px-4 py-3 sm:px-5">
+          <div className="flex gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-[#ff5f57] shadow-[inset_0_-1px_0_rgba(0,0,0,0.2)]" />
+            <span className="h-3 w-3 rounded-full bg-[#febc2e] shadow-[inset_0_-1px_0_rgba(0,0,0,0.15)]" />
+            <span className="h-3 w-3 rounded-full bg-[#28c840] shadow-[inset_0_-1px_0_rgba(0,0,0,0.15)]" />
+          </div>
+          <div className="flex min-w-0 flex-1 items-center justify-center sm:justify-start">
+            <div className="flex max-w-full items-center gap-2 rounded-lg border border-white/[0.07] bg-black/40 px-3 py-1.5 shadow-inner">
+              <Lock className="h-3 w-3 shrink-0 text-emerald-400/90" aria-hidden />
+              <span className="truncate font-mono text-[10px] text-white/45 sm:text-[11px]">
+                prioritydebater.com<span className="text-white/25">/results</span>
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Idea with typing effect */}
-        <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1">Validating</p>
-        <h3 className="text-white font-semibold text-sm sm:text-base mb-5">
-          {typedText}
-          {typedText.length < fullText.length && <span className="inline-block w-[2px] h-[14px] bg-indigo-400 ml-0.5 animate-pulse align-middle" />}
-        </h3>
+        <div className="relative p-5 sm:p-7">
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(99,102,241,0.12),transparent)]"
+            aria-hidden
+          />
 
-        {/* Steps */}
-        <div className="space-y-2.5 mb-6">
-          {steps.map((s, i) => (
-            <motion.div key={i}
-              initial={{ opacity: 0.2, x: -12 }}
-              animate={{ opacity: i <= step ? 1 : 0.2, x: i <= step ? 0 : -12 }}
-              transition={{ duration: 0.3 }}
-              className="flex items-center gap-2.5"
-            >
-              {i < step ? (
-                <div className="w-4 h-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                  <Check className="w-2.5 h-2.5 text-emerald-400" />
-                </div>
-              ) : i === step ? (
-                <div className="w-4 h-4 rounded-full border-2 border-indigo-400/60 border-t-indigo-400 animate-spin" />
-              ) : (
-                <div className="w-4 h-4 rounded-full border border-white/10" />
-              )}
-              <span className={`text-xs ${i <= step ? s.color : "text-white/20"}`}>{s.label}</span>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Score + Radar */}
-        {step >= 3 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: "spring", bounce: 0.35, duration: 0.6 }}
-            className="pt-5 border-t border-white/[0.06]"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
-                  7
-                </div>
-                <div>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                    <Check className="w-2.5 h-2.5" /> GO
-                  </span>
-                  <p className="text-[10px] text-white/30 mt-0.5">Viability score</p>
-                </div>
+          <div className="relative">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/15 ring-1 ring-indigo-400/20">
+                <Sparkles className="h-3.5 w-3.5 text-indigo-300" />
+              </span>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40">Live validation</p>
+                <p className="text-[11px] text-white/25">Simulated run — same flow as the real tool</p>
               </div>
-              <div className="flex gap-2">
-                {[
-                  { n: "4", label: "Strengths", color: "text-emerald-400" },
-                  { n: "3", label: "Risks", color: "text-amber-400" },
-                  { n: "5", label: "Actions", color: "text-blue-400" },
-                ].map((m) => (
-                  <div key={m.label} className="bg-white/[0.04] rounded-lg px-3 py-2 text-center border border-white/[0.06]">
-                    <p className={`font-bold text-sm ${m.color}`}>{m.n}</p>
-                    <p className="text-[9px] text-white/30">{m.label}</p>
-                  </div>
+            </div>
+
+            {/* Idea input */}
+            <div className="mb-6 rounded-xl border border-white/[0.07] bg-black/30 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-white/35">Your idea</p>
+              <p className="min-h-[2.75rem] font-mono text-[13px] leading-relaxed text-white/90 sm:text-sm">
+                {typedText}
+                {typedText.length < fullText.length && (
+                  <span className="ml-0.5 inline-block h-4 w-px animate-pulse bg-indigo-400 align-middle" />
+                )}
+              </p>
+            </div>
+
+            {/* Pipeline */}
+            <div className="relative mb-2">
+              <div className="absolute bottom-2 left-[15px] top-2 w-px bg-gradient-to-b from-indigo-500/40 via-violet-500/25 to-emerald-500/20" aria-hidden />
+              <div className="space-y-0">
+                {steps.map((s, i) => (
+                  <motion.div
+                    key={s.label}
+                    initial={{ opacity: 0.35, x: -6 }}
+                    animate={{ opacity: i <= step ? 1 : 0.35, x: i <= step ? 0 : -6 }}
+                    transition={{ duration: 0.35 }}
+                    className="relative flex gap-3.5 py-2.5 pl-1"
+                  >
+                    <div className="relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center">
+                      {i < step ? (
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/20 ring-2 ring-emerald-400/30">
+                          <Check className="h-3.5 w-3.5 text-emerald-400" />
+                        </div>
+                      ) : i === step ? (
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500/20 ring-2 ring-indigo-400/40">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-300" />
+                        </div>
+                      ) : (
+                        <div className="h-7 w-7 rounded-full border border-white/[0.08] bg-white/[0.03]" />
+                      )}
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <p className={`text-[13px] font-medium leading-tight ${i <= step ? s.color : "text-white/25"}`}>
+                        {s.label}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-white/25">{s.sub}</p>
+                    </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
 
-            {/* Mini radar chart reveal */}
-            {step >= 4 && (
+            {/* Score + Radar */}
+            {step >= 3 && (
               <motion.div
-                initial={{ opacity: 0, y: 16 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="flex items-center gap-4 pt-4 border-t border-white/[0.04]"
+                transition={{ type: "spring", stiffness: 320, damping: 28 }}
+                className="mt-6 rounded-xl border border-white/[0.07] bg-gradient-to-b from-white/[0.04] to-transparent p-4 sm:p-5"
               >
-                <div className="w-28 shrink-0">
-                  <MiniRadar />
-                </div>
-                <div className="flex-1 space-y-1.5">
-                  {[
-                    { label: "Problem-Solution Fit", v: 8, color: "bg-indigo-500" },
-                    { label: "Market Opportunity", v: 7, color: "bg-violet-500" },
-                    { label: "Business Model", v: 8, color: "bg-emerald-500" },
-                    { label: "Timing & Trends", v: 9, color: "bg-amber-500" },
-                  ].map((b) => (
-                    <div key={b.label}>
-                      <div className="flex justify-between mb-0.5">
-                        <span className="text-[8px] text-white/25">{b.label}</span>
-                        <span className="text-[8px] text-white/40 font-bold">{b.v}/10</span>
-                      </div>
-                      <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                        <motion.div
-                          className={`h-full rounded-full ${b.color}`}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${b.v * 10}%` }}
-                          transition={{ duration: 0.8, delay: 0.3 }}
-                        />
-                      </div>
+                <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400/20 to-emerald-600/10 text-2xl font-bold tabular-nums text-emerald-400 ring-1 ring-emerald-400/25">
+                      7
                     </div>
-                  ))}
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400">
+                        <Check className="h-3 w-3" /> GO
+                      </span>
+                      <p className="mt-1 text-[11px] text-white/35">Viability score</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 sm:max-w-[280px] sm:shrink-0">
+                    {[
+                      { n: "4", label: "Strengths", color: "text-emerald-400" },
+                      { n: "3", label: "Risks", color: "text-amber-400" },
+                      { n: "5", label: "Actions", color: "text-sky-400" },
+                    ].map((m) => (
+                      <div
+                        key={m.label}
+                        className="rounded-lg border border-white/[0.06] bg-black/25 px-2 py-2.5 text-center"
+                      >
+                        <p className={`text-lg font-bold tabular-nums ${m.color}`}>{m.n}</p>
+                        <p className="text-[10px] text-white/35">{m.label}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
+                {step >= 4 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.45 }}
+                    className="flex flex-col gap-5 border-t border-white/[0.06] pt-5 sm:flex-row sm:items-stretch sm:gap-6"
+                  >
+                    <div className="mx-auto w-[9.5rem] shrink-0 sm:mx-0 sm:w-32">
+                      <MiniRadar />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-2.5">
+                      {[
+                        { label: "Problem-Solution Fit", v: 8, color: "from-indigo-400 to-violet-500" },
+                        { label: "Market Opportunity", v: 7, color: "from-violet-400 to-purple-500" },
+                        { label: "Business Model", v: 8, color: "from-emerald-400 to-teal-500" },
+                        { label: "Timing & Trends", v: 9, color: "from-amber-400 to-orange-500" },
+                      ].map((b) => (
+                        <div key={b.label}>
+                          <div className="mb-1 flex justify-between gap-2">
+                            <span className="text-[11px] text-white/45">{b.label}</span>
+                            <span className="text-[11px] font-semibold tabular-nums text-white/70">{b.v}/10</span>
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+                            <motion.div
+                              className={`h-full rounded-full bg-gradient-to-r ${b.color}`}
+                              initial={{ width: 0 }}
+                              animate={{ width: `${b.v * 10}%` }}
+                              transition={{ duration: 0.75, delay: 0.2, ease: [0.25, 0.4, 0.25, 1] }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
               </motion.div>
             )}
-          </motion.div>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -344,11 +471,20 @@ export default function Home() {
         <InteractiveParticles count={70} magneticRadius={250} magneticStrength={0.12} connectionDistance={170} />
 
         <div className="relative max-w-5xl mx-auto px-5 text-center">
-          {/* Badge */}
-          <motion.div initial={{ opacity: 0, y: 16, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.5, type: "spring" }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/[0.1] text-[11px] text-indigo-300 mb-8 backdrop-blur-sm shadow-[0_0_20px_rgba(99,102,241,0.15)]">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Free forever &middot; No signup &middot; 2-minute full report
+          {/* Badge — shadcn / 21st.dev registry */}
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, type: "spring" }}
+            className="mb-8 flex justify-center"
+          >
+            <Badge
+              variant="outline"
+              className="h-auto gap-2 rounded-full border-indigo-500/25 bg-indigo-500/[0.1] px-4 py-1.5 text-[11px] font-normal text-indigo-300 shadow-[0_0_20px_rgba(99,102,241,0.15)] backdrop-blur-sm hover:bg-indigo-500/[0.12]"
+            >
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
+              Free forever &middot; No signup &middot; 2-minute full report
+            </Badge>
           </motion.div>
 
           {/* Headline */}
@@ -409,6 +545,11 @@ export default function Home() {
 
       {/* ═══ DEMO ═══ */}
       <section className="relative pb-24 sm:pb-32">
+        <Reveal className="mx-auto max-w-2xl px-5 text-center mb-10">
+          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-indigo-400/80 mb-2">Live preview</p>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-2" style={{ color: "var(--text-primary)" }}>See the report unfold</h2>
+          <p className="text-sm max-w-md mx-auto" style={{ color: "var(--text-tertiary)" }}>A quick simulated run — same steps you get when you validate a real idea.</p>
+        </Reveal>
         <Reveal>
           <DemoPreview />
         </Reveal>
@@ -772,7 +913,7 @@ export default function Home() {
             <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium mb-3">FAQ</p>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Before you ask</h2>
           </Reveal>
-          <Stagger className="space-y-2">
+          <Accordion type="single" collapsible className="w-full space-y-2">
             {[
               { q: "Why not just ask a generic AI to validate my idea?", a: "A generic AI is a yes-man that tells you what you want to hear. We built 5 specialized personas (Adversary, Investor, Mentor, Customer, Operator) specifically designed to challenge you. You also get structured scoring, lean canvas, financials, and a live debate mode. It's the difference between a friend saying 'sounds cool' and a VC grilling you for 30 minutes." },
               { q: "How long does it take?", a: "2 minutes to a full validation report with viability scores, market sizing, competitor analysis, risk flags, and actionable next steps. The debate can go as long as you want." },
@@ -781,17 +922,20 @@ export default function Home() {
               { q: "What's the catch? Why is it free?", a: "No catch on the core validation tool — it's free with no signup, and always will be. In the future, premium features like AI-powered landing page generation will be offered as a paid upgrade, but the full idea validation, debate mode, and export tools remain completely free." },
               { q: "What if I don't have an idea yet?", a: "Use the Idea Generator. Tell us your interests, skills, and constraints — we'll generate tailored startup ideas you can immediately validate and stress-test." },
             ].map((item, i) => (
-              <StaggerChild key={i}>
-                <details className="group p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
-                  <summary className="font-medium text-white/80 text-[13px] cursor-pointer list-none flex items-center justify-between">
-                    {item.q}
-                    <ChevronDown className="w-4 h-4 text-white/20 group-open:rotate-180 transition-transform duration-300 shrink-0 ml-3" />
-                  </summary>
-                  <p className="mt-3 text-[12px] text-white/35 leading-relaxed">{item.a}</p>
-                </details>
-              </StaggerChild>
+              <AccordionItem
+                key={item.q}
+                value={`faq-${i}`}
+                className="rounded-xl border border-white/[0.06] border-b-0 bg-white/[0.02] px-4 transition-colors data-[state=open]:bg-white/[0.04]"
+              >
+                <AccordionTrigger className="py-4 text-left text-[13px] font-medium text-white/80 hover:no-underline [&>svg]:text-white/30">
+                  {item.q}
+                </AccordionTrigger>
+                <AccordionContent className="text-[12px] leading-relaxed text-white/35">
+                  {item.a}
+                </AccordionContent>
+              </AccordionItem>
             ))}
-          </Stagger>
+          </Accordion>
         </div>
       </section>
 
