@@ -6,7 +6,10 @@ import {
   motion,
   useInView,
   useMotionValue,
+  useMotionValueEvent,
+  useScroll,
   useSpring,
+  useTransform,
 } from "framer-motion";
 import {
   ArrowRight,
@@ -31,6 +34,7 @@ import {
   AlertTriangle,
   Loader2,
   Lock,
+  CircleHelp,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
@@ -100,6 +104,8 @@ function StaggerChild({ children, className = "" }: { children: React.ReactNode;
     }} className={className}>{children}</motion.div>
   );
 }
+
+const DEMO_IDEA_TEXT = "AI-powered meeting summarizer for remote teams";
 
 // ── Live demo mockup ────────────────────────────────────────────────────
 // ── Mini radar for demo ─────────────────────────────────────────────────
@@ -195,20 +201,19 @@ function MiniRadar() {
   );
 }
 
-function DemoPreview() {
+function DemoPreview({ play }: { play: boolean }) {
   const [step, setStep] = useState(-1);
   const [typedText, setTypedText] = useState("");
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
-  const fullText = "AI-powered meeting summarizer for remote teams";
-
   useEffect(() => {
-    if (!inView) return;
+    if (!play) return;
+    setStep(-1);
+    setTypedText("");
     let i = 0;
     const typeInterval = setInterval(() => {
       i++;
-      setTypedText(fullText.slice(0, i));
-      if (i >= fullText.length) clearInterval(typeInterval);
+      setTypedText(DEMO_IDEA_TEXT.slice(0, i));
+      if (i >= DEMO_IDEA_TEXT.length) clearInterval(typeInterval);
     }, 32);
     const t = [
       setTimeout(() => setStep(0), 1600),
@@ -221,7 +226,7 @@ function DemoPreview() {
       clearInterval(typeInterval);
       t.forEach(clearTimeout);
     };
-  }, [inView]);
+  }, [play]);
 
   const steps = [
     { label: "Analyzing market", sub: "TAM / SAM / signals", color: "text-sky-400" },
@@ -263,22 +268,12 @@ function DemoPreview() {
           />
 
           <div className="relative">
-            <div className="mb-4 flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/15 ring-1 ring-indigo-400/20">
-                <Sparkles className="h-3.5 w-3.5 text-indigo-300" />
-              </span>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40">Live validation</p>
-                <p className="text-[11px] text-white/25">Simulated run — same flow as the real tool</p>
-              </div>
-            </div>
-
             {/* Idea input */}
             <div className="mb-6 rounded-xl border border-white/[0.07] bg-black/30 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-white/35">Your idea</p>
               <p className="min-h-[2.75rem] font-mono text-[13px] leading-relaxed text-white/90 sm:text-sm">
                 {typedText}
-                {typedText.length < fullText.length && (
+                {typedText.length < DEMO_IDEA_TEXT.length && (
                   <span className="ml-0.5 inline-block h-4 w-px animate-pulse bg-indigo-400 align-middle" />
                 )}
               </p>
@@ -403,7 +398,24 @@ function DemoPreview() {
 
 // ── Main Page ───────────────────────────────────────────────────────────
 export default function Home() {
-  const heroRef = useRef(null);
+  const heroScrollRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: heroScrollRef,
+    offset: ["start start", "end end"],
+  });
+
+  const heroScale = useTransform(scrollYProgress, [0, 0.42], [1, 0.9]);
+  const heroY = useTransform(scrollYProgress, [0, 0.42], [0, -28]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.38], [1, 0.65]);
+  const demoOpacity = useTransform(scrollYProgress, [0.14, 0.42], [0, 1]);
+  const demoY = useTransform(scrollYProgress, [0.14, 0.42], [90, 0]);
+  const demoScale = useTransform(scrollYProgress, [0.14, 0.42], [0.92, 1]);
+  const scrollHintOpacity = useTransform(scrollYProgress, [0, 0.12], [1, 0]);
+
+  const [demoPlay, setDemoPlay] = useState(false);
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    if (v > 0.2) setDemoPlay(true);
+  });
 
   return (
     <div className="landing-page min-h-screen overflow-hidden" style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
@@ -436,8 +448,9 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* ═══ HERO ═══ */}
-      <section ref={heroRef} className="relative pt-28 sm:pt-36 pb-20 sm:pb-28 overflow-hidden">
+      {/* ═══ HERO + scroll-reveal live preview ═══ */}
+      <section ref={heroScrollRef} className="relative min-h-[220vh] sm:min-h-[260vh]">
+        <div className="sticky top-0 flex min-h-[100svh] flex-col justify-center overflow-hidden pt-20 sm:pt-24 pb-10">
         {/* ── Animated background: big visible glowing orbs + grid ── */}
         <div className="pointer-events-none absolute inset-0 -z-10">
           {/* Large animated gradient orbs — very visible */}
@@ -470,7 +483,10 @@ export default function Home() {
         {/* Interactive particles */}
         <InteractiveParticles count={70} magneticRadius={250} magneticStrength={0.12} connectionDistance={170} />
 
-        <div className="relative max-w-5xl mx-auto px-5 text-center">
+        <motion.div
+          style={{ scale: heroScale, y: heroY, opacity: heroOpacity }}
+          className="relative mx-auto max-w-5xl origin-top px-5 text-center"
+        >
           {/* Badge — shadcn / 21st.dev registry */}
           <motion.div
             initial={{ opacity: 0, y: 16, scale: 0.9 }}
@@ -540,19 +556,34 @@ export default function Home() {
               </span>
             ))}
           </motion.div>
-        </div>
-      </section>
+        </motion.div>
 
-      {/* ═══ DEMO ═══ */}
-      <section className="relative pb-24 sm:pb-32">
-        <Reveal className="mx-auto max-w-2xl px-5 text-center mb-10">
-          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-indigo-400/80 mb-2">Live preview</p>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-2" style={{ color: "var(--text-primary)" }}>See the report unfold</h2>
-          <p className="text-sm max-w-md mx-auto" style={{ color: "var(--text-tertiary)" }}>A quick simulated run — same steps you get when you validate a real idea.</p>
-        </Reveal>
-        <Reveal>
-          <DemoPreview />
-        </Reveal>
+        <motion.div
+          style={{ opacity: demoOpacity, y: demoY, scale: demoScale }}
+          className="relative mx-auto mt-2 w-full max-w-5xl px-4 sm:mt-4"
+        >
+          <div className="mb-6 text-center sm:mb-8">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.22em] text-indigo-400/90">Live preview</p>
+            <h2 className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: "var(--text-primary)" }}>
+              Watch a validation run
+            </h2>
+            <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: "var(--text-tertiary)" }}>
+              Unlocks as you scroll — same flow as the real report.
+            </p>
+          </div>
+          <DemoPreview play={demoPlay} />
+        </motion.div>
+
+        <motion.p
+          style={{ opacity: scrollHintOpacity }}
+          className="pointer-events-none absolute bottom-6 left-0 right-0 text-center text-[11px] text-white/35"
+        >
+          <span className="inline-flex items-center gap-2">
+            Scroll for live preview
+            <span className="inline-block animate-bounce">↓</span>
+          </span>
+        </motion.p>
+        </div>
       </section>
 
       {/* ═══ STATS ═══ */}
@@ -906,14 +937,21 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══ FAQ ═══ */}
-      <section className="py-20 sm:py-28">
-        <div className="max-w-2xl mx-auto px-5">
-          <Reveal className="text-center mb-12">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium mb-3">FAQ</p>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Before you ask</h2>
+      {/* ═══ FAQ — bento / glass (paste-in style from registries like 21st) ═══ */}
+      <section className="relative py-20 sm:py-28">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" aria-hidden />
+        <div className="mx-auto max-w-4xl px-5">
+          <Reveal className="mb-12 text-center">
+            <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.22em] text-indigo-400/80">FAQ</p>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--text-primary)" }}>
+              Before you ask
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-sm" style={{ color: "var(--text-tertiary)" }}>
+              Straight answers — open any card.
+            </p>
           </Reveal>
-          <Accordion type="single" collapsible className="w-full space-y-2">
+
+          <Accordion type="single" collapsible className="grid gap-4">
             {[
               { q: "Why not just ask a generic AI to validate my idea?", a: "A generic AI is a yes-man that tells you what you want to hear. We built 5 specialized personas (Adversary, Investor, Mentor, Customer, Operator) specifically designed to challenge you. You also get structured scoring, lean canvas, financials, and a live debate mode. It's the difference between a friend saying 'sounds cool' and a VC grilling you for 30 minutes." },
               { q: "How long does it take?", a: "2 minutes to a full validation report with viability scores, market sizing, competitor analysis, risk flags, and actionable next steps. The debate can go as long as you want." },
@@ -925,14 +963,25 @@ export default function Home() {
               <AccordionItem
                 key={item.q}
                 value={`faq-${i}`}
-                className="rounded-xl border border-white/[0.06] border-b-0 bg-white/[0.02] px-4 transition-colors data-[state=open]:bg-white/[0.04]"
+                className="group border-b-0 border-0 bg-transparent data-[state=open]:shadow-[0_24px_80px_-24px_rgba(99,102,241,0.35)]"
               >
-                <AccordionTrigger className="py-4 text-left text-[13px] font-medium text-white/80 hover:no-underline [&>svg]:text-white/30">
-                  {item.q}
-                </AccordionTrigger>
-                <AccordionContent className="text-[12px] leading-relaxed text-white/35">
-                  {item.a}
-                </AccordionContent>
+                <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.06] via-[#0c0c12]/90 to-[#07070c] p-[1px] transition-colors group-data-[state=open]:border-indigo-400/35">
+                  <div className="overflow-hidden rounded-[0.95rem] bg-[#08080e]/95 backdrop-blur-xl">
+                    <AccordionTrigger className="gap-4 px-5 py-5 text-left hover:no-underline sm:px-6 sm:py-6 [&>svg]:mt-1 [&>svg]:size-5 [&>svg]:shrink-0 [&>svg]:text-indigo-400/90 [&[data-state=open]>svg]:rotate-180">
+                      <span className="flex min-w-0 flex-1 items-start gap-4">
+                        <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/25 to-violet-600/10 text-indigo-300 ring-1 ring-white/10">
+                          <CircleHelp className="h-5 w-5" strokeWidth={1.75} />
+                        </span>
+                        <span className="min-w-0 pt-0.5 text-[15px] font-semibold leading-snug text-white/90 sm:text-base">
+                          {item.q}
+                        </span>
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent className="border-t border-white/[0.06] px-5 pb-6 pt-0 text-[13px] leading-relaxed text-white/45 sm:px-6">
+                      <p className="pl-0 pt-4 sm:pl-14">{item.a}</p>
+                    </AccordionContent>
+                  </div>
+                </div>
               </AccordionItem>
             ))}
           </Accordion>
