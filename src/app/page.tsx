@@ -6,10 +6,7 @@ import {
   motion,
   useInView,
   useMotionValue,
-  useMotionValueEvent,
-  useScroll,
   useSpring,
-  useTransform,
 } from "framer-motion";
 import {
   ArrowRight,
@@ -444,7 +441,7 @@ function DemoPreview({ play }: { play: boolean }) {
 }
 
 // ── Compact Step Card for "How It Works" ──────────────────────────────
-function StepCard({ step, index }: { step: { num: string; title: string; desc: string; icon: React.ReactNode; color: string; borderColor: string }; index: number }) {
+function StepCard({ step, index }: { step: { num: string; title: string; desc: string; icon: React.ReactNode; accent: string; gradient: string }; index: number }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
   return (
@@ -452,22 +449,25 @@ function StepCard({ step, index }: { step: { num: string; title: string; desc: s
       ref={ref}
       initial={{ opacity: 0, y: 30, scale: 0.95 }}
       animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
-      transition={{ duration: 0.5, delay: index * 0.1, type: "spring", stiffness: 300, damping: 25 }}
-      whileHover={{ y: -8, scale: 1.03 }}
+      transition={{ duration: 0.5, delay: index * 0.12, type: "spring", stiffness: 300, damping: 25 }}
+      whileHover={{ y: -8, scale: 1.02 }}
       className="group relative cursor-default"
     >
-      {/* Glow on hover */}
-      <div className={`absolute -inset-px rounded-2xl bg-gradient-to-b ${step.color} opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm`} />
-      <div className="relative rounded-2xl border border-white/[0.06] bg-[#0c0c14]/80 backdrop-blur-sm p-5 h-full">
-        {/* Step number */}
-        <div className={`absolute -top-3 -right-2 text-[40px] font-black ${step.color.includes("indigo") ? "text-indigo-500/10" : step.color.includes("violet") ? "text-violet-500/10" : step.color.includes("emerald") ? "text-emerald-500/10" : "text-amber-500/10"} select-none`}>
+      {/* Animated gradient border */}
+      <div className={`absolute -inset-[1px] rounded-2xl bg-gradient-to-b ${step.gradient} opacity-30 group-hover:opacity-100 transition-opacity duration-500`} />
+      <div className="relative rounded-2xl bg-[#0c0c14] p-6 h-full">
+        {/* Step number watermark */}
+        <div className={`absolute top-3 right-4 text-[56px] font-black leading-none ${step.accent} opacity-[0.06] group-hover:opacity-[0.12] transition-opacity select-none`}>
           {step.num}
         </div>
-        <div className={`w-10 h-10 rounded-xl border ${step.borderColor} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300`}>
-          {step.icon}
+        {/* Icon with glow */}
+        <div className={`relative w-12 h-12 rounded-xl bg-gradient-to-br ${step.gradient} p-[1px] mb-4`}>
+          <div className="w-full h-full rounded-xl bg-[#0c0c14] flex items-center justify-center group-hover:bg-[#10101a] transition-colors">
+            {step.icon}
+          </div>
         </div>
-        <h3 className="text-sm font-bold text-white mb-1">{step.title}</h3>
-        <p className="text-[11px] text-white/35 leading-relaxed">{step.desc}</p>
+        <h3 className="text-base font-bold text-white mb-1.5">{step.title}</h3>
+        <p className="text-[12px] text-white/40 leading-relaxed">{step.desc}</p>
       </div>
     </motion.div>
   );
@@ -475,24 +475,13 @@ function StepCard({ step, index }: { step: { num: string; title: string; desc: s
 
 // ── Main Page ───────────────────────────────────────────────────────────
 export default function Home() {
-  const heroScrollRef = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: heroScrollRef,
-    offset: ["start start", "end end"],
-  });
-
-  const heroScale = useTransform(scrollYProgress, [0, 0.42], [1, 0.9]);
-  const heroY = useTransform(scrollYProgress, [0, 0.42], [0, -28]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.38], [1, 0.65]);
-  const demoOpacity = useTransform(scrollYProgress, [0.14, 0.42], [0, 1]);
-  const demoY = useTransform(scrollYProgress, [0.14, 0.42], [90, 0]);
-  const demoScale = useTransform(scrollYProgress, [0.14, 0.42], [0.92, 1]);
-  const scrollHintOpacity = useTransform(scrollYProgress, [0, 0.12], [1, 0]);
-
+  const demoRef = useRef<HTMLDivElement>(null);
+  const demoInView = useInView(demoRef, { once: true, margin: "-100px" });
   const [demoPlay, setDemoPlay] = useState(false);
-  useMotionValueEvent(scrollYProgress, "change", (v) => {
-    if (v > 0.2) setDemoPlay(true);
-  });
+
+  useEffect(() => {
+    if (demoInView) setDemoPlay(true);
+  }, [demoInView]);
 
   return (
     <div className="landing-page min-h-screen overflow-hidden" style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
@@ -550,13 +539,13 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* ═══ HERO + scroll-reveal live preview ═══ */}
-      <section ref={heroScrollRef} className="relative z-10 min-h-[220vh] sm:min-h-[260vh]">
-        <div className="sticky top-0 flex min-h-[100svh] flex-col justify-center overflow-hidden pt-20 sm:pt-24 pb-10">
+      {/* ═══ HERO ═══ */}
+      <section className="relative z-10 flex min-h-[100svh] flex-col justify-center pt-20 sm:pt-24 pb-16">
 
         <motion.div
-          style={{ scale: heroScale, y: heroY, opacity: heroOpacity }}
-          className="relative mx-auto max-w-5xl origin-top px-5 text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="relative mx-auto max-w-5xl px-5 text-center"
         >
           {/* Badge */}
           <motion.div
@@ -628,32 +617,27 @@ export default function Home() {
             ))}
           </motion.div>
         </motion.div>
+      </section>
 
-        <motion.div
-          style={{ opacity: demoOpacity, y: demoY, scale: demoScale }}
-          className="relative mx-auto mt-2 w-full max-w-5xl px-4 sm:mt-4"
-        >
-          <div className="mb-4 text-center sm:mb-5">
+      {/* ═══ LIVE PREVIEW ═══ */}
+      <section className="relative z-10 pb-16 sm:pb-24" ref={demoRef}>
+        <div className="mx-auto max-w-5xl px-4">
+          <Reveal className="mb-6 text-center">
             <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.2em] text-indigo-400/90">Live preview</p>
             <h2 className="text-lg font-bold tracking-tight sm:text-xl" style={{ color: "var(--text-primary)" }}>
               Watch a validation run
             </h2>
             <p className="mx-auto mt-1 max-w-md text-xs sm:text-sm" style={{ color: "var(--text-tertiary)" }}>
-              Unlocks as you scroll — same flow as the real report.
+              See exactly what you get — same flow as the real report.
             </p>
-          </div>
-          <DemoPreview play={demoPlay} />
-        </motion.div>
-
-        <motion.p
-          style={{ opacity: scrollHintOpacity, color: "var(--text-tertiary)" }}
-          className="pointer-events-none absolute bottom-6 left-0 right-0 text-center text-[11px]"
-        >
-          <span className="inline-flex items-center gap-2">
-            Scroll for live preview
-            <span className="inline-block animate-bounce">&darr;</span>
-          </span>
-        </motion.p>
+          </Reveal>
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.95 }}
+            animate={demoInView ? { opacity: 1, y: 0, scale: 1 } : {}}
+            transition={{ duration: 0.7, type: "spring", stiffness: 200, damping: 25 }}
+          >
+            <DemoPreview play={demoPlay} />
+          </motion.div>
         </div>
       </section>
 
@@ -701,10 +685,10 @@ export default function Home() {
             <div className="hidden sm:block absolute top-[52px] left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" aria-hidden />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { num: "01", title: "Pitch it", desc: "Describe your idea in plain English. No templates, no jargon — 30 seconds to submit.", icon: <FileText className="w-4.5 h-4.5 text-blue-400" />, color: "from-blue-500/20 to-transparent", borderColor: "border-blue-500/20 bg-blue-500/[0.06]" },
-                { num: "02", title: "Get torn apart", desc: "5 AI personas score you across 15+ criteria. Market sizing, risk flags, viability score.", icon: <Flame className="w-4.5 h-4.5 text-violet-400" />, color: "from-violet-500/20 to-transparent", borderColor: "border-violet-500/20 bg-violet-500/[0.06]" },
-                { num: "03", title: "Defend it", desc: "Enter debate mode. Adversary, Investor, Customer challenge every assumption you have.", icon: <Swords className="w-4.5 h-4.5 text-emerald-400" />, color: "from-emerald-500/20 to-transparent", borderColor: "border-emerald-500/20 bg-emerald-500/[0.06]" },
-                { num: "04", title: "Ship it", desc: "Export PDF, generate a landing page, create a pitch deck. Build with conviction.", icon: <Rocket className="w-4.5 h-4.5 text-amber-400" />, color: "from-amber-500/20 to-transparent", borderColor: "border-amber-500/20 bg-amber-500/[0.06]" },
+                { num: "01", title: "Pitch it", desc: "Describe your idea in plain English. No templates, no jargon — 30 seconds to submit.", icon: <FileText className="w-5 h-5 text-blue-400" />, accent: "text-blue-500", gradient: "from-blue-500 to-cyan-500" },
+                { num: "02", title: "Get torn apart", desc: "5 AI personas score you across 15+ criteria. Market sizing, risk flags, viability score.", icon: <Flame className="w-5 h-5 text-violet-400" />, accent: "text-violet-500", gradient: "from-violet-500 to-purple-500" },
+                { num: "03", title: "Defend it", desc: "Enter debate mode. Adversary, Investor, Customer challenge every assumption you have.", icon: <Swords className="w-5 h-5 text-emerald-400" />, accent: "text-emerald-500", gradient: "from-emerald-500 to-teal-500" },
+                { num: "04", title: "Ship it", desc: "Export PDF, generate a landing page, create a pitch deck. Build with conviction.", icon: <Rocket className="w-5 h-5 text-amber-400" />, accent: "text-amber-500", gradient: "from-amber-500 to-orange-500" },
               ].map((step, i) => (
                 <StepCard key={step.num} step={step} index={i} />
               ))}
