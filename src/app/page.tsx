@@ -100,36 +100,35 @@ function StaggerChild({ children, className = "" }: { children: React.ReactNode;
   );
 }
 
-/** Hero preview — editorial “report snapshot”, not a busy fake dashboard */
-function ScoreRing({ progress, active }: { progress: number; active: boolean }) {
-  const r = 52;
-  const c = 2 * Math.PI * r;
-  const offset = c * (1 - progress);
+/** Skeleton “report” — no fake score on the homepage before the user validates an idea */
+function ReportOutlineMock({ active }: { active: boolean }) {
+  const bars = [72, 92, 58, 84];
   return (
-    <svg viewBox="0 0 120 120" className="h-[140px] w-[140px] shrink-0 sm:h-[160px] sm:w-[160px]" aria-hidden>
-      <defs>
-        <linearGradient id="heroRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#818cf8" />
-          <stop offset="50%" stopColor="#a78bfa" />
-          <stop offset="100%" stopColor="#34d399" />
-        </linearGradient>
-      </defs>
-      <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
-      <motion.circle
-        cx="60"
-        cy="60"
-        r={r}
-        fill="none"
-        stroke="url(#heroRingGrad)"
-        strokeWidth="8"
-        strokeLinecap="round"
-        strokeDasharray={c}
-        initial={{ strokeDashoffset: c }}
-        animate={active ? { strokeDashoffset: offset } : { strokeDashoffset: c }}
-        transition={{ duration: 1.35, ease: [0.25, 0.4, 0.25, 1] }}
-        style={{ transform: "rotate(-90deg)", transformOrigin: "60px 60px" }}
+    <motion.div
+      className="flex h-[148px] w-[128px] shrink-0 flex-col justify-center rounded-xl border border-white/[0.09] bg-white/[0.03] p-4 sm:h-[168px] sm:w-[148px]"
+      initial={{ opacity: 0.6, scale: 0.98 }}
+      animate={active ? { opacity: 1, scale: 1 } : {}}
+      transition={{ duration: 0.5, ease: [0.25, 0.4, 0.25, 1] }}
+      aria-hidden
+    >
+      <div className="mb-3 h-2 w-12 rounded-full bg-white/[0.12]" />
+      {bars.map((w, i) => (
+        <motion.div
+          key={i}
+          className="mb-2 h-1.5 rounded-full bg-white/[0.07]"
+          style={{ width: `${w}%` }}
+          initial={{ opacity: 0, x: -6 }}
+          animate={active ? { opacity: 1, x: 0 } : {}}
+          transition={{ delay: 0.08 + i * 0.06, duration: 0.4 }}
+        />
+      ))}
+      <motion.div
+        className="mt-3 h-9 rounded-lg border border-indigo-500/20 bg-indigo-500/[0.08]"
+        initial={{ opacity: 0 }}
+        animate={active ? { opacity: 1 } : {}}
+        transition={{ delay: 0.35, duration: 0.4 }}
       />
-    </svg>
+    </motion.div>
   );
 }
 
@@ -178,7 +177,7 @@ function DemoPreview({ play }: { play: boolean }) {
             >
               <Lock className="h-3 w-3 shrink-0 text-emerald-500/90" aria-hidden />
               <span className="truncate font-mono text-[10px] sm:text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>
-                prioritydebater.com<span style={{ color: "rgba(255,255,255,0.28)" }}>/report</span>
+                prioritydebater.com<span style={{ color: "rgba(255,255,255,0.28)" }}>/validate</span>
               </span>
             </div>
           </div>
@@ -201,34 +200,32 @@ function DemoPreview({ play }: { play: boolean }) {
             transition={{ duration: 0.55, ease: [0.25, 0.4, 0.25, 1] }}
           >
             <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:gap-8 lg:gap-10">
-              <ScoreRing progress={0.74} active={active} />
+              <ReportOutlineMock active={active} />
               <div className="text-center sm:text-left">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.32)" }}>
-                  Viability snapshot
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.32)" }}>
+                  No idea yet? No rating.
                 </p>
-                <div className="flex flex-wrap items-baseline justify-center gap-2 sm:justify-start">
+                <h3
+                  className="max-w-[280px] text-[1.35rem] font-semibold leading-tight tracking-tight sm:max-w-[320px] sm:text-2xl"
+                  style={{ letterSpacing: "-0.03em", color: "rgba(255,255,255,0.92)" }}
+                >
+                  You paste an idea —{" "}
                   <span
-                    className="text-5xl font-semibold tabular-nums tracking-tight sm:text-6xl"
-                    style={{
-                      background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.72) 50%, #a5b4fc 100%)",
-                      WebkitBackgroundClip: "text",
-                      backgroundClip: "text",
-                      color: "transparent",
-                    }}
+                    className="text-transparent bg-clip-text"
+                    style={{ backgroundImage: "linear-gradient(135deg, #c4b5fd, #818cf8)" }}
                   >
-                    7.4
+                    we build the report.
                   </span>
-                  <span className="text-lg font-medium text-white/25">/10</span>
-                </div>
-                <p className="mt-3 max-w-[240px] text-[13px] leading-relaxed text-white/38 sm:max-w-none">
-                  One report: scores, risks, and what to fix next — before you pitch anyone.
+                </h3>
+                <p className="mt-3 max-w-[280px] text-[13px] leading-relaxed text-white/38 sm:max-w-[340px]">
+                  Scores, risks, and next steps show up only after you run validation — we don’t invent a demo rating before you’ve shared an idea.
                 </p>
               </div>
             </div>
 
             <div className="flex flex-col gap-4 lg:max-w-[280px]">
               <p className="text-center text-[10px] font-medium uppercase tracking-wider text-white/30 lg:text-left">
-                Five perspectives · one verdict
+                Five lenses · one report
               </p>
               <div className="flex flex-wrap justify-center gap-2 lg:justify-start">
                 {DEMO_PERSONAS.map((p, i) => (
