@@ -21,16 +21,25 @@ function buildSearchQuery(topic: string): string {
   return t.length >= 3 ? t : "startup business";
 }
 
-/** Search Unsplash; returns 0–4 images. Empty if no key or API error. */
-export async function fetchLandingPageImages(topic: string): Promise<LandingImageRef[]> {
+export type FetchLandingImagesOptions = {
+  /** Unsplash API: landscape | portrait | squarish */
+  orientation?: "landscape" | "portrait" | "squarish";
+  perPage?: number;
+};
+
+/** Search Unsplash; returns 0–4 images (default). Empty if no key or API error. */
+export async function fetchLandingPageImages(
+  topic: string,
+  options?: FetchLandingImagesOptions
+): Promise<LandingImageRef[]> {
   const key = process.env.UNSPLASH_ACCESS_KEY?.trim();
   if (!key) return [];
 
   const query = buildSearchQuery(topic);
   const url = new URL("https://api.unsplash.com/search/photos");
   url.searchParams.set("query", query);
-  url.searchParams.set("per_page", "4");
-  url.searchParams.set("orientation", "landscape");
+  url.searchParams.set("per_page", String(Math.min(30, Math.max(1, options?.perPage ?? 4))));
+  url.searchParams.set("orientation", options?.orientation ?? "landscape");
 
   try {
     const res = await fetch(url.toString(), {

@@ -35,6 +35,7 @@ import {
 import { getLandingTemplatePreviewHtml } from "@/lib/landing-templates/template-preview";
 import { GradientMesh } from "@/components/ui/animated-background";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import type { LandingImageRef } from "@/lib/landing-images";
 import type { ValidationSession } from "@/lib/types";
 
 type PreviewSize = "desktop" | "tablet" | "mobile";
@@ -45,6 +46,12 @@ const PREVIEW_WIDTHS: Record<PreviewSize, string> = {
   tablet: "768px",
   mobile: "375px",
 };
+
+/** Gallery iframes render at mobile CSS width so templates use their phone breakpoints. */
+const GALLERY_VIEWPORT_W = 390;
+const GALLERY_VIEWPORT_H = 844;
+const GALLERY_FRAME_W = 214;
+const GALLERY_SCALE = GALLERY_FRAME_W / GALLERY_VIEWPORT_W;
 
 // ── Loading progress steps (template mode = faster — copy only) ──
 const LOADING_STEPS_TEMPLATE = [
@@ -83,6 +90,8 @@ export default function LandingGeneratorPage() {
   const [templatePicked, setTemplatePicked] = useState(false);
   /** Which template produced the current HTML (for color tweaks + inject rules) */
   const [generatedWithTemplate, setGeneratedWithTemplate] = useState<LandingTemplateId | null>(null);
+  /** Unsplash pool for gallery previews; undefined = fetch not finished */
+  const [previewImagePool, setPreviewImagePool] = useState<LandingImageRef[] | undefined>(undefined);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -90,14 +99,6 @@ export default function LandingGeneratorPage() {
     () => (landingTemplate === "custom" ? LOADING_STEPS_CUSTOM : LOADING_STEPS_TEMPLATE),
     [landingTemplate]
   );
-
-  const templatePreviewHtml = useMemo(() => {
-    const map = {} as Record<CuratedLandingTemplateId, string>;
-    for (const id of CURATED_LANDING_TEMPLATE_IDS) {
-      map[id] = getLandingTemplatePreviewHtml(id);
-    }
-    return map;
-  }, []);
 
   useEffect(() => {
     const result = loadSessionWithStatus();
@@ -111,6 +112,37 @@ export default function LandingGeneratorPage() {
     if (s.setup.template === "generate") { router.replace("/validate"); return; }
     setSession(s);
   }, [router]);
+
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    setPreviewImagePool(undefined);
+    fetch(`/api/landing-preview-images?topic=${encodeURIComponent(session.setup.topic)}`)
+      .then((r) => r.json())
+      .then((d: { images?: LandingImageRef[] }) => {
+        if (!cancelled) setPreviewImagePool(Array.isArray(d.images) ? d.images : []);
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewImagePool([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  const templatePreviewHtml = useMemo(() => {
+    if (!session) return {} as Record<CuratedLandingTemplateId, string>;
+    const map = {} as Record<CuratedLandingTemplateId, string>;
+    const opts = {
+      topic: session.setup.topic,
+      position: session.setup.position,
+      images: previewImagePool && previewImagePool.length > 0 ? previewImagePool : undefined,
+    };
+    for (const id of CURATED_LANDING_TEMPLATE_IDS) {
+      map[id] = getLandingTemplatePreviewHtml(id, opts);
+    }
+    return map;
+  }, [session, previewImagePool]);
 
   // ── Loading step animation ──
   useEffect(() => {
@@ -362,18 +394,36 @@ export default function LandingGeneratorPage() {
             {!templatePicked ? (
               <div className="max-w-6xl mx-auto">
                 <div className="text-center mb-10">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1 text-[11px] text-white/45 mb-4">
+                    <Smartphone className="w-3.5 h-3.5 text-teal-400/90 shrink-0" />
+                    Mobile-first previews on desktop
+                  </div>
                   <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
                     Choose a template
                   </h2>
                   <p className="text-white/40 text-sm max-w-2xl mx-auto leading-relaxed">
-                    Each layout is a full, responsive page with real photography. Previews use sample copy;
-                    after you pick one, we replace every headline and paragraph with copy from your idea and validation.
+                    Each card shows the <strong className="text-white/55 font-medium">phone layout</strong> of a full page.
+                    Headlines preview with <strong className="text-white/55 font-medium">your idea title</strong>
+                    {previewImagePool && previewImagePool.length > 0 ? (
+                      <> — hero photos are pulled from Unsplash using your topic when the server has an API key.</>
+                    ) : (
+                      <> — with stock photography when Unsplash is configured on the server; otherwise we use curated stills.</>
+                    )}
                   </p>
+                  {previewImagePool === undefined && (
+                    <p className="mt-2 text-[11px] text-teal-400/50">Fetching image matches for your idea…</p>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-7 mb-10">
                   {CURATED_LANDING_TEMPLATE_IDS.map((id) => {
                     const meta = LANDING_TEMPLATE_LABELS[id];
+                    const bezel =
+                      id === "saas-nova"
+                        ? "from-violet-500/[0.12] via-transparent to-indigo-500/[0.06]"
+                        : id === "editorial-aurora"
+                          ? "from-amber-500/[0.12] via-transparent to-orange-500/[0.05]"
+                          : "from-cyan-500/[0.1] via-transparent to-violet-500/[0.08]";
                     return (
                       <button
                         key={id}
@@ -382,34 +432,59 @@ export default function LandingGeneratorPage() {
                           setLandingTemplate(id);
                           setTemplatePicked(true);
                         }}
-                        className="group text-left rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:border-teal-500/35 hover:bg-white/[0.04] overflow-hidden transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40"
+                        className="group text-left rounded-2xl border border-white/[0.09] bg-gradient-to-b from-white/[0.05] to-white/[0.015] hover:border-teal-500/30 hover:from-teal-500/[0.06] hover:to-white/[0.03] overflow-hidden transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/45 shadow-[0_24px_48px_-28px_rgba(0,0,0,0.7)]"
                       >
-                        <div className="relative h-[220px] sm:h-[240px] overflow-hidden bg-[#07070c] border-b border-white/[0.06]">
-                          <iframe
-                            title={`Preview ${meta.title}`}
-                            srcDoc={templatePreviewHtml[id]}
-                            className="absolute left-0 top-0 w-[620px] h-[880px] border-0 pointer-events-none bg-[#07070c]"
-                            style={{
-                              transform: "scale(0.36)",
-                              transformOrigin: "top left",
-                            }}
-                            sandbox="allow-scripts"
-                          />
-                          <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_60px_rgba(0,0,0,0.35)]" />
+                        <div
+                          className={`relative border-b border-white/[0.06] bg-gradient-to-b ${bezel} to-[#050508]`}
+                        >
+                          <div className="flex flex-col items-center py-7 px-3">
+                            <div
+                              className="rounded-[2.35rem] p-[9px] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_16px_40px_-12px_rgba(0,0,0,0.75)]"
+                              style={{
+                                background:
+                                  "linear-gradient(155deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04))",
+                              }}
+                            >
+                              <div
+                                className="relative overflow-hidden rounded-[1.85rem] bg-black ring-1 ring-white/12"
+                                style={{
+                                  width: GALLERY_FRAME_W,
+                                  height: Math.round(GALLERY_VIEWPORT_H * GALLERY_SCALE),
+                                }}
+                              >
+                                <iframe
+                                  title={`Mobile preview — ${meta.title}`}
+                                  srcDoc={templatePreviewHtml[id]}
+                                  width={GALLERY_VIEWPORT_W}
+                                  height={GALLERY_VIEWPORT_H}
+                                  className="absolute left-0 top-0 border-0 pointer-events-none bg-black"
+                                  style={{
+                                    transform: `scale(${GALLERY_SCALE})`,
+                                    transformOrigin: "top left",
+                                  }}
+                                  sandbox="allow-scripts"
+                                />
+                              </div>
+                            </div>
+                            <span className="mt-3 text-[10px] font-medium uppercase tracking-[0.12em] text-white/25">
+                              Live HTML · mobile viewport
+                            </span>
+                          </div>
                         </div>
-                        <div className="p-4 sm:p-5">
-                          <div className="flex items-center gap-2 mb-1.5">
+                        <div className="p-5 sm:p-5">
+                          <div className="flex items-center gap-2 mb-2">
                             <LayoutTemplate className="w-4 h-4 text-teal-400 shrink-0" />
-                            <span className="text-sm font-semibold text-white/90">{meta.title}</span>
+                            <span className="text-sm font-semibold text-white/92">{meta.title}</span>
                             {id === DEFAULT_LANDING_TEMPLATE && (
-                              <span className="text-[10px] font-medium uppercase tracking-wider text-teal-400/90 ml-auto">
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-400/90 ml-auto">
                                 Popular
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-white/40 leading-relaxed">{meta.description}</p>
-                          <p className="mt-3 text-[11px] font-medium text-teal-400/80 group-hover:text-teal-400">
-                            Use this template →
+                          <p className="text-xs text-white/42 leading-relaxed">{meta.description}</p>
+                          <p className="mt-4 text-[11px] font-semibold text-teal-400/85 group-hover:text-teal-400 flex items-center gap-1">
+                            Use this template
+                            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                           </p>
                         </div>
                       </button>

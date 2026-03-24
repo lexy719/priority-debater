@@ -110,10 +110,11 @@ const DEMO_IDEA = {
   ],
 } as const;
 
-const DEMO_SCORE = 7.4;
+/** Example score shape only — real reports use your idea and vary widely. */
+const DEMO_SCORE = 7;
 const DEMO_SCORE_MAX = 10;
 
-/** Animated viability ring — illustrative sample for marketing preview */
+/** Animated ring — shows the *kind* of output, not a prediction for your idea */
 function ViabilityScoreRing({ active }: { active: boolean }) {
   const r = 54;
   const stroke = 7;
@@ -181,17 +182,17 @@ function ViabilityScoreRing({ active }: { active: boolean }) {
             animate={active ? { opacity: 1 } : {}}
             transition={{ delay: 0.5, duration: 0.35 }}
           >
-            / {DEMO_SCORE_MAX} viability
+            / {DEMO_SCORE_MAX} example
           </motion.span>
         </div>
       </div>
       <motion.p
-        className="mt-2 max-w-[200px] text-center text-[11px] leading-snug text-emerald-400/85"
+        className="mt-2 max-w-[220px] text-center text-[10px] leading-snug text-white/40"
         initial={{ opacity: 0, y: 6 }}
         animate={active ? { opacity: 1, y: 0 } : {}}
         transition={{ delay: 0.65, duration: 0.4 }}
       >
-        Strong fit — 3 risks flagged
+        Yours will differ — we score after you run validation
       </motion.p>
     </div>
   );
@@ -268,7 +269,7 @@ function DemoPreview({ play }: { play: boolean }) {
               <span className="h-1.5 w-1.5 rounded-full bg-violet-400/90" />
               Sample stress-test
             </span>
-            <span className="text-[10px] text-white/28">Illustrative — your scores are generated after you validate</span>
+            <span className="text-[10px] text-white/28">Fictional idea &amp; example score — not your report</span>
           </motion.div>
 
           {/*
@@ -326,9 +327,18 @@ function DemoPreview({ play }: { play: boolean }) {
               </div>
               <div className="min-w-0 flex-1 space-y-2.5">
                 {[
-                  { icon: <Check className="h-3.5 w-3.5 text-emerald-400/90" />, text: "ICP clear: hybrid teams, 50–500 employees" },
-                  { icon: <AlertCircle className="h-3.5 w-3.5 text-amber-400/85" />, text: "Crowded space — differentiation must land in week one" },
-                  { icon: <TrendingUp className="h-3.5 w-3.5 text-indigo-400/90" />, text: "Seat-based SaaS model fits workflow tools" },
+                  {
+                    icon: <Check className="h-3.5 w-3.5 text-emerald-400/90" />,
+                    text: "Structured viability score (0–10) built from your pitch",
+                  },
+                  {
+                    icon: <AlertCircle className="h-3.5 w-3.5 text-amber-400/85" />,
+                    text: "Pushback from 5 personas — investor, customer, operator, mentor, adversary",
+                  },
+                  {
+                    icon: <TrendingUp className="h-3.5 w-3.5 text-indigo-400/90" />,
+                    text: "Risks, market context, and next steps you can act on",
+                  },
                 ].map((row, i) => (
                   <motion.div
                     key={i}
