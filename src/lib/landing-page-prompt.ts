@@ -2,11 +2,7 @@ import { extractDashboardData } from "@/lib/parse";
 import type { DebateSetup } from "@/lib/types";
 import type { LandingImageRef } from "@/lib/landing-images";
 import type { LayoutVariantId } from "@/lib/landing-layout";
-import {
-  LANDING_PAGE_COPY_SKILL,
-  LANDING_PAGE_SCRIPT_KIT,
-  LANDING_PAGE_STYLE_KIT,
-} from "@/lib/landing-page-design-kit";
+import { LANDING_PAGE_COPY_SKILL } from "@/lib/landing-page-design-kit";
 
 function formatImagesBlock(images: LandingImageRef[]): string {
   if (!images.length) {
@@ -70,24 +66,22 @@ export function buildValidationBriefForLanding(validationContent: string): strin
 }
 
 export function landingPageSystemPrompt(): string {
-  return `You are a principal designer + front-end engineer. You ship **download-ready** single-file HTML: one <style> block, one <script>, no build step.
+  return `You are a principal designer + front-end engineer. You ship **download-ready** single-file HTML with **no build step**.
 
-## Non-negotiable: use the built-in design kit
+## Critical: do NOT embed the design-system CSS or JS
 
-The app provides a **finished CSS component system** (class prefix \`lp-\`). Your job is **copy + structure + filling components**, NOT inventing new layout CSS from scratch.
+The application **automatically injects** the full \`lp-*\` CSS kit (animations, glassmorphism, grids, hero, tables) and the **JavaScript** for mobile nav + counters + spotlight. **Do not** paste full-page CSS or any \`<script>\`. You **may** include **one** small \`<style>\` with **only** \`:root { --lp-accent: …; --lp-accent-2: …; --lp-success: …; }\` for brand tint — the injector preserves that before merging the kit.
 
-1. In <head>, include this link (DM Sans — matches the kit):
-   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+You **must** only write **semantic structure + copy** using the classes below.
 
-2. Inside <style>, paste the ENTIRE following CSS **verbatim** as the first thing (you may prepend ONE small :root { } block **only** to override --lp-accent, --lp-accent-2, --lp-success for brand tint — do not delete or replace kit rules):
+## Visual bar: enterprise SaaS (Semrush / modern 21st.dev-level polish)
 
-${LANDING_PAGE_STYLE_KIT}
+Think: **dark canvas**, **one hero product demo** (fake table or chart in a window chrome), **metrics row** with big numbers, **alternating section depth**, **trust** (no fake logos — use capability stats from the report). Patterns:
+- **Interactive demo**: \`.lp-demo-shell\` > \`.lp-demo-chrome\` (3 dots) + \`.lp-demo-table-wrap\` > \`table.lp-demo-table\` with plausible columns (e.g. Metric, Score, Trend) — static HTML rows, no API.
+- **Metric wall**: \`section.lp-metric-wall\` with \`.lp-metric-wall__item\` / \`.lp-metric-wall__value\` / \`.lp-metric-wall__label\` for 3–4 big stats (numbers from STRUCTURED DATA only).
+- **Editorial sections**: \`.lp-section-eyebrow\` + \`.lp-section__title\` for clear hierarchy like top-tier marketing sites.
 
-3. Before </body>, wrap the following JavaScript in a single <script> tag exactly as-is (mobile nav toggle only; do not modify):
-
-${LANDING_PAGE_SCRIPT_KIT}
-
-4. Markup MUST use these patterns (adapt to the **layout archetype** in the user message — hero may be split, band, or narrow editorial):
+## Markup MUST use these patterns (adapt to the **layout archetype** in the user message — hero may be split, band, or narrow editorial):
    - <body class="lp-page"> plus the **lp-layout--*** class specified in the user message
    - Sticky nav: <header class="lp-nav" data-lp-nav> with .lp-nav__inner, .lp-nav__logo, .lp-nav__links (anchors #problem, #solution, etc.), .lp-btn.lp-btn--primary for CTA, .lp-nav__toggle + .lp-nav__mobile for mobile
    - Hero: .lp-hero (optional .lp-hero--split / .lp-hero--band) with .lp-hero__bg and .lp-hero__grain; .lp-container; for split layouts use .lp-hero__split wrapping .lp-hero__copy + .lp-hero__visual; .lp-eyebrow; h1.lp-hero__title (gradient optional); .lp-hero__lead; .lp-hero__actions; .lp-trust
@@ -130,7 +124,7 @@ FACT RULES:
 
 OUTPUT:
 - ONLY the full HTML document. No markdown fences. Start with <!DOCTYPE html>.
-- Do NOT omit the kit CSS or the kit script. Do NOT replace the kit with custom CSS from scratch.`;
+- Do NOT include <style> except optional :root { --lp-* } brand overrides. Do NOT include <script>. The app injects all design-system CSS + JS.`;
 }
 
 export function landingPageUserPrompt(
@@ -171,18 +165,19 @@ ${formatImagesBlock(images)}
 
 **Section checklist (adapt order + density to the layout archetype — do not default to the same 3-column card stack every time):**
 1. Sticky nav: logo text, anchors to major sections, primary CTA button
-2. Hero: match the archetype (split / band / narrow). Add .lp-orbs with 2-3 floating blobs OR .lp-bg-mesh. Eyebrow with .lp-badge, headline (≤12 words, gradient text if archetype permits), subhead, **two** CTAs, trust row with animated counters from **real** data
-3. Problem / pain: "You …" language from the report / ICP. Use cards OR bento tiles OR feature rows — NOT the same format as the next section
-4. Solution: mirror each pain with a named outcome. Different visual format than problems.
-5. How it works: 3–4 steps — use horizontal timeline or magazine rail if the archetype says so. Add .lp-particles background for subtle texture.
-6. Features / value: bento, grid, or sparse 2-col — match archetype. Use .lp-glass or .lp-card--glow on the most important feature.
-7. Proof: animated stats from TAM/SAM/SOM or validation scores + .lp-testimonial cards (2-3 with initials avatar, ICP-realistic quotes, star ratings). Place stock images in hero or bento if URLs provided.
-8. Pricing OR waitlist: honest — if pre-launch, lead with waitlist + what they get. Style with .lp-card--glow on recommended tier.
-9. FAQ: 5 questions from risks + category scores. Use .lp-faq with details/summary.
-10. Final CTA: dramatic section with .lp-orbs or .lp-bg-mesh background, .lp-cta__inner, email form.
-11. Footer with links.
+2. Hero: match the archetype (split / band / narrow). Add .lp-orbs with 2-3 floating blobs OR .lp-bg-mesh. Eyebrow with .lp-badge, headline (≤12 words, gradient text if archetype permits), subhead, **two** CTAs, trust row with animated counters from **real** data. In the hero **visual** column, use **.lp-demo-shell** + **.lp-demo-table** (browser chrome + fake metrics table) **or** a provided stock image — Semrush-style product preview.
+3. **Metric wall:** include **section.lp-metric-wall** with 3–4 **.lp-metric-wall__item** blocks (values/labels from STRUCTURED DATA only — viability score, dimensions, TAM line, etc.). Place after hero or before features.
+4. Problem / pain: "You …" language from the report / ICP. Use cards OR bento tiles OR feature rows — NOT the same format as the next section
+5. Solution: mirror each pain with a named outcome. Different visual format than problems.
+6. How it works: 3–4 steps — use horizontal timeline or magazine rail if the archetype says so. Add .lp-particles background for subtle texture.
+7. Features / value: bento, grid, or sparse 2-col — match archetype. Use .lp-glass or .lp-card--glow on the most important feature.
+8. Proof: animated stats from TAM/SAM/SOM or validation scores + .lp-testimonial cards (2-3 with initials avatar, ICP-realistic quotes, star ratings). Place stock images in hero or bento if URLs provided.
+9. Pricing OR waitlist: honest — if pre-launch, lead with waitlist + what they get. Style with .lp-card--glow on recommended tier.
+10. FAQ: 5 questions from risks + category scores. Use .lp-faq with details/summary.
+11. Final CTA: dramatic section with .lp-orbs or .lp-bg-mesh background, .lp-cta__inner, email form.
+12. Footer with links.
 
-**Brand tint (mandatory — pick colors that fit the business):** prepend a \`:root { --lp-accent: …; --lp-accent-2: …; --lp-success: …; }\` before the kit CSS. Pick colors based on the industry/vibe of the idea. Do NOT always use the default indigo.
+**Brand tint (mandatory — pick colors that fit the business):** include a single \`<style>\` block with **only** \`:root { --lp-accent: …; --lp-accent-2: …; --lp-success: …; }\` (or rely on defaults). Pick colors from the industry/vibe. Do NOT always use indigo.
 
-**Output:** complete HTML only — must include full kit CSS + kit script from the system message.`;
+**Output:** complete HTML only — **no** full-page \`<style>\` or \`<script>\`; the app injects the design kit.`;
 }

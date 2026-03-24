@@ -22,6 +22,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { loadSessionWithStatus } from "@/lib/session";
+import { injectLandingPageKit } from "@/lib/landing-page-html-inject";
 import { GradientMesh } from "@/components/ui/animated-background";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { ValidationSession } from "@/lib/types";
@@ -172,6 +173,9 @@ export default function LandingGeneratorPage() {
 
       if (!fullContent) throw new Error("No content received");
 
+      // Always merge the full lp-* CSS + JS kit (models often omit or truncate embedded styles).
+      const stitched = injectLandingPageKit(fullContent);
+
       // Set progress to 100% then reveal
       setLoadingProgress(100);
       setLoadingStep(LOADING_STEPS.length - 1);
@@ -179,7 +183,7 @@ export default function LandingGeneratorPage() {
       // Small delay for the progress bar to hit 100% visually
       await new Promise(r => setTimeout(r, 600));
 
-      setHtmlContent(fullContent);
+      setHtmlContent(stitched);
       setIsGenerating(false);
 
       // Smooth reveal after iframe has a moment to render

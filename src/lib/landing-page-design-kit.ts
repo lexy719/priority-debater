@@ -702,6 +702,76 @@ body.lp-layout--centered-editorial .lp-nav__inner { max-width: 1120px; }
   .lp-card--gradient-border { animation: none !important; }
   .lp-stagger > * { opacity: 1; transform: none; }
 }
+
+/* === Enterprise / Semrush-style: demo shell + metrics wall (static HTML, no JS table) === */
+.lp-demo-shell {
+  border-radius: var(--lp-radius);
+  border: 1px solid var(--lp-border);
+  background: linear-gradient(180deg, var(--lp-bg-elevated) 0%, rgba(7,7,12,0.98) 100%);
+  overflow: hidden;
+  box-shadow: var(--lp-shadow);
+}
+.lp-demo-chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--lp-border);
+  background: rgba(255,255,255,0.03);
+}
+.lp-demo-dot { width: 10px; height: 10px; border-radius: 50%; }
+.lp-demo-dot--r { background: #ff5f57; }
+.lp-demo-dot--y { background: #febc2e; }
+.lp-demo-dot--g { background: #28c840; }
+.lp-demo-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.lp-demo-table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: 0.8rem; }
+.lp-demo-table th {
+  text-align: left;
+  padding: 0.65rem 1rem;
+  color: var(--lp-faint);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--lp-border);
+  background: rgba(255,255,255,0.02);
+}
+.lp-demo-table td { padding: 0.65rem 1rem; border-bottom: 1px solid var(--lp-border); color: var(--lp-muted); }
+.lp-demo-table tbody tr:hover td { background: rgba(99,102,241,0.04); }
+.lp-demo-table .lp-demo-table__num { font-variant-numeric: tabular-nums; color: var(--lp-text); font-weight: 600; }
+
+/* Big-number trust wall (like Semrush metrics row) */
+.lp-metric-wall {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(2rem, 5vw, 3rem) 0;
+  border-top: 1px solid var(--lp-border);
+  border-bottom: 1px solid var(--lp-border);
+  background: rgba(255,255,255,0.03);
+}
+@media (min-width: 768px) {
+  .lp-metric-wall { grid-template-columns: repeat(4, 1fr); text-align: center; }
+}
+.lp-metric-wall__item { padding: 0.5rem; }
+.lp-metric-wall__value {
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  background: linear-gradient(135deg, var(--lp-text) 0%, var(--lp-accent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.lp-metric-wall__label { font-size: 0.8rem; color: var(--lp-muted); margin-top: 0.35rem; }
+
+/* Section eyebrow + headline stack (editorial SaaS) */
+.lp-section-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lp-faint);
+  margin-bottom: 0.75rem;
+}
 `.trim();
 
 /** JS kit: mobile nav + animated counters + nav blur on scroll */
