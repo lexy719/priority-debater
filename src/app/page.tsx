@@ -32,6 +32,8 @@ import {
   CircleHelp,
   Rocket,
   Flame,
+  Lightbulb,
+  AlertCircle,
 } from "lucide-react";
 import {
   Accordion,
@@ -100,35 +102,98 @@ function StaggerChild({ children, className = "" }: { children: React.ReactNode;
   );
 }
 
-/** Skeleton “report” — no fake score on the homepage before the user validates an idea */
-function ReportOutlineMock({ active }: { active: boolean }) {
-  const bars = [72, 92, 58, 84];
+const DEMO_IDEA = {
+  title: "AsyncStand — voice standups for remote teams",
+  lines: [
+    "15-second async voice updates instead of live standups.",
+    "Managers get a morning digest; integrates with Slack & Linear.",
+  ],
+} as const;
+
+const DEMO_SCORE = 7.4;
+const DEMO_SCORE_MAX = 10;
+
+/** Animated viability ring — illustrative sample for marketing preview */
+function ViabilityScoreRing({ active }: { active: boolean }) {
+  const r = 54;
+  const stroke = 7;
+  const c = 2 * Math.PI * r;
+  const pct = DEMO_SCORE / DEMO_SCORE_MAX;
+  const targetOffset = c * (1 - pct);
+
   return (
-    <motion.div
-      className="flex h-[148px] w-[128px] shrink-0 flex-col justify-center rounded-xl border border-white/[0.09] bg-white/[0.03] p-4 sm:h-[168px] sm:w-[148px]"
-      initial={{ opacity: 0.6, scale: 0.98 }}
-      animate={active ? { opacity: 1, scale: 1 } : {}}
-      transition={{ duration: 0.5, ease: [0.25, 0.4, 0.25, 1] }}
-      aria-hidden
-    >
-      <div className="mb-3 h-2 w-12 rounded-full bg-white/[0.12]" />
-      {bars.map((w, i) => (
-        <motion.div
-          key={i}
-          className="mb-2 h-1.5 rounded-full bg-white/[0.07]"
-          style={{ width: `${w}%` }}
-          initial={{ opacity: 0, x: -6 }}
-          animate={active ? { opacity: 1, x: 0 } : {}}
-          transition={{ delay: 0.08 + i * 0.06, duration: 0.4 }}
-        />
-      ))}
-      <motion.div
-        className="mt-3 h-9 rounded-lg border border-indigo-500/20 bg-indigo-500/[0.08]"
-        initial={{ opacity: 0 }}
-        animate={active ? { opacity: 1 } : {}}
-        transition={{ delay: 0.35, duration: 0.4 }}
-      />
-    </motion.div>
+    <div className="relative flex shrink-0 flex-col items-center" aria-hidden>
+      <div className="relative h-[148px] w-[148px] sm:h-[168px] sm:w-[168px]">
+        <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120" aria-hidden>
+          <defs>
+            <linearGradient id="hero-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#34d399" />
+              <stop offset="45%" stopColor="#2dd4bf" />
+              <stop offset="100%" stopColor="#818cf8" />
+            </linearGradient>
+            <filter id="hero-ring-glow" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="2.5" result="b" />
+              <feMerge>
+                <feMergeNode in="b" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          <circle
+            cx="60"
+            cy="60"
+            r={r}
+            fill="none"
+            stroke="rgba(255,255,255,0.06)"
+            strokeWidth={stroke}
+          />
+          <motion.circle
+            cx="60"
+            cy="60"
+            r={r}
+            fill="none"
+            stroke="url(#hero-ring-grad)"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={c}
+            filter="url(#hero-ring-glow)"
+            initial={{ strokeDashoffset: c }}
+            animate={active ? { strokeDashoffset: targetOffset } : { strokeDashoffset: c }}
+            transition={{ duration: 1.15, ease: [0.22, 1, 0.36, 1] }}
+          />
+        </svg>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pt-0.5">
+          <motion.span
+            className="text-[2rem] font-semibold tabular-nums tracking-tight sm:text-[2.25rem]"
+            style={{
+              color: "rgba(255,255,255,0.95)",
+              letterSpacing: "-0.04em",
+            }}
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={active ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.85 }}
+            transition={{ delay: 0.35, duration: 0.45, ease: [0.25, 0.4, 0.25, 1] }}
+          >
+            {DEMO_SCORE}
+          </motion.span>
+          <motion.span
+            className="text-[10px] font-medium uppercase tracking-[0.14em] text-white/35"
+            initial={{ opacity: 0 }}
+            animate={active ? { opacity: 1 } : {}}
+            transition={{ delay: 0.5, duration: 0.35 }}
+          >
+            / {DEMO_SCORE_MAX} viability
+          </motion.span>
+        </div>
+      </div>
+      <motion.p
+        className="mt-2 max-w-[200px] text-center text-[11px] leading-snug text-emerald-400/85"
+        initial={{ opacity: 0, y: 6 }}
+        animate={active ? { opacity: 1, y: 0 } : {}}
+        transition={{ delay: 0.65, duration: 0.4 }}
+      >
+        Strong fit — 3 risks flagged
+      </motion.p>
+    </div>
   );
 }
 
@@ -188,56 +253,106 @@ function DemoPreview({ play }: { play: boolean }) {
             className="pointer-events-none absolute inset-0 opacity-[0.55]"
             style={{
               background:
-                "radial-gradient(ellipse 90% 60% at 70% 0%, rgba(99,102,241,0.14), transparent 55%), radial-gradient(ellipse 70% 50% at 0% 100%, rgba(52,211,153,0.06), transparent 50%)",
+                "radial-gradient(ellipse 90% 60% at 70% 0%, rgba(99,102,241,0.14), transparent 55%), radial-gradient(ellipse 70% 50% at 0% 100%, rgba(52,211,153,0.08), transparent 50%)",
             }}
             aria-hidden
           />
 
           <motion.div
-            className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10"
+            className="relative mb-6 flex flex-wrap items-center justify-between gap-3"
+            initial={{ opacity: 0, y: 8 }}
+            animate={active ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.45, ease: [0.25, 0.4, 0.25, 1] }}
+          >
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-white/45">
+              <span className="h-1.5 w-1.5 rounded-full bg-violet-400/90" />
+              Sample stress-test
+            </span>
+            <span className="text-[10px] text-white/28">Illustrative — your scores are generated after you validate</span>
+          </motion.div>
+
+          <motion.div
+            className="relative flex flex-col gap-8 xl:flex-row xl:items-stretch xl:gap-8"
             initial={{ opacity: 0, y: 14 }}
             animate={active ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.55, ease: [0.25, 0.4, 0.25, 1] }}
           >
-            <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:gap-8 lg:gap-10">
-              <ReportOutlineMock active={active} />
-              <div className="text-center sm:text-left">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.32)" }}>
-                  No idea yet? No rating.
-                </p>
+            {/* Idea card */}
+            <div className="flex min-w-0 flex-1 flex-col justify-center">
+              <div
+                className="rounded-2xl border border-white/[0.08] p-5 sm:p-6"
+                style={{
+                  background: "linear-gradient(165deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
+                }}
+              >
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400/90">
+                    <Lightbulb className="h-4 w-4" strokeWidth={2} aria-hidden />
+                  </div>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">Your idea</span>
+                </div>
                 <h3
-                  className="max-w-[280px] text-[1.35rem] font-semibold leading-tight tracking-tight sm:max-w-[320px] sm:text-2xl"
-                  style={{ letterSpacing: "-0.03em", color: "rgba(255,255,255,0.92)" }}
+                  className="mb-3 text-[15px] font-semibold leading-snug tracking-tight sm:text-base"
+                  style={{ letterSpacing: "-0.02em", color: "rgba(255,255,255,0.92)" }}
                 >
-                  You paste an idea —{" "}
-                  <span
-                    className="text-transparent bg-clip-text"
-                    style={{ backgroundImage: "linear-gradient(135deg, #c4b5fd, #818cf8)" }}
-                  >
-                    we build the report.
-                  </span>
+                  {DEMO_IDEA.title}
                 </h3>
-                <p className="mt-3 max-w-[280px] text-[13px] leading-relaxed text-white/38 sm:max-w-[340px]">
-                  Scores, risks, and next steps show up only after you run validation — we don’t invent a demo rating before you’ve shared an idea.
-                </p>
+                <div className="space-y-2 border-t border-white/[0.06] pt-3">
+                  {DEMO_IDEA.lines.map((line, i) => (
+                    <motion.p
+                      key={i}
+                      className="text-[12px] leading-relaxed text-white/45"
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={active ? { opacity: 1, x: 0 } : {}}
+                      transition={{ delay: 0.12 + i * 0.08, duration: 0.4 }}
+                    >
+                      {line}
+                    </motion.p>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-4 lg:max-w-[280px]">
-              <p className="text-center text-[10px] font-medium uppercase tracking-wider text-white/30 lg:text-left">
+            {/* Ring + validation snapshot */}
+            <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:justify-center xl:w-[min(100%,280px)] xl:flex-col xl:items-center">
+              <ViabilityScoreRing active={active} />
+              <div className="w-full max-w-[240px] space-y-2.5 sm:max-w-none sm:flex-1 xl:max-w-[240px]">
+                {[
+                  { icon: <Check className="h-3.5 w-3.5 text-emerald-400/90" />, text: "ICP clear: hybrid teams, 50–500 employees" },
+                  { icon: <AlertCircle className="h-3.5 w-3.5 text-amber-400/85" />, text: "Crowded space — differentiation must land in week one" },
+                  { icon: <TrendingUp className="h-3.5 w-3.5 text-indigo-400/90" />, text: "Seat-based SaaS model fits workflow tools" },
+                ].map((row, i) => (
+                  <motion.div
+                    key={i}
+                    className="flex gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={active ? { opacity: 1, y: 0 } : {}}
+                    transition={{ delay: 0.55 + i * 0.07, duration: 0.4 }}
+                  >
+                    <span className="mt-0.5 shrink-0 opacity-90">{row.icon}</span>
+                    <p className="text-[11px] leading-snug text-white/50">{row.text}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* Personas */}
+            <div className="flex flex-col gap-3 xl:max-w-[200px] xl:border-l xl:border-white/[0.06] xl:pl-8">
+              <p className="text-center text-[10px] font-medium uppercase tracking-wider text-white/30 xl:text-left">
                 Five lenses · one report
               </p>
-              <div className="flex flex-wrap justify-center gap-2 lg:justify-start">
+              <div className="flex flex-wrap justify-center gap-2 xl:flex-col xl:items-stretch">
                 {DEMO_PERSONAS.map((p, i) => (
                   <motion.span
                     key={p.id}
-                    initial={{ opacity: 0, scale: 0.92 }}
+                    initial={{ opacity: 0, scale: 0.96 }}
                     animate={active ? { opacity: 1, scale: 1 } : {}}
-                    transition={{ delay: 0.15 + i * 0.05, duration: 0.35 }}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-white/55"
+                    transition={{ delay: 0.2 + i * 0.05, duration: 0.35 }}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-white/55 xl:rounded-xl xl:py-2"
                     title={p.label}
                   >
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/30 to-violet-500/20 text-[10px] font-semibold text-white/90">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/35 to-violet-500/25 text-[10px] font-semibold text-white/90">
                       {p.id}
                     </span>
                     {p.label}
