@@ -271,14 +271,19 @@ function DemoPreview({ play }: { play: boolean }) {
             <span className="text-[10px] text-white/28">Illustrative — your scores are generated after you validate</span>
           </motion.div>
 
+          {/*
+            Stacked layout: the hero right column is only ~half the viewport. A 3-column row
+            (idea + ring + personas) crushed the idea text into one letter per line. Full-width
+            idea first, then ring + insights, then personas.
+          */}
           <motion.div
-            className="relative flex flex-col gap-8 xl:flex-row xl:items-stretch xl:gap-8"
+            className="relative flex flex-col gap-8"
             initial={{ opacity: 0, y: 14 }}
             animate={active ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.55, ease: [0.25, 0.4, 0.25, 1] }}
           >
-            {/* Idea card */}
-            <div className="flex min-w-0 flex-1 flex-col justify-center">
+            {/* Idea card — always full width of mock so copy never collapses */}
+            <div className="w-full min-w-0">
               <div
                 className="rounded-2xl border border-white/[0.08] p-5 sm:p-6"
                 style={{
@@ -302,7 +307,7 @@ function DemoPreview({ play }: { play: boolean }) {
                   {DEMO_IDEA.lines.map((line, i) => (
                     <motion.p
                       key={i}
-                      className="text-[12px] leading-relaxed text-white/45"
+                      className="text-[12px] leading-relaxed text-white/45 break-normal [overflow-wrap:anywhere]"
                       initial={{ opacity: 0, x: -8 }}
                       animate={active ? { opacity: 1, x: 0 } : {}}
                       transition={{ delay: 0.12 + i * 0.08, duration: 0.4 }}
@@ -314,10 +319,12 @@ function DemoPreview({ play }: { play: boolean }) {
               </div>
             </div>
 
-            {/* Ring + validation snapshot */}
-            <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:justify-center xl:w-[min(100%,280px)] xl:flex-col xl:items-center">
-              <ViabilityScoreRing active={active} />
-              <div className="w-full max-w-[240px] space-y-2.5 sm:max-w-none sm:flex-1 xl:max-w-[240px]">
+            {/* Ring + validation snapshot — side by side when wide enough */}
+            <div className="flex w-full min-w-0 flex-col items-stretch gap-6 sm:flex-row sm:items-start sm:gap-8">
+              <div className="flex shrink-0 justify-center sm:justify-start">
+                <ViabilityScoreRing active={active} />
+              </div>
+              <div className="min-w-0 flex-1 space-y-2.5">
                 {[
                   { icon: <Check className="h-3.5 w-3.5 text-emerald-400/90" />, text: "ICP clear: hybrid teams, 50–500 employees" },
                   { icon: <AlertCircle className="h-3.5 w-3.5 text-amber-400/85" />, text: "Crowded space — differentiation must land in week one" },
@@ -331,25 +338,25 @@ function DemoPreview({ play }: { play: boolean }) {
                     transition={{ delay: 0.55 + i * 0.07, duration: 0.4 }}
                   >
                     <span className="mt-0.5 shrink-0 opacity-90">{row.icon}</span>
-                    <p className="text-[11px] leading-snug text-white/50">{row.text}</p>
+                    <p className="min-w-0 text-[11px] leading-snug text-white/50 break-normal">{row.text}</p>
                   </motion.div>
                 ))}
               </div>
             </div>
 
             {/* Personas */}
-            <div className="flex flex-col gap-3 xl:max-w-[200px] xl:border-l xl:border-white/[0.06] xl:pl-8">
-              <p className="text-center text-[10px] font-medium uppercase tracking-wider text-white/30 xl:text-left">
+            <div className="w-full min-w-0 border-t border-white/[0.06] pt-6">
+              <p className="mb-3 text-center text-[10px] font-medium uppercase tracking-wider text-white/30 sm:text-left">
                 Five lenses · one report
               </p>
-              <div className="flex flex-wrap justify-center gap-2 xl:flex-col xl:items-stretch">
+              <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
                 {DEMO_PERSONAS.map((p, i) => (
                   <motion.span
                     key={p.id}
                     initial={{ opacity: 0, scale: 0.96 }}
                     animate={active ? { opacity: 1, scale: 1 } : {}}
                     transition={{ delay: 0.2 + i * 0.05, duration: 0.35 }}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-white/55 xl:rounded-xl xl:py-2"
+                    className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-white/55"
                     title={p.label}
                   >
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/35 to-violet-500/25 text-[10px] font-semibold text-white/90">
