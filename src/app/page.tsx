@@ -43,7 +43,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { StarfieldBackground, GridPattern } from "@/components/ui/animated-background";
+import { StarfieldBackground } from "@/components/ui/animated-background";
 
 // ── Animated counter ────────────────────────────────────────────────────
 function Counter({ value, suffix = "", duration = 2 }: { value: number; suffix?: string; duration?: number }) {
@@ -233,7 +233,7 @@ function DemoPreview({ play }: { play: boolean }) {
   ];
 
   return (
-    <div ref={ref} className="relative mx-auto max-w-xl px-4 sm:max-w-2xl sm:px-0">
+    <div ref={ref} className="relative mx-auto max-w-3xl px-4 sm:max-w-4xl sm:px-0">
       <div
         className="pointer-events-none absolute -inset-8 rounded-[2rem] bg-gradient-to-b from-indigo-500/15 via-violet-500/10 to-transparent blur-3xl"
         aria-hidden
@@ -272,7 +272,7 @@ function DemoPreview({ play }: { play: boolean }) {
           </div>
         </div>
 
-        <div className="relative p-4 sm:p-5">
+        <div className="relative p-5 sm:p-8">
           <div
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(99,102,241,0.1),transparent)]"
             aria-hidden
@@ -642,10 +642,8 @@ export default function Home() {
       </section>
 
       {/* ═══ STATS ═══ */}
-      <section className="relative z-10 border-y border-white/[0.06] py-16 sm:py-20">
-        <div className="absolute inset-0 bg-[#08080e]/60 backdrop-blur-sm" />
-        <GridPattern />
-        <Stagger className="relative max-w-5xl mx-auto px-5 grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
+      <section className="relative z-10 py-16 sm:py-20">
+        <Stagger className="max-w-5xl mx-auto px-5 grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
           {[
             { v: 15, s: "+", label: "Blind spots checked", icon: <BarChart3 className="w-5 h-5" />, color: "text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20" },
             { v: 5, s: "", label: "AI personas grilling you", icon: <Target className="w-5 h-5" />, color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/20" },
@@ -698,9 +696,8 @@ export default function Home() {
       </section>
 
       {/* ═══ WHAT YOU GET ═══ */}
-      <section className="relative z-10 py-20 sm:py-28 border-y border-white/[0.06]">
-        <div className="absolute inset-0 bg-[#08080e]/40 backdrop-blur-[2px]" />
-        <div className="relative max-w-5xl mx-auto px-5">
+      <section className="relative z-10 py-20 sm:py-28">
+        <div className="max-w-5xl mx-auto px-5">
           <Reveal className="text-center mb-14">
             <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium mb-3">Your validation report</p>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3">Everything a VC would grill you on — answered</h2>
@@ -829,9 +826,8 @@ export default function Home() {
       </section>
 
       {/* ═══ COMPARISON TABLE ═══ */}
-      <section className="relative z-10 py-20 sm:py-28 border-y border-white/[0.06]">
-        <div className="absolute inset-0 bg-[#08080e]/50 backdrop-blur-[2px]" />
-        <div className="relative max-w-3xl mx-auto px-5">
+      <section className="relative z-10 py-20 sm:py-28">
+        <div className="max-w-3xl mx-auto px-5">
           <Reveal className="text-center mb-12">
             <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium mb-3">Why not just use a generic AI?</p>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Because yes-men don&apos;t build great companies</h2>
@@ -882,7 +878,6 @@ export default function Home() {
 
       {/* ═══ FAQ ═══ */}
       <section className="relative z-10 py-14 sm:py-20">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/25 to-transparent" aria-hidden />
         <div className="mx-auto max-w-2xl px-5">
           <Reveal className="mb-8 text-center">
             <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.2em] text-indigo-400/80">FAQ</p>
@@ -999,7 +994,7 @@ export default function Home() {
       </section>
 
       {/* ═══ FOOTER ═══ */}
-      <footer className="relative z-10 border-t border-white/[0.06] py-8">
+      <footer className="relative z-10 py-8">
         <div className="max-w-5xl mx-auto px-5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-white/20 text-xs">
             <Zap className="w-3.5 h-3.5" />
