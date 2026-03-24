@@ -58,9 +58,10 @@ export function GradientMesh({ className }: { className?: string }) {
 }
 
 /* ─────────────────────────────────────────────
-   Full-Page Starfield — fixed position background
-   Interactive particles spanning entire viewport
-   with depth layers and nebula glow
+   Clean Space Starfield — Linear/Vercel-inspired
+   Subtle white stars with gentle twinkle on
+   near-black background. No colors, no connections.
+   Just elegant depth.
    ───────────────────────────────────────────── */
 
 export function StarfieldBackground({
@@ -90,60 +91,34 @@ export function StarfieldBackground({
     const w = () => window.innerWidth;
     const h = () => window.innerHeight;
 
-    // Three depth layers of particles
     interface Star {
       x: number;
       y: number;
-      baseX: number;
-      baseY: number;
       r: number;
-      vx: number;
-      vy: number;
       opacity: number;
-      magnetism: number;
-      color: string;
-      layer: number; // 0=far, 1=mid, 2=near
       twinkleSpeed: number;
       twinklePhase: number;
+      layer: number;
     }
 
-    const colors = [
-      "99,102,241",   // indigo
-      "139,92,246",   // violet
-      "167,139,250",  // light violet
-      "165,180,252",  // light indigo
-      "236,72,153",   // pink
-      "59,130,246",   // blue
-      "147,197,253",  // light blue
-    ];
+    // Density: ~0.00012 stars per pixel (Aceternity standard)
+    const area = w() * h();
+    const totalStars = Math.min(300, Math.floor(area * 0.00015));
 
-    const totalParticles = 120;
-    const stars: Star[] = Array.from({ length: totalParticles }, (_, i) => {
-      const layer = i < 40 ? 0 : i < 85 ? 1 : 2;
-      const speedMult = [0.15, 0.3, 0.5][layer];
-      const sizeMult = [0.8, 1.4, 2.2][layer];
-      const x = Math.random() * w();
-      const y = Math.random() * h();
+    const stars: Star[] = Array.from({ length: totalStars }, (_, i) => {
+      const layer = i < totalStars * 0.6 ? 0 : i < totalStars * 0.85 ? 1 : 2;
       return {
-        x,
-        y,
-        baseX: x,
-        baseY: y,
-        r: (Math.random() * 1.5 + 0.5) * sizeMult,
-        vx: (Math.random() - 0.5) * speedMult,
-        vy: (Math.random() - 0.5) * speedMult,
-        opacity: Math.random() * 0.5 + 0.15,
-        magnetism: [0.15, 0.4, 0.9][layer],
-        color: colors[Math.floor(Math.random() * colors.length)],
-        layer,
-        twinkleSpeed: Math.random() * 0.02 + 0.005,
+        x: Math.random() * w(),
+        y: Math.random() * h(),
+        r: [0.4, 0.8, 1.3][layer] + Math.random() * [0.3, 0.5, 0.7][layer],
+        opacity: [0.15, 0.35, 0.7][layer] + Math.random() * 0.15,
+        twinkleSpeed: Math.random() * 0.015 + 0.003,
         twinklePhase: Math.random() * Math.PI * 2,
+        layer,
       };
     });
 
     let t = 0;
-    const magneticRadius = 280;
-    const magneticStrength = 0.1;
 
     const draw = () => {
       const W = w();
@@ -153,100 +128,47 @@ export function StarfieldBackground({
 
       const mouse = mouseRef.current;
 
-      for (const p of stars) {
-        // Natural drift
-        p.baseX += p.vx;
-        p.baseY += p.vy;
-        if (p.baseX < -20) p.baseX = W + 20;
-        if (p.baseX > W + 20) p.baseX = -20;
-        if (p.baseY < -20) p.baseY = H + 20;
-        if (p.baseY > H + 20) p.baseY = -20;
+      for (const s of stars) {
+        // Gentle twinkle
+        const twinkle = 0.5 + 0.5 * Math.sin(t * s.twinkleSpeed + s.twinklePhase);
+        let alpha = s.opacity * (0.5 + 0.5 * twinkle);
+        let r = s.r;
 
-        // Magnetic attraction
+        // Subtle cursor proximity glow
         if (mouse.active) {
-          const dx = mouse.x - p.baseX;
-          const dy = mouse.y - p.baseY;
+          const dx = mouse.x - s.x;
+          const dy = mouse.y - s.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < magneticRadius) {
-            const force = (1 - dist / magneticRadius) * magneticStrength * p.magnetism;
-            p.x = p.baseX + dx * force * 3;
-            p.y = p.baseY + dy * force * 3;
-          } else {
-            p.x += (p.baseX - p.x) * 0.04;
-            p.y += (p.baseY - p.y) * 0.04;
-          }
-        } else {
-          p.x += (p.baseX - p.x) * 0.04;
-          p.y += (p.baseY - p.y) * 0.04;
-        }
-
-        // Twinkle
-        const twinkle = 0.5 + 0.5 * Math.sin(t * p.twinkleSpeed + p.twinklePhase);
-        let drawOpacity = p.opacity * (0.6 + 0.4 * twinkle);
-        let drawRadius = p.r;
-
-        // Glow near cursor
-        if (mouse.active) {
-          const dx = mouse.x - p.x;
-          const dy = mouse.y - p.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < magneticRadius) {
-            const proximity = 1 - dist / magneticRadius;
-            drawOpacity = Math.min(1, drawOpacity + proximity * 0.5);
-            drawRadius += proximity * 2;
+          if (dist < 250) {
+            const proximity = 1 - dist / 250;
+            alpha = Math.min(1, alpha + proximity * 0.3);
+            r += proximity * 0.8;
           }
         }
 
-        // Draw with glow for near-layer particles
-        if (p.layer === 2 && drawRadius > 2) {
+        // Soft glow halo for brighter stars
+        if (s.layer === 2 && alpha > 0.4) {
           ctx.beginPath();
-          ctx.arc(p.x, p.y, drawRadius * 3, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${p.color},${drawOpacity * 0.08})`;
+          ctx.arc(s.x, s.y, r * 3, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(200,210,255,${alpha * 0.06})`;
           ctx.fill();
         }
 
+        // Draw star
         ctx.beginPath();
-        ctx.arc(p.x, p.y, drawRadius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${p.color},${drawOpacity})`;
+        ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
         ctx.fill();
       }
 
-      // Draw connections only for near-layer particles
-      const nearStars = stars.filter((s) => s.layer >= 1);
-      for (let i = 0; i < nearStars.length; i++) {
-        for (let j = i + 1; j < nearStars.length; j++) {
-          const dx = nearStars[i].x - nearStars[j].x;
-          const dy = nearStars[i].y - nearStars[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 160) {
-            let lineOpacity = 0.07 * (1 - dist / 160);
-            if (mouse.active) {
-              const midX = (nearStars[i].x + nearStars[j].x) / 2;
-              const midY = (nearStars[i].y + nearStars[j].y) / 2;
-              const toCursor = Math.sqrt((mouse.x - midX) ** 2 + (mouse.y - midY) ** 2);
-              if (toCursor < magneticRadius) {
-                lineOpacity += 0.2 * (1 - toCursor / magneticRadius);
-              }
-            }
-            ctx.beginPath();
-            ctx.moveTo(nearStars[i].x, nearStars[i].y);
-            ctx.lineTo(nearStars[j].x, nearStars[j].y);
-            ctx.strokeStyle = `rgba(99,102,241,${lineOpacity})`;
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-          }
-        }
-      }
-
-      // Cursor aurora glow
+      // Very subtle cursor glow
       if (mouse.active) {
         const gradient = ctx.createRadialGradient(
           mouse.x, mouse.y, 0,
           mouse.x, mouse.y, 200
         );
-        gradient.addColorStop(0, "rgba(99,102,241,0.06)");
-        gradient.addColorStop(0.5, "rgba(139,92,246,0.03)");
-        gradient.addColorStop(1, "rgba(99,102,241,0)");
+        gradient.addColorStop(0, "rgba(140,150,255,0.04)");
+        gradient.addColorStop(1, "rgba(140,150,255,0)");
         ctx.beginPath();
         ctx.arc(mouse.x, mouse.y, 200, 0, Math.PI * 2);
         ctx.fillStyle = gradient;

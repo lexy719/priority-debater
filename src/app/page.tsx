@@ -22,7 +22,6 @@ import {
   MessageSquare,
   Shield,
   Clock,
-  BarChart3,
   TrendingUp,
   Users,
   Grid3x3,
@@ -35,14 +34,13 @@ import {
   Rocket,
   Flame,
 } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
+// Badge removed — using simple span now
 import { StarfieldBackground } from "@/components/ui/animated-background";
 
 // ── Animated counter ────────────────────────────────────────────────────
@@ -233,46 +231,38 @@ function DemoPreview({ play }: { play: boolean }) {
   ];
 
   return (
-    <div ref={ref} className="relative mx-auto max-w-3xl px-4 sm:max-w-4xl sm:px-0">
+    <div ref={ref} className="relative mx-auto max-w-5xl px-4 sm:px-0">
       <div
-        className="pointer-events-none absolute -inset-8 rounded-[2rem] bg-gradient-to-b from-indigo-500/15 via-violet-500/10 to-transparent blur-3xl"
-        aria-hidden
-      />
-      <div className="pointer-events-none absolute -inset-px rounded-[1.35rem] bg-gradient-to-br from-white/[0.12] via-transparent to-indigo-500/20 opacity-80" />
-
-      <div
-        className="relative overflow-hidden rounded-[1.15rem] border"
+        className="relative overflow-hidden rounded-xl border border-white/[0.08]"
         style={{
-          borderColor: "var(--border-primary)",
-          background: "var(--bg-card)",
-          boxShadow:
-            "var(--shadow-elevated), inset 0 1px 0 color-mix(in srgb, var(--text-primary) 6%, transparent)",
+          background: "#0E0E11",
+          boxShadow: "0 25px 60px -12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)",
         }}
       >
         {/* Window chrome */}
         <div
-          className="flex items-center gap-3 border-b px-3 py-2.5 sm:px-4"
-          style={{ borderColor: "var(--border-primary)", background: "var(--bg-secondary)" }}
+          className="flex items-center gap-3 border-b px-4 py-3 sm:px-5"
+          style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}
         >
-          <div className="flex gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57] shadow-[inset_0_-1px_0_rgba(0,0,0,0.2)]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e] shadow-[inset_0_-1px_0_rgba(0,0,0,0.15)]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#28c840] shadow-[inset_0_-1px_0_rgba(0,0,0,0.15)]" />
+          <div className="flex gap-2">
+            <span className="h-3 w-3 rounded-full bg-[#ff5f57] shadow-[inset_0_-1px_0_rgba(0,0,0,0.2)]" />
+            <span className="h-3 w-3 rounded-full bg-[#febc2e] shadow-[inset_0_-1px_0_rgba(0,0,0,0.15)]" />
+            <span className="h-3 w-3 rounded-full bg-[#28c840] shadow-[inset_0_-1px_0_rgba(0,0,0,0.15)]" />
           </div>
-          <div className="flex min-w-0 flex-1 items-center justify-center sm:justify-start">
+          <div className="flex min-w-0 flex-1 items-center justify-center">
             <div
-              className="flex max-w-full items-center gap-2 rounded-lg border px-2.5 py-1 shadow-inner"
-              style={{ borderColor: "var(--border-primary)", background: "var(--bg-input)" }}
+              className="flex max-w-full items-center gap-2 rounded-lg border px-3 py-1.5 shadow-inner"
+              style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.3)" }}
             >
               <Lock className="h-3 w-3 shrink-0 text-emerald-500" aria-hidden />
-              <span className="truncate font-mono text-[10px] sm:text-[11px]" style={{ color: "var(--text-secondary)" }}>
+              <span className="truncate font-mono text-[11px] sm:text-[12px]" style={{ color: "var(--text-secondary)" }}>
                 prioritydebater.com<span style={{ color: "var(--text-muted)" }}>/results</span>
               </span>
             </div>
           </div>
         </div>
 
-        <div className="relative p-5 sm:p-8">
+        <div className="relative p-6 sm:p-10">
           <div
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(99,102,241,0.1),transparent)]"
             aria-hidden
@@ -447,27 +437,20 @@ function StepCard({ step, index }: { step: { num: string; title: string; desc: s
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 30, scale: 0.95 }}
-      animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
-      transition={{ duration: 0.5, delay: index * 0.12, type: "spring", stiffness: 300, damping: 25 }}
-      whileHover={{ y: -8, scale: 1.02 }}
-      className="group relative cursor-default"
+      initial={{ opacity: 0, y: 20 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.5, delay: index * 0.1 }}
+      className="group cursor-default"
     >
-      {/* Animated gradient border */}
-      <div className={`absolute -inset-[1px] rounded-2xl bg-gradient-to-b ${step.gradient} opacity-30 group-hover:opacity-100 transition-opacity duration-500`} />
-      <div className="relative rounded-2xl bg-[#0c0c14] p-6 h-full">
-        {/* Step number watermark */}
-        <div className={`absolute top-3 right-4 text-[56px] font-black leading-none ${step.accent} opacity-[0.06] group-hover:opacity-[0.12] transition-opacity select-none`}>
-          {step.num}
-        </div>
-        {/* Icon with glow */}
-        <div className={`relative w-12 h-12 rounded-xl bg-gradient-to-br ${step.gradient} p-[1px] mb-4`}>
-          <div className="w-full h-full rounded-xl bg-[#0c0c14] flex items-center justify-center group-hover:bg-[#10101a] transition-colors">
+      <div className="rounded-xl bg-white/[0.03] p-5 h-full border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.05] transition-all duration-300">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-lg bg-white/[0.06] flex items-center justify-center shrink-0">
             {step.icon}
           </div>
+          <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.25)" }}>{step.num}</span>
         </div>
-        <h3 className="text-base font-bold text-white mb-1.5">{step.title}</h3>
-        <p className="text-[12px] text-white/40 leading-relaxed">{step.desc}</p>
+        <h3 className="text-[14px] font-semibold mb-1" style={{ color: "rgba(255,255,255,0.9)", letterSpacing: "-0.01em" }}>{step.title}</h3>
+        <p className="text-[12px] leading-relaxed" style={{ color: "rgba(255,255,255,0.35)" }}>{step.desc}</p>
       </div>
     </motion.div>
   );
@@ -483,285 +466,256 @@ export default function Home() {
     if (demoInView) setDemoPlay(true);
   }, [demoInView]);
 
-  return (
-    <div className="landing-page min-h-screen overflow-hidden" style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+  // Landing is designed dark-only (starfield + light text). Force `data-theme` while
+  // this page is mounted so a saved light preference cannot wash out the hero.
+  useEffect(() => {
+    const prev = document.documentElement.getAttribute("data-theme");
+    document.documentElement.setAttribute("data-theme", "dark");
+    return () => {
+      if (prev) document.documentElement.setAttribute("data-theme", prev);
+    };
+  }, []);
 
-      {/* ═══ FULL-PAGE INTERACTIVE STARFIELD ═══ */}
+  return (
+    <div className="landing-page min-h-screen overflow-hidden" style={{ background: "#0A0A0B", color: "rgba(255,255,255,0.95)" }}>
+
+      {/* ═══ CLEAN STARFIELD ═══ */}
       <StarfieldBackground />
 
-      {/* Nebula glow layers — fixed, behind everything */}
+      {/* Single subtle top glow — barely there, just adds atmospheric depth */}
       <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden>
-        <motion.div
-          animate={{ x: [0, 80, -40, 0], y: [0, -60, 40, 0], scale: [1, 1.2, 0.9, 1] }}
-          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-20%] left-[-5%] w-[600px] h-[600px] rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)" }}
-        />
-        <motion.div
-          animate={{ x: [0, -60, 50, 0], y: [0, 50, -70, 0], scale: [1, 0.85, 1.15, 1] }}
-          transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[30%] right-[-10%] w-[500px] h-[500px] rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)" }}
-        />
-        <motion.div
-          animate={{ x: [0, 40, -60, 0], y: [0, -40, 30, 0] }}
-          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute bottom-[10%] left-[30%] w-[400px] h-[400px] rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(236,72,153,0.07) 0%, transparent 70%)" }}
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px]"
+          style={{ background: "radial-gradient(ellipse at center, rgba(100,110,240,0.06) 0%, transparent 70%)" }}
         />
       </div>
 
       {/* ═══ NAV ═══ */}
-      <nav className="fixed top-0 w-full z-50" style={{ borderBottom: "1px solid var(--border-primary)", background: "color-mix(in srgb, var(--bg-primary) 60%, transparent)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
-        <div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 font-semibold text-sm tracking-tight" style={{ color: "var(--text-primary)" }}>
-            <div className="w-7 h-7 rounded-lg bg-indigo-500 flex items-center justify-center">
+      <nav className="fixed top-0 w-full z-50" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(10,10,11,0.8)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
+        <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5 font-semibold text-[14px]" style={{ letterSpacing: "-0.02em" }}>
+            <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
               <Zap className="w-3.5 h-3.5 text-white" />
             </div>
             Priority Debater
           </Link>
           <div className="flex items-center gap-1">
-            <Link href="/validate" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs transition-colors hover:text-white/70" style={{ color: "var(--text-tertiary)" }}>
-              Validate
-            </Link>
-            <Link href="/toolkit" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs transition-colors hover:text-white/70" style={{ color: "var(--text-tertiary)" }}>
-              Toolkit
-            </Link>
-            <Link href="/debate" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs transition-colors hover:text-white/70" style={{ color: "var(--text-tertiary)" }}>
-              Debate
-            </Link>
-            <ThemeToggle />
-            <Link href="/validate"
-              className="ml-2 px-5 py-2 rounded-xl text-white text-xs font-bold hover:opacity-90 transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40" style={{ background: "linear-gradient(135deg, var(--accent-gradient-from), var(--accent-gradient-to))" }}>
+            {["Validate", "Toolkit", "Debate"].map((item) => (
+              <Link key={item} href={`/${item.toLowerCase()}`} className="hidden sm:inline-flex px-3.5 py-1.5 text-[13px] transition-colors hover:text-white/80" style={{ color: "rgba(255,255,255,0.45)" }}>
+                {item}
+              </Link>
+            ))}
+            <Link href="/validate" className="ml-3 px-5 py-2 rounded-lg text-white text-[13px] font-medium hover:bg-white/[0.15] transition-all" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.08)" }}>
               Test My Idea &rarr;
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* ═══ HERO ═══ */}
-      <section className="relative z-10 flex min-h-[100svh] flex-col justify-center pt-20 sm:pt-24 pb-16">
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="relative mx-auto max-w-5xl px-5 text-center"
-        >
-          {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 16, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.5, type: "spring" }}
-            className="mb-8 flex justify-center"
-          >
-            <Badge
-              variant="outline"
-              className="h-auto gap-2 rounded-full border-indigo-500/25 bg-indigo-500/[0.08] px-4 py-1.5 text-[11px] font-normal text-indigo-300 shadow-[0_0_20px_rgba(99,102,241,0.15)] backdrop-blur-sm hover:bg-indigo-500/[0.12]"
-            >
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
-              Free forever &middot; No signup &middot; 2-minute full report
-            </Badge>
-          </motion.div>
-
-          {/* Headline */}
-          <motion.h1 initial={{ opacity: 0, y: 30, filter: "blur(10px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={{ duration: 0.8, delay: 0.1 }}
-            className="text-3xl sm:text-4xl md:text-5xl lg:text-[4.5rem] font-extrabold tracking-tight leading-[1.05] mb-6">
-            <span className="block">Stop guessing.</span>
-            <motion.span
-              animate={{ backgroundPosition: ["0% center", "200% center"] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-              className="block mt-1 text-transparent bg-clip-text"
-              style={{ backgroundImage: "linear-gradient(90deg, #818cf8, #a78bfa, #ec4899, #818cf8)", backgroundSize: "200% auto" }}>
-              Start validating.
-            </motion.span>
-          </motion.h1>
-
-          {/* Sub */}
-          <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }}
-            className="text-white/50 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed font-light">
-            5 AI personas rip your startup idea apart — investor, customer, operator, mentor, adversary.
-            <span className="text-white/80 font-normal"> Get a brutal viability score, lean canvas, and action plan in 2 minutes.</span>
-          </motion.p>
-
-          {/* CTAs */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.45 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
-            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-              <Link href="/validate" className="cta-primary group relative overflow-hidden inline-flex items-center gap-2.5 px-8 py-4 rounded-2xl bg-white text-[#08080e] font-bold text-base transition-all shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_80px_rgba(255,255,255,0.3)]">
-                <span className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-indigo-400/25 to-transparent" />
-                Stress-Test My Idea
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-              <Link href="/validate?mode=generate"
-                className="cta-secondary inline-flex items-center gap-2.5 px-7 py-4 rounded-2xl bg-white/[0.07] text-white/80 font-semibold text-base hover:bg-white/[0.14] transition-all border border-white/[0.1] hover:border-indigo-400/30 backdrop-blur-sm hover:shadow-[0_0_30px_rgba(99,102,241,0.15)]">
-                <Wand2 className="w-5 h-5" />
-                Generate an Idea
-              </Link>
-            </motion.div>
-          </motion.div>
-
-          {/* Trust badges */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
-            className="flex flex-wrap justify-center gap-6 text-xs text-white/40">
-            {[
-              { icon: <Shield className="w-3.5 h-3.5 text-emerald-400" />, t: "100% private" },
-              { icon: <Clock className="w-3.5 h-3.5 text-blue-400" />, t: "2-min report" },
-              { icon: <Zap className="w-3.5 h-3.5 text-amber-400" />, t: "No signup" },
-              { icon: <Target className="w-3.5 h-3.5 text-violet-400" />, t: "15+ criteria" },
-            ].map((item) => (
-              <span key={item.t} className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm">
-                {item.icon}{item.t}
+      {/* ═══ HERO — Split layout: text left, demo right ═══ */}
+      <section className="relative z-10 pt-28 sm:pt-36 pb-20 sm:pb-28" ref={demoRef}>
+        <div className="max-w-[1200px] mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            {/* Left — copy */}
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3.5 py-1 text-[12px] mb-6" style={{ color: "rgba(255,255,255,0.5)" }}>
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Free &middot; No signup &middot; 2 min
               </span>
-            ))}
-          </motion.div>
-        </motion.div>
-      </section>
 
-      {/* ═══ LIVE PREVIEW ═══ */}
-      <section className="relative z-10 pb-16 sm:pb-24" ref={demoRef}>
-        <div className="mx-auto max-w-5xl px-4">
-          <Reveal className="mb-6 text-center">
-            <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.2em] text-indigo-400/90">Live preview</p>
-            <h2 className="text-lg font-bold tracking-tight sm:text-xl" style={{ color: "var(--text-primary)" }}>
-              Watch a validation run
-            </h2>
-            <p className="mx-auto mt-1 max-w-md text-xs sm:text-sm" style={{ color: "var(--text-tertiary)" }}>
-              See exactly what you get — same flow as the real report.
-            </p>
-          </Reveal>
-          <motion.div
-            initial={{ opacity: 0, y: 40, scale: 0.95 }}
-            animate={demoInView ? { opacity: 1, y: 0, scale: 1 } : {}}
-            transition={{ duration: 0.7, type: "spring", stiffness: 200, damping: 25 }}
-          >
-            <DemoPreview play={demoPlay} />
-          </motion.div>
-        </div>
-      </section>
+              <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-semibold leading-[1.08] mb-5" style={{ letterSpacing: "-0.035em" }}>
+                Stop guessing.
+                <br />
+                <span className="text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(135deg, #848CD0, #B39DDB)" }}>
+                  Start validating.
+                </span>
+              </h1>
 
-      {/* ═══ STATS ═══ */}
-      <section className="relative z-10 py-16 sm:py-20">
-        <Stagger className="max-w-5xl mx-auto px-5 grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
-          {[
-            { v: 15, s: "+", label: "Blind spots checked", icon: <BarChart3 className="w-5 h-5" />, color: "text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20" },
-            { v: 5, s: "", label: "AI personas grilling you", icon: <Target className="w-5 h-5" />, color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/20" },
-            { v: 2, s: " min", label: "To a full validation report", icon: <Clock className="w-5 h-5" />, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
-            { v: 0, s: "$", label: "Forever. No catch.", icon: <Shield className="w-5 h-5" />, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
-          ].map((s, i) => (
-            <StaggerChild key={i}>
-              <motion.div
-                whileHover={{ y: -4, scale: 1.03 }}
-                transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                className="text-center p-5 sm:p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm hover:bg-white/[0.04] transition-colors cursor-default"
-              >
-                <div className={`w-10 h-10 rounded-xl ${s.bg} border ${s.color} flex items-center justify-center mx-auto mb-3`}>{s.icon}</div>
-                <p className="text-3xl sm:text-4xl font-extrabold text-white"><Counter value={s.v} suffix={s.s} /></p>
-                <p className="text-xs text-white/40 mt-1.5 font-medium">{s.label}</p>
-              </motion.div>
-            </StaggerChild>
-          ))}
-        </Stagger>
-      </section>
+              <p className="text-[16px] sm:text-[17px] leading-[1.65] mb-8 max-w-md" style={{ color: "rgba(255,255,255,0.45)" }}>
+                5 AI personas rip your startup idea apart — investor, customer, operator, mentor, adversary. Get a viability score and action plan in 2 minutes.
+              </p>
 
-      {/* ═══ HOW IT WORKS — Compact 4-step cards ═══ */}
-      <section className="relative z-10 py-16 sm:py-24">
-        <div className="mx-auto max-w-5xl px-5">
-          <Reveal className="mb-10 text-center">
-            <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.2em] text-indigo-400/80">How it works</p>
-            <h2 className="mb-2 text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--text-primary)" }}>
-              From napkin sketch to investor-ready
-            </h2>
-            <p className="mx-auto max-w-md text-sm" style={{ color: "var(--text-tertiary)" }}>
-              Four steps. Two minutes. Zero sugar-coating.
-            </p>
-          </Reveal>
+              <div className="flex flex-col sm:flex-row gap-3 mb-8">
+                <Link href="/validate" className="group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-[#0A0A0B] font-medium text-[14px] transition-all hover:bg-white/90">
+                  Stress-Test My Idea
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+                <Link href="/validate?mode=generate" className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-[14px] font-medium transition-all" style={{ color: "rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <Wand2 className="w-4 h-4" /> Generate an Idea
+                </Link>
+              </div>
 
-          {/* Connecting line on desktop */}
-          <div className="relative">
-            <div className="hidden sm:block absolute top-[52px] left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" aria-hidden />
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { num: "01", title: "Pitch it", desc: "Describe your idea in plain English. No templates, no jargon — 30 seconds to submit.", icon: <FileText className="w-5 h-5 text-blue-400" />, accent: "text-blue-500", gradient: "from-blue-500 to-cyan-500" },
-                { num: "02", title: "Get torn apart", desc: "5 AI personas score you across 15+ criteria. Market sizing, risk flags, viability score.", icon: <Flame className="w-5 h-5 text-violet-400" />, accent: "text-violet-500", gradient: "from-violet-500 to-purple-500" },
-                { num: "03", title: "Defend it", desc: "Enter debate mode. Adversary, Investor, Customer challenge every assumption you have.", icon: <Swords className="w-5 h-5 text-emerald-400" />, accent: "text-emerald-500", gradient: "from-emerald-500 to-teal-500" },
-                { num: "04", title: "Ship it", desc: "Export PDF, generate a landing page, create a pitch deck. Build with conviction.", icon: <Rocket className="w-5 h-5 text-amber-400" />, accent: "text-amber-500", gradient: "from-amber-500 to-orange-500" },
-              ].map((step, i) => (
-                <StepCard key={step.num} step={step} index={i} />
-              ))}
-            </div>
+              <div className="flex flex-wrap gap-x-5 gap-y-2 text-[12px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+                {[
+                  { icon: <Shield className="w-3.5 h-3.5" />, t: "100% private" },
+                  { icon: <Clock className="w-3.5 h-3.5" />, t: "2-min report" },
+                  { icon: <Target className="w-3.5 h-3.5" />, t: "15+ criteria" },
+                ].map((item) => (
+                  <span key={item.t} className="flex items-center gap-1.5">{item.icon}{item.t}</span>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Right — live product demo */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={demoInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+            >
+              <DemoPreview play={demoPlay} />
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* ═══ WHAT YOU GET ═══ */}
-      <section className="relative z-10 py-20 sm:py-28">
-        <div className="max-w-5xl mx-auto px-5">
-          <Reveal className="text-center mb-14">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium mb-3">Your validation report</p>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3">Everything a VC would grill you on — answered</h2>
-            <p className="text-white/30 text-sm max-w-lg mx-auto">Not a vague summary. A complete teardown with scores, frameworks, and actionable next steps.</p>
-          </Reveal>
-
-          <Stagger className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      {/* ═══ STATS BAR — inline, not a separate section ═══ */}
+      <section className="relative z-10 py-12 border-y" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+        <div className="max-w-[1200px] mx-auto px-6">
+          <Stagger className="grid grid-cols-2 sm:grid-cols-4 gap-8">
             {[
-              { icon: <Sparkles className="w-4 h-4" />, title: "Viability Score", desc: "Brutal 0-10 Go/No-Go verdict", c: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20", glow: "rgba(16,185,129,0.15)" },
-              { icon: <Target className="w-4 h-4" />, title: "Radar Chart", desc: "6 dimensions, zero hiding", c: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20", glow: "rgba(99,102,241,0.15)" },
-              { icon: <TrendingUp className="w-4 h-4" />, title: "Market Sizing", desc: "TAM / SAM / SOM with sources", c: "text-blue-400 bg-blue-500/10 border-blue-500/20", glow: "rgba(59,130,246,0.15)" },
-              { icon: <Eye className="w-4 h-4" />, title: "Competition Map", desc: "5+ rivals you forgot about", c: "text-amber-400 bg-amber-500/10 border-amber-500/20", glow: "rgba(245,158,11,0.15)" },
-              { icon: <AlertTriangle className="w-4 h-4" />, title: "Risk Flags", desc: "The blind spots that kill startups", c: "text-red-400 bg-red-500/10 border-red-500/20", glow: "rgba(239,68,68,0.15)" },
-              { icon: <Grid3x3 className="w-4 h-4" />, title: "Lean Canvas", desc: "Full 9-cell, ready to iterate", c: "text-violet-400 bg-violet-500/10 border-violet-500/20", glow: "rgba(139,92,246,0.15)" },
-              { icon: <Briefcase className="w-4 h-4" />, title: "Business Plan", desc: "Investor-ready in one click", c: "text-slate-300 bg-white/[0.06] border-white/[0.08]", glow: "rgba(255,255,255,0.08)" },
-              { icon: <Users className="w-4 h-4" />, title: "ICP & Positioning", desc: "Who buys and why they care", c: "text-sky-400 bg-sky-500/10 border-sky-500/20", glow: "rgba(14,165,233,0.15)" },
-              { icon: <MessageSquare className="w-4 h-4" />, title: "Value Proposition", desc: "Messaging that actually lands", c: "text-pink-400 bg-pink-500/10 border-pink-500/20", glow: "rgba(236,72,153,0.15)" },
-              { icon: <Download className="w-4 h-4" />, title: "PDF & MD Export", desc: "Take it anywhere", c: "text-teal-400 bg-teal-500/10 border-teal-500/20", glow: "rgba(20,184,166,0.15)" },
-              { icon: <Share2 className="w-4 h-4" />, title: "Share Link", desc: "Loop in your co-founder", c: "text-orange-400 bg-orange-500/10 border-orange-500/20", glow: "rgba(249,115,22,0.15)" },
-              { icon: <Swords className="w-4 h-4" />, title: "AI Debate Mode", desc: "Defend it or kill it", c: "text-purple-400 bg-purple-500/10 border-purple-500/20", glow: "rgba(168,85,247,0.15)" },
-            ].map((f, i) => (
+              { v: 15, s: "+", label: "Blind spots checked" },
+              { v: 5, s: "", label: "AI personas grilling you" },
+              { v: 2, s: " min", label: "Full validation report" },
+              { v: 0, s: "$", label: "Forever. No catch." },
+            ].map((s, i) => (
               <StaggerChild key={i}>
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -6 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                  className="group p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm transition-all h-full cursor-default"
-                  style={{ willChange: "transform" }}
-                >
-                  <div className={`w-9 h-9 rounded-lg ${f.c} border flex items-center justify-center mb-3 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300`}
-                    style={{ "--tw-shadow-color": f.glow } as React.CSSProperties}>
-                    {f.icon}
-                  </div>
-                  <p className="font-semibold text-white text-[13px]">{f.title}</p>
-                  <p className="text-[11px] text-white/30 mt-0.5 leading-relaxed">{f.desc}</p>
-                </motion.div>
+                <div className="text-center cursor-default">
+                  <p className="text-2xl sm:text-3xl font-semibold" style={{ letterSpacing: "-0.03em" }}><Counter value={s.v} suffix={s.s} /></p>
+                  <p className="text-[12px] mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{s.label}</p>
+                </div>
               </StaggerChild>
             ))}
           </Stagger>
         </div>
       </section>
 
-      {/* ═══ DEBATE MODE ═══ */}
-      <section className="relative z-10 py-20 sm:py-28">
-        <div className="max-w-5xl mx-auto px-5">
-          <Reveal>
-            <div className="relative rounded-3xl overflow-hidden">
-              {/* Background */}
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-violet-600/10 to-purple-600/20" />
-              <div className="absolute inset-0 border border-white/[0.08] rounded-3xl" />
-              <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-[100px]" />
+      {/* ═══ HOW IT WORKS — 3 steps, clean ═══ */}
+      <section className="relative z-10 py-24 sm:py-32">
+        <div className="mx-auto max-w-[1200px] px-6">
+          <Reveal className="mb-12 text-center">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.15em]" style={{ color: "rgba(255,255,255,0.3)" }}>How it works</p>
+            <h2 className="text-2xl sm:text-3xl font-semibold" style={{ letterSpacing: "-0.03em" }}>
+              Three steps. Two minutes.
+            </h2>
+          </Reveal>
 
-              <div className="relative p-8 sm:p-12 flex flex-col lg:flex-row items-center gap-10">
+          <div className="grid sm:grid-cols-3 gap-6 sm:gap-4 relative">
+            {/* Connecting line (desktop) */}
+            <div className="hidden sm:block absolute top-[28px] left-[16%] right-[16%] h-px" style={{ background: "rgba(255,255,255,0.06)" }} aria-hidden />
+            {[
+              { num: "1", title: "Describe your idea", desc: "Plain English, no templates. Takes 30 seconds.", icon: <FileText className="w-4 h-4" /> },
+              { num: "2", title: "Get the brutal truth", desc: "5 AI personas score 15+ criteria. Market data, risk flags, viability score.", icon: <Flame className="w-4 h-4" /> },
+              { num: "3", title: "Build with conviction", desc: "Export your report, generate a landing page, enter debate mode, or ship.", icon: <Rocket className="w-4 h-4" /> },
+            ].map((step, i) => (
+              <Reveal key={step.num} delay={i * 0.1}>
+                <div className="text-center">
+                  <div className="w-14 h-14 rounded-full border border-white/[0.08] bg-white/[0.03] flex items-center justify-center mx-auto mb-4 relative z-10" style={{ color: "rgba(255,255,255,0.5)" }}>
+                    <span className="text-[16px] font-semibold">{step.num}</span>
+                  </div>
+                  <h3 className="text-[15px] font-semibold mb-1.5" style={{ letterSpacing: "-0.01em" }}>{step.title}</h3>
+                  <p className="text-[13px] leading-relaxed max-w-[260px] mx-auto" style={{ color: "rgba(255,255,255,0.4)" }}>{step.desc}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ BENTO FEATURES — asymmetric grid ═══ */}
+      <section className="relative z-10 py-20 sm:py-28">
+        <div className="max-w-[1200px] mx-auto px-6">
+          <Reveal className="text-center mb-12">
+            <p className="text-[11px] uppercase tracking-[0.15em] font-medium mb-3" style={{ color: "rgba(255,255,255,0.3)" }}>What you get</p>
+            <h2 className="text-2xl sm:text-3xl font-semibold" style={{ letterSpacing: "-0.03em" }}>
+              Everything a VC would grill you on — answered
+            </h2>
+          </Reveal>
+
+          {/* Row 1: Two large feature cards */}
+          <Stagger className="grid sm:grid-cols-2 gap-4 mb-4">
+            {[
+              {
+                title: "Viability Score & Radar Chart",
+                desc: "A brutal 0-10 Go/No-Go verdict across 6 dimensions. Market opportunity, problem-solution fit, business model, timing — nothing hides.",
+                icons: [<Sparkles key="s" className="w-4 h-4" />, <Target key="t" className="w-4 h-4" />],
+              },
+              {
+                title: "Market Sizing & Competition Map",
+                desc: "Real TAM/SAM/SOM estimates with sources. Plus 5+ competitors you forgot about, mapped against your positioning.",
+                icons: [<TrendingUp key="t" className="w-4 h-4" />, <Eye key="e" className="w-4 h-4" />],
+              },
+            ].map((f, i) => (
+              <StaggerChild key={i}>
+                <div className="p-6 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all h-full">
+                  <div className="flex gap-2 mb-4">
+                    {f.icons.map((icon, j) => (
+                      <div key={j} className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center" style={{ color: "rgba(255,255,255,0.45)" }}>{icon}</div>
+                    ))}
+                  </div>
+                  <h3 className="text-[15px] font-semibold mb-2" style={{ letterSpacing: "-0.01em" }}>{f.title}</h3>
+                  <p className="text-[13px] leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>{f.desc}</p>
+                </div>
+              </StaggerChild>
+            ))}
+          </Stagger>
+
+          {/* Row 2: Four smaller feature cards */}
+          <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { icon: <AlertTriangle className="w-4 h-4" />, title: "Risk Flags", desc: "Blind spots that kill startups" },
+              { icon: <Grid3x3 className="w-4 h-4" />, title: "Lean Canvas", desc: "Full 9-cell, ready to iterate" },
+              { icon: <Briefcase className="w-4 h-4" />, title: "Business Plan", desc: "Investor-ready in one click" },
+              { icon: <Users className="w-4 h-4" />, title: "ICP & Positioning", desc: "Who buys and why they care" },
+            ].map((f, i) => (
+              <StaggerChild key={i}>
+                <div className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all">
+                  <div className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center mb-3" style={{ color: "rgba(255,255,255,0.45)" }}>{f.icon}</div>
+                  <p className="font-medium text-[13px] mb-0.5" style={{ letterSpacing: "-0.01em" }}>{f.title}</p>
+                  <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>{f.desc}</p>
+                </div>
+              </StaggerChild>
+            ))}
+          </Stagger>
+
+          {/* Row 3: Export & sharing row */}
+          <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+            {[
+              { icon: <Download className="w-4 h-4" />, title: "PDF & MD Export", desc: "Take it anywhere" },
+              { icon: <Share2 className="w-4 h-4" />, title: "Share Link", desc: "Loop in your co-founder" },
+              { icon: <MessageSquare className="w-4 h-4" />, title: "Value Proposition", desc: "Messaging that lands" },
+              { icon: <Swords className="w-4 h-4" />, title: "AI Debate Mode", desc: "Defend it or kill it" },
+            ].map((f, i) => (
+              <StaggerChild key={i}>
+                <div className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all">
+                  <div className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center mb-3" style={{ color: "rgba(255,255,255,0.45)" }}>{f.icon}</div>
+                  <p className="font-medium text-[13px] mb-0.5" style={{ letterSpacing: "-0.01em" }}>{f.title}</p>
+                  <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>{f.desc}</p>
+                </div>
+              </StaggerChild>
+            ))}
+          </Stagger>
+        </div>
+      </section>
+
+      {/* ═══ DEBATE MODE — Full-width highlight ═══ */}
+      <section className="relative z-10 py-20 sm:py-28">
+        <div className="max-w-[1200px] mx-auto px-6">
+          <Reveal>
+            <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.03]">
+
+              <div className="relative p-8 sm:p-12 flex flex-col lg:flex-row items-center gap-10" style={{ background: "transparent" }}>
                 <div className="flex-1">
                   <motion.div
                     initial={{ rotate: 0 }}
                     whileInView={{ rotate: [0, -8, 8, -4, 0] }}
                     transition={{ duration: 0.8, delay: 0.2 }}
                     viewport={{ once: true }}
-                    className="inline-flex p-3 rounded-xl bg-white/[0.08] border border-white/[0.08] mb-5"
+                    className="inline-flex p-3 rounded-xl bg-white/[0.06] border border-white/[0.06] mb-5"
                   >
-                    <Swords className="w-8 h-8 text-indigo-400" />
+                    <Swords className="w-8 h-8" style={{ color: "rgba(255,255,255,0.5)" }} />
                   </motion.div>
-                  <h3 className="text-xl sm:text-2xl font-bold mb-3">Your idea sounds great. Now defend it.</h3>
-                  <p className="text-white/40 text-sm mb-6 leading-relaxed max-w-md">
+                  <h3 className="text-xl sm:text-2xl font-semibold mb-3" style={{ letterSpacing: "-0.02em", color: "rgba(255,255,255,0.95)" }}>Your idea sounds great. Now defend it.</h3>
+                  <p className="text-sm mb-6 leading-relaxed max-w-md" style={{ color: "rgba(255,255,255,0.4)" }}>
                     5 AI personas inspired by Munger, Graham, and Kahneman challenge every assumption. If your idea survives this, it can survive the market.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -779,10 +733,11 @@ export default function Home() {
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.3 }}
-                        className="flex items-center gap-2 text-[12px] text-white/50"
+                        className="flex items-center gap-2 text-[12px]"
+                        style={{ color: "rgba(255,255,255,0.45)" }}
                       >
-                        <div className="w-4 h-4 rounded-full bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center shrink-0">
-                          <Check className="w-2.5 h-2.5 text-indigo-400" />
+                        <div className="w-4 h-4 rounded-full bg-white/[0.06] flex items-center justify-center shrink-0">
+                          <Check className="w-2.5 h-2.5" style={{ color: "rgba(255,255,255,0.4)" }} />
                         </div>
                         {f}
                       </motion.div>
@@ -827,19 +782,19 @@ export default function Home() {
 
       {/* ═══ COMPARISON TABLE ═══ */}
       <section className="relative z-10 py-20 sm:py-28">
-        <div className="max-w-3xl mx-auto px-5">
+        <div className="max-w-3xl mx-auto px-6">
           <Reveal className="text-center mb-12">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium mb-3">Why not just use a generic AI?</p>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Because yes-men don&apos;t build great companies</h2>
+            <p className="text-[11px] uppercase tracking-[0.15em] font-medium mb-3" style={{ color: "rgba(255,255,255,0.3)" }}>Why not just use a generic AI?</p>
+            <h2 className="text-2xl sm:text-3xl font-semibold" style={{ letterSpacing: "-0.03em", color: "rgba(255,255,255,0.95)" }}>Because yes-men don&apos;t build great companies</h2>
           </Reveal>
           <Reveal delay={0.15}>
-            <div className="rounded-2xl border border-white/[0.06] overflow-hidden backdrop-blur-sm">
-              <table className="w-full text-[12px]">
+            <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/[0.06] backdrop-blur-sm bg-white/[0.02] [-webkit-overflow-scrolling:touch]">
+              <table className="w-full min-w-[520px] text-[13px]">
                 <thead>
-                  <tr className="border-b border-white/[0.06]">
-                    <th className="text-left py-3 px-4 text-white/30 font-medium">Feature</th>
-                    <th className="text-center py-3 px-4 text-indigo-400 font-semibold bg-indigo-500/[0.06]">Priority Debater</th>
-                    <th className="text-center py-3 px-4 text-white/30 font-medium">Generic AI / Others</th>
+                  <tr style={{ background: "rgba(255,255,255,0.03)" }}>
+                    <th className="text-left py-3.5 px-5 text-white/40 font-medium">Feature</th>
+                    <th className="text-center py-3.5 px-5 text-indigo-400 font-semibold bg-indigo-500/[0.08]">Priority Debater</th>
+                    <th className="text-center py-3.5 px-5 text-white/30 font-medium">Generic AI / Others</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -856,15 +811,15 @@ export default function Home() {
                     ["No signup required", true, false],
                     ["Price", "Free forever", "$20+/mo"],
                   ] as [string, boolean | string, boolean | string][]).map(([feature, us, them], i) => (
-                    <tr key={i} className="border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.02] transition-colors">
-                      <td className="py-2.5 px-4 text-white/50">{feature}</td>
-                      <td className="py-2.5 px-4 text-center bg-indigo-500/[0.03]">
-                        {us === true ? <Check className="w-3.5 h-3.5 text-emerald-400 mx-auto" /> :
-                         typeof us === "string" ? <span className="text-emerald-400 font-medium">{us}</span> : null}
+                    <tr key={i} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="py-3 px-5 text-white/50">{feature}</td>
+                      <td className="py-3 px-5 text-center bg-indigo-500/[0.04]">
+                        {us === true ? <Check className="w-4 h-4 text-emerald-400 mx-auto" /> :
+                         typeof us === "string" ? <span className="text-emerald-400 font-semibold">{us}</span> : null}
                       </td>
-                      <td className="py-2.5 px-4 text-center">
-                        {them === true ? <Check className="w-3.5 h-3.5 text-white/20 mx-auto" /> :
-                         them === false ? <span className="text-white/15">&times;</span> :
+                      <td className="py-3 px-5 text-center">
+                        {them === true ? <Check className="w-4 h-4 text-white/20 mx-auto" /> :
+                         them === false ? <span className="text-white/15 text-lg">&times;</span> :
                          <span className="text-white/25">{them}</span>}
                       </td>
                     </tr>
@@ -877,16 +832,13 @@ export default function Home() {
       </section>
 
       {/* ═══ FAQ ═══ */}
-      <section className="relative z-10 py-14 sm:py-20">
-        <div className="mx-auto max-w-2xl px-5">
+      <section className="relative z-10 py-20 sm:py-28">
+        <div className="mx-auto max-w-2xl px-6">
           <Reveal className="mb-8 text-center">
-            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.2em] text-indigo-400/80">FAQ</p>
-            <h2 className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: "var(--text-primary)" }}>
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.15em]" style={{ color: "rgba(255,255,255,0.3)" }}>FAQ</p>
+            <h2 className="text-xl font-semibold sm:text-2xl" style={{ letterSpacing: "-0.02em", color: "rgba(255,255,255,0.95)" }}>
               Before you ask
             </h2>
-            <p className="mx-auto mt-2 max-w-md text-xs" style={{ color: "var(--text-tertiary)" }}>
-              Tap a row to expand.
-            </p>
           </Reveal>
 
           <Accordion type="single" collapsible className="grid gap-2.5">
@@ -901,31 +853,22 @@ export default function Home() {
               <AccordionItem
                 key={item.q}
                 value={`faq-${i}`}
-                className="group border-b-0 border-0 bg-transparent data-[state=open]:shadow-[0_12px_40px_-16px_rgba(99,102,241,0.2)]"
+                className="group border-b-0 border-0 bg-transparent"
               >
-                <div
-                  className="rounded-xl border p-px transition-colors group-data-[state=open]:border-indigo-400/30"
-                  style={{ borderColor: "var(--border-primary)", background: "var(--bg-card)" }}
-                >
-                  <div className="overflow-hidden rounded-[0.7rem]" style={{ background: "var(--bg-card)" }}>
-                    <AccordionTrigger className="gap-3 px-3.5 py-3.5 text-left hover:no-underline sm:px-4 sm:py-4 [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-indigo-500 [&[data-state=open]>svg]:rotate-180">
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05] transition-colors group-data-[state=open]:border-white/[0.1]">
+                  <div className="overflow-hidden rounded-[0.7rem]">
+                    <AccordionTrigger className="gap-3 px-4 py-4 text-left hover:no-underline [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:opacity-40 [&[data-state=open]>svg]:rotate-180">
                       <span className="flex min-w-0 flex-1 items-start gap-3">
-                        <span
-                          className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
-                          style={{ boxShadow: "inset 0 1px 0 color-mix(in srgb, var(--text-primary) 8%, transparent)" }}
-                        >
-                          <CircleHelp className="h-4 w-4" strokeWidth={2} />
+                        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.06]" style={{ color: "rgba(255,255,255,0.4)" }}>
+                          <CircleHelp className="h-3.5 w-3.5" strokeWidth={2} />
                         </span>
-                        <span className="min-w-0 pt-0.5 text-left text-[13px] font-semibold leading-snug sm:text-sm" style={{ color: "var(--text-primary)" }}>
+                        <span className="min-w-0 pt-0.5 text-left text-[13px] font-medium leading-snug" style={{ color: "rgba(255,255,255,0.85)" }}>
                           {item.q}
                         </span>
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent
-                      className="border-t px-3.5 pb-3.5 pt-0 text-[12px] leading-relaxed sm:px-4"
-                      style={{ borderColor: "var(--border-primary)", color: "var(--text-secondary)" }}
-                    >
-                      <p className="pt-3 pl-0 sm:pl-11">{item.a}</p>
+                    <AccordionContent className="px-4 pb-4 pt-0 text-[13px] leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
+                      <p className="pt-2 pl-0 sm:pl-10">{item.a}</p>
                     </AccordionContent>
                   </div>
                 </div>
@@ -936,76 +879,54 @@ export default function Home() {
       </section>
 
       {/* ═══ FINAL CTA ═══ */}
-      <section className="relative z-10 pb-20 sm:pb-28">
+      <section className="relative z-10 pb-24 sm:pb-32">
         <Reveal>
-          <div className="max-w-4xl mx-auto px-5">
-            {/* Animated gradient border wrapper */}
-            <motion.div
-              animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
-              transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
-              className="rounded-3xl p-[1px]"
-              style={{ backgroundImage: "linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899, #6366f1)", backgroundSize: "300% 300%" }}
-            >
-              <div className="relative text-center py-16 px-6 rounded-3xl overflow-hidden bg-[#0a0a12]">
-                {/* Background glow orbs */}
-                <motion.div
-                  animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.5, 0.3] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] rounded-full"
-                  style={{ background: "radial-gradient(ellipse, rgba(99,102,241,0.25) 0%, transparent 60%)" }}
-                />
+          <div className="max-w-[1200px] mx-auto px-6">
+            <div className="relative text-center py-20 px-6 rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.02]">
+              {/* Subtle top glow */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] pointer-events-none" style={{ background: "radial-gradient(ellipse, rgba(140,150,255,0.06) 0%, transparent 70%)" }} />
 
-                <div className="relative">
-                  <motion.h2
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight mb-3"
-                  >
-                    Stop building on hope.{" "}
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
-                      Start building on evidence.
-                    </span>
-                  </motion.h2>
-                  <p className="text-white/35 text-sm sm:text-base mb-8 max-w-md mx-auto">
-                    2 minutes. 5 AI personas. Zero sugar-coating. Free forever.
-                  </p>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                    <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-                      <Link href="/validate"
-                        className="cta-primary group relative overflow-hidden inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-white text-[#08080e] font-bold text-sm transition-all shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_60px_rgba(255,255,255,0.25)]">
-                        <span className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-indigo-400/25 to-transparent" />
-                        Stress-Test My Idea Now
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                      </Link>
-                    </motion.div>
-                    <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-                      <Link href="/validate?mode=generate"
-                        className="cta-secondary inline-flex items-center gap-2 px-7 py-4 rounded-2xl bg-white/[0.07] text-white/80 text-sm font-semibold transition-all border border-white/[0.1] hover:border-indigo-400/30 hover:shadow-[0_0_30px_rgba(99,102,241,0.12)]">
-                        <Wand2 className="w-4 h-4" /> Generate an Idea
-                      </Link>
-                    </motion.div>
-                  </div>
+              <div className="relative">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold mb-4" style={{ letterSpacing: "-0.03em", color: "rgba(255,255,255,0.95)" }}>
+                  Stop building on hope.{" "}
+                  <span className="text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(135deg, #848CD0, #B39DDB)" }}>
+                    Start building on evidence.
+                  </span>
+                </h2>
+                <p className="text-[15px] mb-8 max-w-md mx-auto" style={{ color: "rgba(255,255,255,0.35)" }}>
+                  2 minutes. 5 AI personas. Zero sugar-coating. Free forever.
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Link href="/validate"
+                    className="group inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white text-[#0A0A0B] font-medium text-[14px] transition-all hover:bg-white/90">
+                    Stress-Test My Idea Now
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                  <Link href="/validate?mode=generate"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-[14px] font-medium transition-all"
+                    style={{ color: "rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <Wand2 className="w-4 h-4" /> Generate an Idea
+                  </Link>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         </Reveal>
       </section>
 
       {/* ═══ FOOTER ═══ */}
-      <footer className="relative z-10 py-8">
-        <div className="max-w-5xl mx-auto px-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-white/20 text-xs">
+      <footer className="relative z-10 py-8 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+        <div className="max-w-[1200px] mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-[12px]" style={{ color: "rgba(255,255,255,0.25)" }}>
             <Zap className="w-3.5 h-3.5" />
             <span>Priority Debater</span>
           </div>
-          <div className="flex gap-5 text-[11px] text-white/20">
+          <div className="flex gap-5 text-[12px]" style={{ color: "rgba(255,255,255,0.25)" }}>
             <Link href="/validate" className="hover:text-white/50 transition-colors">Validate</Link>
             <Link href="/toolkit" className="hover:text-white/50 transition-colors">Toolkit</Link>
             <Link href="/debate" className="hover:text-white/50 transition-colors">Debate</Link>
           </div>
-          <p className="text-[11px] text-white/15">&copy; {new Date().getFullYear()}</p>
+          <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.15)" }}>&copy; {new Date().getFullYear()}</p>
         </div>
       </footer>
     </div>
