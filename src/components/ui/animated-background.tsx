@@ -58,6 +58,235 @@ export function GradientMesh({ className }: { className?: string }) {
 }
 
 /* ─────────────────────────────────────────────
+   Full-Page Starfield — fixed position background
+   Interactive particles spanning entire viewport
+   with depth layers and nebula glow
+   ───────────────────────────────────────────── */
+
+export function StarfieldBackground({
+  className,
+}: {
+  className?: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mouseRef = useRef({ x: -9999, y: -9999, active: false });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animId: number;
+    const dpr = window.devicePixelRatio || 1;
+
+    const resize = () => {
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+
+    const w = () => window.innerWidth;
+    const h = () => window.innerHeight;
+
+    // Three depth layers of particles
+    interface Star {
+      x: number;
+      y: number;
+      baseX: number;
+      baseY: number;
+      r: number;
+      vx: number;
+      vy: number;
+      opacity: number;
+      magnetism: number;
+      color: string;
+      layer: number; // 0=far, 1=mid, 2=near
+      twinkleSpeed: number;
+      twinklePhase: number;
+    }
+
+    const colors = [
+      "99,102,241",   // indigo
+      "139,92,246",   // violet
+      "167,139,250",  // light violet
+      "165,180,252",  // light indigo
+      "236,72,153",   // pink
+      "59,130,246",   // blue
+      "147,197,253",  // light blue
+    ];
+
+    const totalParticles = 120;
+    const stars: Star[] = Array.from({ length: totalParticles }, (_, i) => {
+      const layer = i < 40 ? 0 : i < 85 ? 1 : 2;
+      const speedMult = [0.15, 0.3, 0.5][layer];
+      const sizeMult = [0.8, 1.4, 2.2][layer];
+      const x = Math.random() * w();
+      const y = Math.random() * h();
+      return {
+        x,
+        y,
+        baseX: x,
+        baseY: y,
+        r: (Math.random() * 1.5 + 0.5) * sizeMult,
+        vx: (Math.random() - 0.5) * speedMult,
+        vy: (Math.random() - 0.5) * speedMult,
+        opacity: Math.random() * 0.5 + 0.15,
+        magnetism: [0.15, 0.4, 0.9][layer],
+        color: colors[Math.floor(Math.random() * colors.length)],
+        layer,
+        twinkleSpeed: Math.random() * 0.02 + 0.005,
+        twinklePhase: Math.random() * Math.PI * 2,
+      };
+    });
+
+    let t = 0;
+    const magneticRadius = 280;
+    const magneticStrength = 0.1;
+
+    const draw = () => {
+      const W = w();
+      const H = h();
+      ctx.clearRect(0, 0, W, H);
+      t += 1;
+
+      const mouse = mouseRef.current;
+
+      for (const p of stars) {
+        // Natural drift
+        p.baseX += p.vx;
+        p.baseY += p.vy;
+        if (p.baseX < -20) p.baseX = W + 20;
+        if (p.baseX > W + 20) p.baseX = -20;
+        if (p.baseY < -20) p.baseY = H + 20;
+        if (p.baseY > H + 20) p.baseY = -20;
+
+        // Magnetic attraction
+        if (mouse.active) {
+          const dx = mouse.x - p.baseX;
+          const dy = mouse.y - p.baseY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < magneticRadius) {
+            const force = (1 - dist / magneticRadius) * magneticStrength * p.magnetism;
+            p.x = p.baseX + dx * force * 3;
+            p.y = p.baseY + dy * force * 3;
+          } else {
+            p.x += (p.baseX - p.x) * 0.04;
+            p.y += (p.baseY - p.y) * 0.04;
+          }
+        } else {
+          p.x += (p.baseX - p.x) * 0.04;
+          p.y += (p.baseY - p.y) * 0.04;
+        }
+
+        // Twinkle
+        const twinkle = 0.5 + 0.5 * Math.sin(t * p.twinkleSpeed + p.twinklePhase);
+        let drawOpacity = p.opacity * (0.6 + 0.4 * twinkle);
+        let drawRadius = p.r;
+
+        // Glow near cursor
+        if (mouse.active) {
+          const dx = mouse.x - p.x;
+          const dy = mouse.y - p.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < magneticRadius) {
+            const proximity = 1 - dist / magneticRadius;
+            drawOpacity = Math.min(1, drawOpacity + proximity * 0.5);
+            drawRadius += proximity * 2;
+          }
+        }
+
+        // Draw with glow for near-layer particles
+        if (p.layer === 2 && drawRadius > 2) {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, drawRadius * 3, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${p.color},${drawOpacity * 0.08})`;
+          ctx.fill();
+        }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, drawRadius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${p.color},${drawOpacity})`;
+        ctx.fill();
+      }
+
+      // Draw connections only for near-layer particles
+      const nearStars = stars.filter((s) => s.layer >= 1);
+      for (let i = 0; i < nearStars.length; i++) {
+        for (let j = i + 1; j < nearStars.length; j++) {
+          const dx = nearStars[i].x - nearStars[j].x;
+          const dy = nearStars[i].y - nearStars[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 160) {
+            let lineOpacity = 0.07 * (1 - dist / 160);
+            if (mouse.active) {
+              const midX = (nearStars[i].x + nearStars[j].x) / 2;
+              const midY = (nearStars[i].y + nearStars[j].y) / 2;
+              const toCursor = Math.sqrt((mouse.x - midX) ** 2 + (mouse.y - midY) ** 2);
+              if (toCursor < magneticRadius) {
+                lineOpacity += 0.2 * (1 - toCursor / magneticRadius);
+              }
+            }
+            ctx.beginPath();
+            ctx.moveTo(nearStars[i].x, nearStars[i].y);
+            ctx.lineTo(nearStars[j].x, nearStars[j].y);
+            ctx.strokeStyle = `rgba(99,102,241,${lineOpacity})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Cursor aurora glow
+      if (mouse.active) {
+        const gradient = ctx.createRadialGradient(
+          mouse.x, mouse.y, 0,
+          mouse.x, mouse.y, 200
+        );
+        gradient.addColorStop(0, "rgba(99,102,241,0.06)");
+        gradient.addColorStop(0.5, "rgba(139,92,246,0.03)");
+        gradient.addColorStop(1, "rgba(99,102,241,0)");
+        ctx.beginPath();
+        ctx.arc(mouse.x, mouse.y, 200, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+      }
+
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+
+    const handleMove = (e: MouseEvent) => {
+      mouseRef.current = { x: e.clientX, y: e.clientY, active: true };
+    };
+    const handleLeave = () => {
+      mouseRef.current.active = false;
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseleave", handleLeave);
+    window.addEventListener("resize", resize);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseleave", handleLeave);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className={cn("fixed inset-0 z-0 h-screen w-screen", className)}
+      style={{ pointerEvents: "none" }}
+      aria-hidden="true"
+    />
+  );
+}
+
+/* ─────────────────────────────────────────────
    Interactive Particle Field
    Particles are MAGNETIC to cursor — they get
    attracted/repelled based on mouse position.

@@ -35,6 +35,8 @@ import {
   Loader2,
   Lock,
   CircleHelp,
+  Rocket,
+  Flame,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
@@ -44,8 +46,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { AuroraBackground, InteractiveParticles, GridPattern } from "@/components/ui/animated-background";
-import { Timeline } from "@/components/ui/timeline";
+import { StarfieldBackground, GridPattern } from "@/components/ui/animated-background";
 
 // ── Animated counter ────────────────────────────────────────────────────
 function Counter({ value, suffix = "", duration = 2 }: { value: number; suffix?: string; duration?: number }) {
@@ -107,7 +108,6 @@ function StaggerChild({ children, className = "" }: { children: React.ReactNode;
 
 const DEMO_IDEA_TEXT = "AI-powered meeting summarizer for remote teams";
 
-// ── Live demo mockup ────────────────────────────────────────────────────
 // ── Mini radar for demo ─────────────────────────────────────────────────
 function MiniRadar() {
   const scores = [8, 7, 6, 8, 7, 9];
@@ -443,6 +443,36 @@ function DemoPreview({ play }: { play: boolean }) {
   );
 }
 
+// ── Compact Step Card for "How It Works" ──────────────────────────────
+function StepCard({ step, index }: { step: { num: string; title: string; desc: string; icon: React.ReactNode; color: string; borderColor: string }; index: number }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-40px" });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 30, scale: 0.95 }}
+      animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
+      transition={{ duration: 0.5, delay: index * 0.1, type: "spring", stiffness: 300, damping: 25 }}
+      whileHover={{ y: -8, scale: 1.03 }}
+      className="group relative cursor-default"
+    >
+      {/* Glow on hover */}
+      <div className={`absolute -inset-px rounded-2xl bg-gradient-to-b ${step.color} opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm`} />
+      <div className="relative rounded-2xl border border-white/[0.06] bg-[#0c0c14]/80 backdrop-blur-sm p-5 h-full">
+        {/* Step number */}
+        <div className={`absolute -top-3 -right-2 text-[40px] font-black ${step.color.includes("indigo") ? "text-indigo-500/10" : step.color.includes("violet") ? "text-violet-500/10" : step.color.includes("emerald") ? "text-emerald-500/10" : "text-amber-500/10"} select-none`}>
+          {step.num}
+        </div>
+        <div className={`w-10 h-10 rounded-xl border ${step.borderColor} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300`}>
+          {step.icon}
+        </div>
+        <h3 className="text-sm font-bold text-white mb-1">{step.title}</h3>
+        <p className="text-[11px] text-white/35 leading-relaxed">{step.desc}</p>
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Main Page ───────────────────────────────────────────────────────────
 export default function Home() {
   const heroScrollRef = useRef<HTMLElement>(null);
@@ -467,8 +497,33 @@ export default function Home() {
   return (
     <div className="landing-page min-h-screen overflow-hidden" style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
 
+      {/* ═══ FULL-PAGE INTERACTIVE STARFIELD ═══ */}
+      <StarfieldBackground />
+
+      {/* Nebula glow layers — fixed, behind everything */}
+      <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden>
+        <motion.div
+          animate={{ x: [0, 80, -40, 0], y: [0, -60, 40, 0], scale: [1, 1.2, 0.9, 1] }}
+          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-[-20%] left-[-5%] w-[600px] h-[600px] rounded-full"
+          style={{ background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)" }}
+        />
+        <motion.div
+          animate={{ x: [0, -60, 50, 0], y: [0, 50, -70, 0], scale: [1, 0.85, 1.15, 1] }}
+          transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-[30%] right-[-10%] w-[500px] h-[500px] rounded-full"
+          style={{ background: "radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)" }}
+        />
+        <motion.div
+          animate={{ x: [0, 40, -60, 0], y: [0, -40, 30, 0] }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute bottom-[10%] left-[30%] w-[400px] h-[400px] rounded-full"
+          style={{ background: "radial-gradient(circle, rgba(236,72,153,0.07) 0%, transparent 70%)" }}
+        />
+      </div>
+
       {/* ═══ NAV ═══ */}
-      <nav className="fixed top-0 w-full z-50" style={{ borderBottom: "1px solid var(--border-primary)", background: "color-mix(in srgb, var(--bg-primary) 80%, transparent)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
+      <nav className="fixed top-0 w-full z-50" style={{ borderBottom: "1px solid var(--border-primary)", background: "color-mix(in srgb, var(--bg-primary) 60%, transparent)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
         <div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 font-semibold text-sm tracking-tight" style={{ color: "var(--text-primary)" }}>
             <div className="w-7 h-7 rounded-lg bg-indigo-500 flex items-center justify-center">
@@ -477,64 +532,33 @@ export default function Home() {
             Priority Debater
           </Link>
           <div className="flex items-center gap-1">
-            <Link href="/validate" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs transition-colors" style={{ color: "var(--text-tertiary)" }}>
+            <Link href="/validate" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs transition-colors hover:text-white/70" style={{ color: "var(--text-tertiary)" }}>
               Validate
             </Link>
-            <Link href="/toolkit" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs transition-colors" style={{ color: "var(--text-tertiary)" }}>
+            <Link href="/toolkit" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs transition-colors hover:text-white/70" style={{ color: "var(--text-tertiary)" }}>
               Toolkit
             </Link>
-            <Link href="/debate" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs transition-colors" style={{ color: "var(--text-tertiary)" }}>
+            <Link href="/debate" className="hidden sm:inline-flex px-3.5 py-1.5 text-xs transition-colors hover:text-white/70" style={{ color: "var(--text-tertiary)" }}>
               Debate
             </Link>
             <ThemeToggle />
             <Link href="/validate"
               className="ml-2 px-5 py-2 rounded-xl text-white text-xs font-bold hover:opacity-90 transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40" style={{ background: "linear-gradient(135deg, var(--accent-gradient-from), var(--accent-gradient-to))" }}>
-              Test My Idea →
+              Test My Idea &rarr;
             </Link>
           </div>
         </div>
       </nav>
 
       {/* ═══ HERO + scroll-reveal live preview ═══ */}
-      <section ref={heroScrollRef} className="relative min-h-[220vh] sm:min-h-[260vh]">
+      <section ref={heroScrollRef} className="relative z-10 min-h-[220vh] sm:min-h-[260vh]">
         <div className="sticky top-0 flex min-h-[100svh] flex-col justify-center overflow-hidden pt-20 sm:pt-24 pb-10">
-        {/* ── Animated background: big visible glowing orbs + grid ── */}
-        <div className="pointer-events-none absolute inset-0 -z-10">
-          {/* Large animated gradient orbs — very visible */}
-          <motion.div
-            animate={{ x: [0, 80, -40, 0], y: [0, -60, 40, 0], scale: [1, 1.2, 0.9, 1] }}
-            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[-30%] left-[-10%] w-[700px] h-[700px] rounded-full opacity-70"
-            style={{ background: "radial-gradient(circle, rgba(99,102,241,0.35) 0%, rgba(99,102,241,0) 70%)" }}
-          />
-          <motion.div
-            animate={{ x: [0, -60, 50, 0], y: [0, 50, -70, 0], scale: [1, 0.85, 1.15, 1] }}
-            transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[10%] right-[-15%] w-[600px] h-[600px] rounded-full opacity-60"
-            style={{ background: "radial-gradient(circle, rgba(139,92,246,0.3) 0%, rgba(139,92,246,0) 70%)" }}
-          />
-          <motion.div
-            animate={{ x: [0, 40, -60, 0], y: [0, -40, 30, 0], scale: [1, 1.1, 0.95, 1] }}
-            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute bottom-[-20%] left-[20%] w-[500px] h-[500px] rounded-full opacity-50"
-            style={{ background: "radial-gradient(circle, rgba(236,72,153,0.2) 0%, rgba(236,72,153,0) 70%)" }}
-          />
-          {/* Grid overlay */}
-          <div className="absolute inset-0 opacity-[0.06]"
-            style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "64px 64px", maskImage: "radial-gradient(ellipse at center, black 30%, transparent 70%)", WebkitMaskImage: "radial-gradient(ellipse at center, black 30%, transparent 70%)" }} />
-          {/* Radial center glow */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] rounded-full opacity-40"
-            style={{ background: "radial-gradient(ellipse, rgba(99,102,241,0.2) 0%, transparent 60%)" }} />
-        </div>
-
-        {/* Interactive particles */}
-        <InteractiveParticles count={70} magneticRadius={250} magneticStrength={0.12} connectionDistance={170} />
 
         <motion.div
           style={{ scale: heroScale, y: heroY, opacity: heroOpacity }}
           className="relative mx-auto max-w-5xl origin-top px-5 text-center"
         >
-          {/* Badge — shadcn / 21st.dev registry */}
+          {/* Badge */}
           <motion.div
             initial={{ opacity: 0, y: 16, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -543,7 +567,7 @@ export default function Home() {
           >
             <Badge
               variant="outline"
-              className="h-auto gap-2 rounded-full border-indigo-500/25 bg-indigo-500/[0.1] px-4 py-1.5 text-[11px] font-normal text-indigo-300 shadow-[0_0_20px_rgba(99,102,241,0.15)] backdrop-blur-sm hover:bg-indigo-500/[0.12]"
+              className="h-auto gap-2 rounded-full border-indigo-500/25 bg-indigo-500/[0.08] px-4 py-1.5 text-[11px] font-normal text-indigo-300 shadow-[0_0_20px_rgba(99,102,241,0.15)] backdrop-blur-sm hover:bg-indigo-500/[0.12]"
             >
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
               Free forever &middot; No signup &middot; 2-minute full report
@@ -598,7 +622,7 @@ export default function Home() {
               { icon: <Zap className="w-3.5 h-3.5 text-amber-400" />, t: "No signup" },
               { icon: <Target className="w-3.5 h-3.5 text-violet-400" />, t: "15+ criteria" },
             ].map((item) => (
-              <span key={item.t} className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.06] bg-white/[0.03]">
+              <span key={item.t} className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm">
                 {item.icon}{item.t}
               </span>
             ))}
@@ -627,16 +651,17 @@ export default function Home() {
         >
           <span className="inline-flex items-center gap-2">
             Scroll for live preview
-            <span className="inline-block animate-bounce">↓</span>
+            <span className="inline-block animate-bounce">&darr;</span>
           </span>
         </motion.p>
         </div>
       </section>
 
       {/* ═══ STATS ═══ */}
-      <section className="relative border-y border-white/[0.06] py-16 sm:py-20">
+      <section className="relative z-10 border-y border-white/[0.06] py-16 sm:py-20">
+        <div className="absolute inset-0 bg-[#08080e]/60 backdrop-blur-sm" />
         <GridPattern />
-        <Stagger className="max-w-5xl mx-auto px-5 grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
+        <Stagger className="relative max-w-5xl mx-auto px-5 grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
           {[
             { v: 15, s: "+", label: "Blind spots checked", icon: <BarChart3 className="w-5 h-5" />, color: "text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20" },
             { v: 5, s: "", label: "AI personas grilling you", icon: <Target className="w-5 h-5" />, color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/20" },
@@ -644,185 +669,54 @@ export default function Home() {
             { v: 0, s: "$", label: "Forever. No catch.", icon: <Shield className="w-5 h-5" />, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
           ].map((s, i) => (
             <StaggerChild key={i}>
-              <div className="text-center p-5 sm:p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-all">
+              <motion.div
+                whileHover={{ y: -4, scale: 1.03 }}
+                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                className="text-center p-5 sm:p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm hover:bg-white/[0.04] transition-colors cursor-default"
+              >
                 <div className={`w-10 h-10 rounded-xl ${s.bg} border ${s.color} flex items-center justify-center mx-auto mb-3`}>{s.icon}</div>
                 <p className="text-3xl sm:text-4xl font-extrabold text-white"><Counter value={s.v} suffix={s.s} /></p>
                 <p className="text-xs text-white/40 mt-1.5 font-medium">{s.label}</p>
-              </div>
+              </motion.div>
             </StaggerChild>
           ))}
         </Stagger>
       </section>
 
-      {/* ═══ HOW IT WORKS — Aceternity Scroll Timeline ═══ */}
-      <section className="py-14 sm:py-20">
-        <div className="mx-auto max-w-3xl px-5">
-          <Reveal className="mb-8 text-center">
+      {/* ═══ HOW IT WORKS — Compact 4-step cards ═══ */}
+      <section className="relative z-10 py-16 sm:py-24">
+        <div className="mx-auto max-w-5xl px-5">
+          <Reveal className="mb-10 text-center">
             <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.2em] text-indigo-400/80">How it works</p>
-            <h2 className="mb-2 text-xl font-bold tracking-tight sm:text-2xl" style={{ color: "var(--text-primary)" }}>
+            <h2 className="mb-2 text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--text-primary)" }}>
               From napkin sketch to investor-ready
             </h2>
-            <p className="mx-auto max-w-md text-xs sm:text-sm" style={{ color: "var(--text-tertiary)" }}>
+            <p className="mx-auto max-w-md text-sm" style={{ color: "var(--text-tertiary)" }}>
               Four steps. Two minutes. Zero sugar-coating.
             </p>
           </Reveal>
 
-          <Timeline data={[
-            {
-              title: "Pitch it",
-              content: (
-                <div>
-                  <p className="mb-2 text-xs font-normal md:text-sm" style={{ color: "var(--text-secondary)" }}>
-                    Describe your startup idea in plain English. No templates, no forms, no friction — just tell us what you&apos;re building.
-                  </p>
-                  <div className="mb-3 space-y-1.5">
-                    {["30 seconds to submit", "No signup required", "Plain language — no jargon needed", "We handle the rest"].map((item) => (
-                      <div key={item} className="flex items-center gap-2 text-xs md:text-sm" style={{ color: "var(--text-tertiary)" }}>
-                        <Check className="w-4 h-4 text-blue-400 shrink-0" />
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <motion.div
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                      className="rounded-xl border border-blue-500/20 bg-blue-500/[0.06] p-4 backdrop-blur-sm"
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <FileText className="w-4 h-4 text-blue-400" />
-                        <span className="text-[11px] font-semibold text-blue-400 uppercase tracking-wider">Your input</span>
-                      </div>
-                      <p className="text-[11px] text-white/30 leading-relaxed italic">&quot;AI-powered meeting summarizer for remote teams that integrates with Zoom and Slack&quot;</p>
-                    </motion.div>
-                    <motion.div
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                      className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] p-4 backdrop-blur-sm"
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <Zap className="w-4 h-4 text-emerald-400" />
-                        <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">What happens</span>
-                      </div>
-                      <p className="text-[11px] text-white/30 leading-relaxed">5 AI personas start analyzing your idea across 15+ criteria simultaneously</p>
-                    </motion.div>
-                  </div>
-                </div>
-              ),
-            },
-            {
-              title: "Get torn apart",
-              content: (
-                <div>
-                  <p className="mb-2 text-xs font-normal md:text-sm" style={{ color: "var(--text-secondary)" }}>
-                    5 AI personas — Investor, Customer, Operator, Mentor, Adversary — score your idea across 15+ criteria. Market sizing, competitor mapping, risk flags, lean canvas, financials — nothing is spared.
-                  </p>
-                  <div className="mb-3 space-y-1.5">
-                    {["Viability score (0-10 Go/No-Go)", "6-dimension radar chart", "TAM/SAM/SOM market sizing", "Competitive landscape analysis", "Lean Canvas generation", "Risk flags & blind spots"].map((item) => (
-                      <div key={item} className="flex items-center gap-2 text-xs md:text-sm" style={{ color: "var(--text-tertiary)" }}>
-                        <Check className="w-4 h-4 text-violet-400 shrink-0" />
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: "Problem Fit", score: "8/10", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
-                      { label: "Market Size", score: "7/10", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
-                      { label: "Timing", score: "9/10", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
-                    ].map((item) => (
-                      <motion.div
-                        key={item.label}
-                        whileHover={{ scale: 1.05 }}
-                        className={`rounded-xl border ${item.bg} p-3 text-center`}
-                      >
-                        <p className={`text-lg font-bold ${item.color}`}>{item.score}</p>
-                        <p className="text-[10px] text-white/30 mt-0.5">{item.label}</p>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              ),
-            },
-            {
-              title: "Defend it",
-              content: (
-                <div>
-                  <p className="mb-2 text-xs font-normal md:text-sm" style={{ color: "var(--text-secondary)" }}>
-                    Step into debate mode and defend your idea against AI personas that use inversion, base rates, and pre-mortem thinking. If you can survive this, you can survive a VC pitch.
-                  </p>
-                  <div className="mb-3 space-y-1.5">
-                    {["Adversary rips holes in your logic", "Investor asks about unit economics", "Customer tells you they wouldn't buy", "Operator flags scaling challenges", "Real-time argument scoring"].map((item) => (
-                      <div key={item} className="flex items-center gap-2 text-xs md:text-sm" style={{ color: "var(--text-tertiary)" }}>
-                        <Swords className="w-4 h-4 text-emerald-400 shrink-0" />
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                  {/* Mock debate preview */}
-                  <motion.div
-                    whileHover={{ scale: 1.01 }}
-                    className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-3"
-                  >
-                    <div className="flex gap-2 items-start">
-                      <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0 text-[10px]">🗡️</div>
-                      <div className="bg-white/[0.06] rounded-xl rounded-tl-none px-3 py-2 text-[11px] text-white/50 leading-relaxed">
-                        Your TAM assumes every business needs this. What&apos;s your actual serviceable market?
-                      </div>
-                    </div>
-                    <div className="flex gap-2 items-start flex-row-reverse">
-                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 text-[10px]">👤</div>
-                      <div className="bg-indigo-500/10 rounded-xl rounded-tr-none px-3 py-2 text-[11px] text-white/50 leading-relaxed">
-                        SAM is $3.2B — remote-first companies with 50+ employees...
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
-              ),
-            },
-            {
-              title: "Ship it",
-              content: (
-                <div>
-                  <p className="mb-2 text-xs font-normal md:text-sm" style={{ color: "var(--text-secondary)" }}>
-                    Export your validation report as PDF, generate a pitch deck, create a business plan, share with co-founders. Build with conviction, not hope.
-                  </p>
-                  <div className="mb-3 space-y-1.5">
-                    {["PDF & Markdown export", "AI-generated landing page", "Business plan & financial model", "Share link for co-founders", "Pitch deck generation"].map((item) => (
-                      <div key={item} className="flex items-center gap-2 text-xs md:text-sm" style={{ color: "var(--text-tertiary)" }}>
-                        <Check className="w-4 h-4 text-amber-400 shrink-0" />
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { icon: <Download className="w-5 h-5" />, label: "Export PDF", color: "text-teal-400", bg: "bg-teal-500/10 border-teal-500/20" },
-                      { icon: <Share2 className="w-5 h-5" />, label: "Share Link", color: "text-orange-400", bg: "bg-orange-500/10 border-orange-500/20" },
-                      { icon: <Briefcase className="w-5 h-5" />, label: "Business Plan", color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/20" },
-                      { icon: <Wand2 className="w-5 h-5" />, label: "Landing Page", color: "text-pink-400", bg: "bg-pink-500/10 border-pink-500/20" },
-                    ].map((item) => (
-                      <motion.div
-                        key={item.label}
-                        whileHover={{ scale: 1.05, y: -2 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                        className={`flex items-center gap-3 rounded-xl border ${item.bg} p-3 cursor-default`}
-                      >
-                        <div className={item.color}>{item.icon}</div>
-                        <span className="text-xs text-white/50 font-medium">{item.label}</span>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              ),
-            },
-          ]} />
+          {/* Connecting line on desktop */}
+          <div className="relative">
+            <div className="hidden sm:block absolute top-[52px] left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" aria-hidden />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { num: "01", title: "Pitch it", desc: "Describe your idea in plain English. No templates, no jargon — 30 seconds to submit.", icon: <FileText className="w-4.5 h-4.5 text-blue-400" />, color: "from-blue-500/20 to-transparent", borderColor: "border-blue-500/20 bg-blue-500/[0.06]" },
+                { num: "02", title: "Get torn apart", desc: "5 AI personas score you across 15+ criteria. Market sizing, risk flags, viability score.", icon: <Flame className="w-4.5 h-4.5 text-violet-400" />, color: "from-violet-500/20 to-transparent", borderColor: "border-violet-500/20 bg-violet-500/[0.06]" },
+                { num: "03", title: "Defend it", desc: "Enter debate mode. Adversary, Investor, Customer challenge every assumption you have.", icon: <Swords className="w-4.5 h-4.5 text-emerald-400" />, color: "from-emerald-500/20 to-transparent", borderColor: "border-emerald-500/20 bg-emerald-500/[0.06]" },
+                { num: "04", title: "Ship it", desc: "Export PDF, generate a landing page, create a pitch deck. Build with conviction.", icon: <Rocket className="w-4.5 h-4.5 text-amber-400" />, color: "from-amber-500/20 to-transparent", borderColor: "border-amber-500/20 bg-amber-500/[0.06]" },
+              ].map((step, i) => (
+                <StepCard key={step.num} step={step} index={i} />
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ═══ WHAT YOU GET — on dark bg with accent borders ═══ */}
-      <section className="py-20 sm:py-28 border-y border-white/[0.06]">
-        <div className="max-w-5xl mx-auto px-5">
+      {/* ═══ WHAT YOU GET ═══ */}
+      <section className="relative z-10 py-20 sm:py-28 border-y border-white/[0.06]">
+        <div className="absolute inset-0 bg-[#08080e]/40 backdrop-blur-[2px]" />
+        <div className="relative max-w-5xl mx-auto px-5">
           <Reveal className="text-center mb-14">
             <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium mb-3">Your validation report</p>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3">Everything a VC would grill you on — answered</h2>
@@ -848,7 +742,7 @@ export default function Home() {
                 <motion.div
                   whileHover={{ scale: 1.05, y: -6 }}
                   transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                  className="group p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] transition-all h-full cursor-default"
+                  className="group p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm transition-all h-full cursor-default"
                   style={{ willChange: "transform" }}
                 >
                   <div className={`w-9 h-9 rounded-lg ${f.c} border flex items-center justify-center mb-3 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300`}
@@ -865,7 +759,7 @@ export default function Home() {
       </section>
 
       {/* ═══ DEBATE MODE ═══ */}
-      <section className="py-20 sm:py-28">
+      <section className="relative z-10 py-20 sm:py-28">
         <div className="max-w-5xl mx-auto px-5">
           <Reveal>
             <div className="relative rounded-3xl overflow-hidden">
@@ -898,38 +792,51 @@ export default function Home() {
                       "Mentor helps you fix what's broken",
                       "Real-time argument scoring",
                     ].map((f) => (
-                      <div key={f} className="flex items-center gap-2 text-[12px] text-white/50">
+                      <motion.div
+                        key={f}
+                        initial={{ opacity: 0, x: -10 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.3 }}
+                        className="flex items-center gap-2 text-[12px] text-white/50"
+                      >
                         <div className="w-4 h-4 rounded-full bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center shrink-0">
                           <Check className="w-2.5 h-2.5 text-indigo-400" />
                         </div>
                         {f}
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 </div>
 
                 {/* Mock debate */}
                 <div className="w-full lg:w-72 shrink-0">
-                  <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 space-y-3">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 space-y-3"
+                  >
                     <div className="flex gap-2 items-start">
-                      <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0 text-[10px]">🗡️</div>
+                      <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0 text-[10px]">&#x1F5E1;&#xFE0F;</div>
                       <div className="bg-white/[0.06] rounded-xl rounded-tl-none px-3 py-2 text-[11px] text-white/60 leading-relaxed">
                         Your TAM assumes every business needs this. What&apos;s your actual serviceable market?
                       </div>
                     </div>
                     <div className="flex gap-2 items-start flex-row-reverse">
-                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 text-[10px]">👤</div>
+                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 text-[10px]">&#x1F464;</div>
                       <div className="bg-indigo-500/10 rounded-xl rounded-tr-none px-3 py-2 text-[11px] text-white/60 leading-relaxed">
                         SAM is $3.2B — remote-first companies with 50+ employees...
                       </div>
                     </div>
                     <div className="flex gap-2 items-start">
-                      <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0 text-[10px]">🗡️</div>
+                      <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0 text-[10px]">&#x1F5E1;&#xFE0F;</div>
                       <div className="bg-white/[0.06] rounded-xl rounded-tl-none px-3 py-2">
                         <span className="inline-block w-3 h-3 rounded-full border-2 border-white/20 border-t-indigo-400 animate-spin" />
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 </div>
               </div>
             </div>
@@ -938,14 +845,15 @@ export default function Home() {
       </section>
 
       {/* ═══ COMPARISON TABLE ═══ */}
-      <section className="py-20 sm:py-28 border-y border-white/[0.06]">
-        <div className="max-w-3xl mx-auto px-5">
+      <section className="relative z-10 py-20 sm:py-28 border-y border-white/[0.06]">
+        <div className="absolute inset-0 bg-[#08080e]/50 backdrop-blur-[2px]" />
+        <div className="relative max-w-3xl mx-auto px-5">
           <Reveal className="text-center mb-12">
             <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-400/70 font-medium mb-3">Why not just use a generic AI?</p>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Because yes-men don't build great companies</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Because yes-men don&apos;t build great companies</h2>
           </Reveal>
           <Reveal delay={0.15}>
-            <div className="rounded-2xl border border-white/[0.06] overflow-hidden">
+            <div className="rounded-2xl border border-white/[0.06] overflow-hidden backdrop-blur-sm">
               <table className="w-full text-[12px]">
                 <thead>
                   <tr className="border-b border-white/[0.06]">
@@ -968,7 +876,7 @@ export default function Home() {
                     ["No signup required", true, false],
                     ["Price", "Free forever", "$20+/mo"],
                   ] as [string, boolean | string, boolean | string][]).map(([feature, us, them], i) => (
-                    <tr key={i} className="border-b border-white/[0.04] last:border-b-0">
+                    <tr key={i} className="border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.02] transition-colors">
                       <td className="py-2.5 px-4 text-white/50">{feature}</td>
                       <td className="py-2.5 px-4 text-center bg-indigo-500/[0.03]">
                         {us === true ? <Check className="w-3.5 h-3.5 text-emerald-400 mx-auto" /> :
@@ -976,7 +884,7 @@ export default function Home() {
                       </td>
                       <td className="py-2.5 px-4 text-center">
                         {them === true ? <Check className="w-3.5 h-3.5 text-white/20 mx-auto" /> :
-                         them === false ? <span className="text-white/15">✕</span> :
+                         them === false ? <span className="text-white/15">&times;</span> :
                          <span className="text-white/25">{them}</span>}
                       </td>
                     </tr>
@@ -989,7 +897,7 @@ export default function Home() {
       </section>
 
       {/* ═══ FAQ ═══ */}
-      <section className="relative py-14 sm:py-20">
+      <section className="relative z-10 py-14 sm:py-20">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/25 to-transparent" aria-hidden />
         <div className="mx-auto max-w-2xl px-5">
           <Reveal className="mb-8 text-center">
@@ -1049,7 +957,7 @@ export default function Home() {
       </section>
 
       {/* ═══ FINAL CTA ═══ */}
-      <section className="pb-20 sm:pb-28">
+      <section className="relative z-10 pb-20 sm:pb-28">
         <Reveal>
           <div className="max-w-4xl mx-auto px-5">
             {/* Animated gradient border wrapper */}
@@ -1067,7 +975,6 @@ export default function Home() {
                   className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] rounded-full"
                   style={{ background: "radial-gradient(ellipse, rgba(99,102,241,0.25) 0%, transparent 60%)" }}
                 />
-                <InteractiveParticles count={30} magneticRadius={180} magneticStrength={0.08} connectionDistance={130} />
 
                 <div className="relative">
                   <motion.h2
@@ -1108,7 +1015,7 @@ export default function Home() {
       </section>
 
       {/* ═══ FOOTER ═══ */}
-      <footer className="border-t border-white/[0.06] py-8">
+      <footer className="relative z-10 border-t border-white/[0.06] py-8">
         <div className="max-w-5xl mx-auto px-5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-white/20 text-xs">
             <Zap className="w-3.5 h-3.5" />
