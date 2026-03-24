@@ -28,7 +28,6 @@ import {
   Download,
   Share2,
   AlertTriangle,
-  Loader2,
   Lock,
   CircleHelp,
   Rocket,
@@ -101,329 +100,155 @@ function StaggerChild({ children, className = "" }: { children: React.ReactNode;
   );
 }
 
-const DEMO_IDEA_TEXT = "AI-powered meeting summarizer for remote teams";
-
-// ── Mini radar for demo ─────────────────────────────────────────────────
-function MiniRadar() {
-  const scores = [8, 7, 6, 8, 7, 9];
-  const labels = ["Problem", "Market", "Edge", "Model", "Team", "Timing"];
-  const n = 6;
-  const cx = 60;
-  const cy = 60;
-  const maxR = 46;
-  const pt = (r: number, i: number) => {
-    const a = (Math.PI * 2 * i) / n - Math.PI / 2;
-    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
-  };
-  const dataPath =
-    scores
-      .map((v, i) => pt((v / 10) * maxR, i))
-      .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-      .join(" ") + " Z";
-  const gridPath = (ring: number) =>
-    Array.from({ length: n }, (_, i) => pt((ring / 10) * maxR, i))
-      .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-      .join(" ") + " Z";
-
+/** Hero preview — editorial “report snapshot”, not a busy fake dashboard */
+function ScoreRing({ progress, active }: { progress: number; active: boolean }) {
+  const r = 52;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - progress);
   return (
-    <svg viewBox="0 0 120 120" className="h-auto w-full drop-shadow-[0_0_12px_rgba(99,102,241,0.2)]">
+    <svg viewBox="0 0 120 120" className="h-[140px] w-[140px] shrink-0 sm:h-[160px] sm:w-[160px]" aria-hidden>
       <defs>
-        <linearGradient id="demoRadarFill" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#6366f1" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.12" />
-        </linearGradient>
-        <linearGradient id="demoRadarStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+        <linearGradient id="heroRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#818cf8" />
-          <stop offset="100%" stopColor="#c4b5fd" />
+          <stop offset="50%" stopColor="#a78bfa" />
+          <stop offset="100%" stopColor="#34d399" />
         </linearGradient>
       </defs>
-      {[3, 6, 10].map((r) => (
-        <path key={r} d={gridPath(r)} fill="none" stroke="rgb(99 102 241 / 0.18)" strokeWidth={0.45} />
-      ))}
-      {Array.from({ length: n }, (_, i) => {
-        const p = pt(maxR, i);
-        return (
-          <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgb(99 102 241 / 0.12)" strokeWidth={0.45} />
-        );
-      })}
-      <motion.path
-        d={dataPath}
-        fill="url(#demoRadarFill)"
-        stroke="url(#demoRadarStroke)"
-        strokeWidth={1.25}
-        strokeLinejoin="round"
-        initial={{ opacity: 0, scale: 0.88 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.75, delay: 0.15, type: "spring", stiffness: 120, damping: 18 }}
-        style={{ transformOrigin: "60px 60px" }}
+      <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
+      <motion.circle
+        cx="60"
+        cy="60"
+        r={r}
+        fill="none"
+        stroke="url(#heroRingGrad)"
+        strokeWidth="8"
+        strokeLinecap="round"
+        strokeDasharray={c}
+        initial={{ strokeDashoffset: c }}
+        animate={active ? { strokeDashoffset: offset } : { strokeDashoffset: c }}
+        transition={{ duration: 1.35, ease: [0.25, 0.4, 0.25, 1] }}
+        style={{ transform: "rotate(-90deg)", transformOrigin: "60px 60px" }}
       />
-      {scores.map((v, i) => {
-        const p = pt((v / 10) * maxR, i);
-        return (
-          <motion.circle
-            key={i}
-            cx={p.x}
-            cy={p.y}
-            r={2.75}
-            fill="#a5b4fc"
-            stroke="#e0e7ff"
-            strokeWidth={0.4}
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.35 + i * 0.06, type: "spring", stiffness: 400, damping: 22 }}
-          />
-        );
-      })}
-      {labels.map((l, i) => {
-        const p = pt(maxR + 12, i);
-        return (
-          <text
-            key={i}
-            x={p.x}
-            y={p.y}
-            textAnchor="middle"
-            dominantBaseline="central"
-            fill="var(--text-tertiary)"
-            fontSize={6}
-            fontWeight={600}
-            style={{ letterSpacing: "0.02em", opacity: 0.9 }}
-          >
-            {l}
-          </text>
-        );
-      })}
     </svg>
   );
 }
 
+const DEMO_PERSONAS = [
+  { id: "A", label: "Adversary" },
+  { id: "I", label: "Investor" },
+  { id: "C", label: "Customer" },
+  { id: "O", label: "Operator" },
+  { id: "M", label: "Mentor" },
+] as const;
+
 function DemoPreview({ play }: { play: boolean }) {
-  const [step, setStep] = useState(-1);
-  const [typedText, setTypedText] = useState("");
-  const ref = useRef(null);
+  const [active, setActive] = useState(false);
   useEffect(() => {
-    if (!play) return;
-    setStep(-1);
-    setTypedText("");
-    let i = 0;
-    const typeInterval = setInterval(() => {
-      i++;
-      setTypedText(DEMO_IDEA_TEXT.slice(0, i));
-      if (i >= DEMO_IDEA_TEXT.length) clearInterval(typeInterval);
-    }, 32);
-    const t = [
-      setTimeout(() => setStep(0), 1600),
-      setTimeout(() => setStep(1), 2600),
-      setTimeout(() => setStep(2), 3600),
-      setTimeout(() => setStep(3), 4700),
-      setTimeout(() => setStep(4), 5600),
-    ];
-    return () => {
-      clearInterval(typeInterval);
-      t.forEach(clearTimeout);
-    };
+    if (!play) {
+      setActive(false);
+      return;
+    }
+    setActive(false);
+    const t = requestAnimationFrame(() => setActive(true));
+    return () => cancelAnimationFrame(t);
   }, [play]);
 
-  const steps = [
-    { label: "Analyzing market", sub: "TAM / SAM / signals", color: "text-sky-400" },
-    { label: "Mapping competitors", sub: "Positioning & gaps", color: "text-violet-400" },
-    { label: "Scoring viability", sub: "15+ criteria", color: "text-amber-400" },
-    { label: "Report ready", sub: "Export & share", color: "text-emerald-400" },
-  ];
-
   return (
-    <div ref={ref} className="relative mx-auto max-w-5xl px-4 sm:px-0">
+    <div className="relative mx-auto max-w-5xl px-4 sm:px-0">
       <div
-        className="relative overflow-hidden rounded-xl border border-white/[0.08]"
+        className="relative overflow-hidden rounded-2xl border border-white/[0.07]"
         style={{
-          background: "#0E0E11",
-          boxShadow: "0 25px 60px -12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)",
+          background: "linear-gradient(165deg, #12121a 0%, #0a0a0e 45%, #0e0e14 100%)",
+          boxShadow: "0 32px 64px -16px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05)",
         }}
       >
-        {/* Window chrome */}
         <div
-          className="flex items-center gap-3 border-b px-4 py-3 sm:px-5"
+          className="flex items-center gap-3 border-b px-4 py-2.5 sm:px-5"
           style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}
         >
-          <div className="flex gap-2">
-            <span className="h-3 w-3 rounded-full bg-[#ff5f57] shadow-[inset_0_-1px_0_rgba(0,0,0,0.2)]" />
-            <span className="h-3 w-3 rounded-full bg-[#febc2e] shadow-[inset_0_-1px_0_rgba(0,0,0,0.15)]" />
-            <span className="h-3 w-3 rounded-full bg-[#28c840] shadow-[inset_0_-1px_0_rgba(0,0,0,0.15)]" />
+          <div className="flex gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
           </div>
-          <div className="flex min-w-0 flex-1 items-center justify-center">
+          <div className="flex min-w-0 flex-1 justify-center">
             <div
-              className="flex max-w-full items-center gap-2 rounded-lg border px-3 py-1.5 shadow-inner"
-              style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.3)" }}
+              className="flex max-w-full items-center gap-2 rounded-md border px-2.5 py-1"
+              style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.35)" }}
             >
-              <Lock className="h-3 w-3 shrink-0 text-emerald-500" aria-hidden />
-              <span className="truncate font-mono text-[11px] sm:text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                prioritydebater.com<span style={{ color: "var(--text-muted)" }}>/results</span>
+              <Lock className="h-3 w-3 shrink-0 text-emerald-500/90" aria-hidden />
+              <span className="truncate font-mono text-[10px] sm:text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>
+                prioritydebater.com<span style={{ color: "rgba(255,255,255,0.28)" }}>/report</span>
               </span>
             </div>
           </div>
         </div>
 
-        <div className="relative p-6 sm:p-10">
+        <div className="relative px-5 py-8 sm:px-8 sm:py-10">
           <div
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(99,102,241,0.1),transparent)]"
+            className="pointer-events-none absolute inset-0 opacity-[0.55]"
+            style={{
+              background:
+                "radial-gradient(ellipse 90% 60% at 70% 0%, rgba(99,102,241,0.14), transparent 55%), radial-gradient(ellipse 70% 50% at 0% 100%, rgba(52,211,153,0.06), transparent 50%)",
+            }}
             aria-hidden
           />
 
-          <div className="relative">
-            {/* Idea input */}
-            <div
-              className="mb-4 rounded-lg border p-3 sm:mb-5 sm:p-3.5"
-              style={{
-                borderColor: "var(--border-primary)",
-                background: "var(--bg-input)",
-              }}
-            >
-              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
-                Your idea
-              </p>
-              <p className="min-h-11 font-mono text-[12px] leading-relaxed sm:text-[13px]" style={{ color: "var(--text-primary)" }}>
-                {typedText}
-                {typedText.length < DEMO_IDEA_TEXT.length && (
-                  <span className="ml-0.5 inline-block h-4 w-px animate-pulse bg-indigo-400 align-middle" />
-                )}
-              </p>
-            </div>
-
-            {/* Pipeline */}
-            <div className="relative mb-1">
-              <div className="absolute bottom-1 left-[13px] top-1 w-px bg-gradient-to-b from-indigo-500/35 via-violet-500/20 to-emerald-500/15" aria-hidden />
-              <div className="space-y-0">
-                {steps.map((s, i) => (
-                  <motion.div
-                    key={s.label}
-                    initial={{ opacity: 0.35, x: -6 }}
-                    animate={{ opacity: i <= step ? 1 : 0.35, x: i <= step ? 0 : -6 }}
-                    transition={{ duration: 0.35 }}
-                    className="relative flex gap-2.5 py-2 pl-0.5"
+          <motion.div
+            className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10"
+            initial={{ opacity: 0, y: 14 }}
+            animate={active ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.55, ease: [0.25, 0.4, 0.25, 1] }}
+          >
+            <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:gap-8 lg:gap-10">
+              <ScoreRing progress={0.74} active={active} />
+              <div className="text-center sm:text-left">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.32)" }}>
+                  Viability snapshot
+                </p>
+                <div className="flex flex-wrap items-baseline justify-center gap-2 sm:justify-start">
+                  <span
+                    className="text-5xl font-semibold tabular-nums tracking-tight sm:text-6xl"
+                    style={{
+                      background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.72) 50%, #a5b4fc 100%)",
+                      WebkitBackgroundClip: "text",
+                      backgroundClip: "text",
+                      color: "transparent",
+                    }}
                   >
-                    <div className="relative z-[1] flex h-7 w-7 shrink-0 items-center justify-center">
-                      {i < step ? (
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 ring-2 ring-emerald-500/25">
-                          <Check className="h-3 w-3 text-emerald-500" />
-                        </div>
-                      ) : i === step ? (
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-500/15 ring-2 ring-indigo-400/35">
-                          <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />
-                        </div>
-                      ) : (
-                        <div
-                          className="h-6 w-6 rounded-full border"
-                          style={{ borderColor: "var(--border-primary)", background: "var(--bg-elevated)" }}
-                        />
-                      )}
-                    </div>
-                    <div className="min-w-0 pt-0.5">
-                      <p
-                        className={`text-[12px] font-medium leading-tight sm:text-[13px] ${i <= step ? s.color : ""}`}
-                        style={i > step ? { color: "var(--text-muted)" } : undefined}
-                      >
-                        {s.label}
-                      </p>
-                      <p className="mt-0.5 text-[10px] sm:text-[11px]" style={{ color: "var(--text-muted)" }}>
-                        {s.sub}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
+                    7.4
+                  </span>
+                  <span className="text-lg font-medium text-white/25">/10</span>
+                </div>
+                <p className="mt-3 max-w-[240px] text-[13px] leading-relaxed text-white/38 sm:max-w-none">
+                  One report: scores, risks, and what to fix next — before you pitch anyone.
+                </p>
               </div>
             </div>
 
-            {/* Score + Radar */}
-            {step >= 3 && (
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ type: "spring", stiffness: 320, damping: 28 }}
-                className="mt-4 rounded-lg border p-3 sm:mt-5 sm:p-4"
-                style={{
-                  borderColor: "var(--border-primary)",
-                  background: "color-mix(in srgb, var(--bg-elevated) 85%, transparent)",
-                }}
-              >
-                <div className="mb-4 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400/20 to-emerald-600/10 text-xl font-bold tabular-nums text-emerald-500 ring-1 ring-emerald-500/20 sm:h-12 sm:w-12 sm:text-2xl">
-                      7
-                    </div>
-                    <div>
-                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                        <Check className="h-2.5 w-2.5" /> GO
-                      </span>
-                      <p className="mt-0.5 text-[10px]" style={{ color: "var(--text-tertiary)" }}>
-                        Viability score
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5 sm:max-w-[260px] sm:shrink-0">
-                    {[
-                      { n: "4", label: "Strengths", color: "text-emerald-500" },
-                      { n: "3", label: "Risks", color: "text-amber-500" },
-                      { n: "5", label: "Actions", color: "text-sky-500" },
-                    ].map((m) => (
-                      <div
-                        key={m.label}
-                        className="rounded-md border px-1.5 py-2 text-center"
-                        style={{ borderColor: "var(--border-primary)", background: "var(--bg-card)" }}
-                      >
-                        <p className={`text-base font-bold tabular-nums sm:text-lg ${m.color}`}>{m.n}</p>
-                        <p className="text-[9px] sm:text-[10px]" style={{ color: "var(--text-tertiary)" }}>
-                          {m.label}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {step >= 4 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.45 }}
-                    className="flex flex-col gap-4 border-t pt-4 sm:flex-row sm:items-stretch sm:gap-5"
-                    style={{ borderColor: "var(--border-primary)" }}
+            <div className="flex flex-col gap-4 lg:max-w-[280px]">
+              <p className="text-center text-[10px] font-medium uppercase tracking-wider text-white/30 lg:text-left">
+                Five perspectives · one verdict
+              </p>
+              <div className="flex flex-wrap justify-center gap-2 lg:justify-start">
+                {DEMO_PERSONAS.map((p, i) => (
+                  <motion.span
+                    key={p.id}
+                    initial={{ opacity: 0, scale: 0.92 }}
+                    animate={active ? { opacity: 1, scale: 1 } : {}}
+                    transition={{ delay: 0.15 + i * 0.05, duration: 0.35 }}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-white/55"
+                    title={p.label}
                   >
-                    <div className="mx-auto w-36 shrink-0 sm:mx-0 sm:w-28">
-                      <MiniRadar />
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-2">
-                      {[
-                        { label: "Problem-Solution Fit", v: 8, color: "from-indigo-400 to-violet-500" },
-                        { label: "Market Opportunity", v: 7, color: "from-violet-400 to-purple-500" },
-                        { label: "Business Model", v: 8, color: "from-emerald-400 to-teal-500" },
-                        { label: "Timing & Trends", v: 9, color: "from-amber-400 to-orange-500" },
-                      ].map((b) => (
-                        <div key={b.label}>
-                          <div className="mb-0.5 flex justify-between gap-2">
-                            <span className="text-[10px] sm:text-[11px]" style={{ color: "var(--text-secondary)" }}>
-                              {b.label}
-                            </span>
-                            <span className="text-[10px] font-semibold tabular-nums sm:text-[11px]" style={{ color: "var(--text-primary)" }}>
-                              {b.v}/10
-                            </span>
-                          </div>
-                          <div
-                            className="h-1.5 overflow-hidden rounded-full"
-                            style={{ background: "color-mix(in srgb, var(--text-primary) 8%, transparent)" }}
-                          >
-                            <motion.div
-                              className={`h-full rounded-full bg-gradient-to-r ${b.color}`}
-                              initial={{ width: 0 }}
-                              animate={{ width: `${b.v * 10}%` }}
-                              transition={{ duration: 0.75, delay: 0.2, ease: [0.25, 0.4, 0.25, 1] }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </motion.div>
-            )}
-          </div>
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/30 to-violet-500/20 text-[10px] font-semibold text-white/90">
+                      {p.id}
+                    </span>
+                    {p.label}
+                  </motion.span>
+                ))}
+              </div>
+            </div>
+          </motion.div>
         </div>
       </div>
     </div>
