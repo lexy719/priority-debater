@@ -74,5 +74,9 @@ export function injectLandingPageKit(html: string): string {
     h = `<!DOCTYPE html>\n${h}`;
   }
 
+  if (!/name=["']viewport["']/i.test(h)) {
+    h = h.replace(/<head([^>]*)>/i, '<head$1>\n<meta name="viewport" content="width=device-width, initial-scale=1">');
+  }
+
   return h;
 }

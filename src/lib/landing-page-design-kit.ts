@@ -6,18 +6,23 @@
 
 export const LANDING_PAGE_CLASS_PREFIX = "lp-";
 
-/** Copy formulas + anti-patterns (injected into system prompt). */
+/** Launch-page copy rules — public marketing, not a validation report. */
 export const LANDING_PAGE_COPY_SKILL = `
-COPY SKILL (follow strictly):
-- Headline: [Strong verb or outcome] + [who it’s for] + [constraint or time]. Never "The future of X" or "AI-powered platform".
-- Eyebrow: one line, 3–6 words, specific (e.g. "For B2B sales teams" not "Welcome").
-- Subhead: one objection answered or one mechanism (how it works in plain English).
-- CTA primary: first person + outcome ("Get my early access" / "See the breakdown").
-- CTA secondary: low risk ("How it works" / "Read the FAQ").
-- Problem cards: "You …" language; pull pain from STRUCTURED DATA.
-- Solution cards: mirror each problem with a named outcome.
-- FAQ: real objections from risks + category scores; answers under 3 sentences.
-- Stats row: only numbers from report (scores, TAM/SAM/SOM, checklist count). If none, use capability lines ("Full validation report", "6 dimensions scored").
+COPY SKILL — **launch-ready for the business** (like a real SaaS homepage, e.g. sparse hero, strong headline, breathing room):
+
+**Forbidden on the page (never show):** viability scores, any "X/10", category scores, GO/NO-GO, "validation report", internal critique language, or anything that sounds like an AI audit. This is **not** Priority Debater’s UI — it is **the business’s** customer-facing site.
+
+**Tone:** confident, clear, benefit-led. Short sentences. Less text overall than a typical template — prefer whitespace, large type, one idea per section.
+
+**Hero:** ≤10-word headline + **one** subhead line + two CTAs (e.g. primary + secondary). Eyebrow: 3–6 words (audience or category). No metrics from internal scoring.
+
+**Body:** 4–6 sections total (nav + hero + value/features + how it works or proof + FAQ + CTA + footer). Skip dense paragraphs; use bullets or 2-line cards.
+
+**Proof:** outcomes ("Ship faster", "Fewer meetings") or **external** market context (TAM/SAM/SOM from brief if provided — OK as market sizing). Optional generic trust ("Built for teams", "Privacy-first") — **no** fake user counts.
+
+**FAQ:** real buyer questions (time, security, fit) — **not** "why is my score low".
+
+**CTAs:** action verbs ("Get started", "Join waitlist", "Book a demo") — not "See validation".
 `.trim();
 
 /**
@@ -772,6 +777,59 @@ body.lp-layout--centered-editorial .lp-nav__inner { max-width: 1120px; }
   color: var(--lp-faint);
   margin-bottom: 0.75rem;
 }
+
+/* === Responsive baseline (mobile-first) === */
+html { overflow-x: clip; }
+body.lp-page { overflow-x: clip; }
+.lp-nav__inner { flex-wrap: wrap; row-gap: 0.75rem; }
+.lp-hero__title { max-width: 100%; word-wrap: break-word; }
+.lp-section__title { word-wrap: break-word; }
+.lp-grid {
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px) {
+  .lp-grid--2 { grid-template-columns: repeat(2, 1fr); }
+  .lp-grid--3 { grid-template-columns: repeat(3, 1fr); }
+}
+.lp-metric-wall {
+  grid-template-columns: 1fr;
+  text-align: left;
+}
+@media (min-width: 768px) {
+  .lp-metric-wall {
+    grid-template-columns: repeat(2, 1fr);
+    text-align: center;
+  }
+}
+@media (min-width: 1024px) {
+  .lp-metric-wall { grid-template-columns: repeat(4, 1fr); }
+}
+.lp-metric-wall__item { min-width: 0; }
+.lp-feature-row { flex-direction: column; gap: 0.75rem; }
+@media (min-width: 640px) {
+  .lp-feature-row { flex-direction: row; align-items: flex-start; }
+}
+.lp-compare { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.lp-compare-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 calc(-1 * clamp(1rem, 4vw, 2rem)); padding: 0 clamp(1rem, 4vw, 2rem); }
+.lp-hero__split { grid-template-columns: 1fr; }
+@media (min-width: 900px) {
+  .lp-hero__split { grid-template-columns: 1fr 1fr; }
+}
+.lp-hero__visual { max-height: none; aspect-ratio: auto; min-height: 200px; }
+@media (min-width: 900px) {
+  .lp-hero__visual { aspect-ratio: 4/3; max-height: min(520px, 70vh); }
+}
+.lp-demo-table { min-width: min(100%, 520px); }
+@media (max-width: 639px) {
+  .lp-demo-table { font-size: 0.72rem; }
+  .lp-demo-table th, .lp-demo-table td { padding: 0.5rem 0.65rem; }
+  .lp-hero__lead { max-width: 100%; }
+  .lp-section__head { max-width: 100%; }
+}
+img, video { max-width: 100%; height: auto; }
+.lp-bento { grid-template-columns: 1fr; }
+@media (min-width: 480px) { .lp-bento { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 768px) { .lp-bento { grid-template-columns: repeat(3, 1fr); } }
 `.trim();
 
 /** JS kit: mobile nav + animated counters + nav blur on scroll */

@@ -22,45 +22,41 @@ function truncate(s: string, max: number): string {
   return t.length <= max ? t : `${t.slice(0, max - 1)}…`;
 }
 
-/** Structured facts from the validation report so the model stays specific (not generic SaaS filler). */
-export function buildValidationBriefForLanding(validationContent: string): string {
+/**
+ * Marketing-only brief: **no scores** in the prompt payload (avoids "4/10" launch pages).
+ * Validation data is reframed as positioning themes, not audit results.
+ */
+export function buildMarketingBriefForLanding(validationContent: string): string {
   if (!validationContent?.trim()) {
-    return "No validation report yet — infer a compelling page from the idea and positioning only, and avoid inventing fake metrics or fake customer counts.";
+    return "No validation report — infer **launch-ready** positioning from the product name and pitch only. Do not invent revenue, user counts, or ratings.";
   }
 
   const d = extractDashboardData(validationContent);
-  const cs = d.categoryScores;
   const lines: string[] = [];
 
-  lines.push("### STRUCTURED DATA (ground truth — weave into copy; do NOT contradict these facts)");
-  if (d.score != null) lines.push(`- Overall viability score: **${d.score}/10**`);
-  if (d.goNoGoType) lines.push(`- Go/No-Go signal: **${d.goNoGoType.toUpperCase()}**`);
-  if (d.summary) lines.push(`- Idea summary: ${truncate(d.summary, 900)}`);
-  if (d.verdict) lines.push(`- One-line verdict: ${truncate(d.verdict, 400)}`);
-  if (d.strengths.length) lines.push(`- Strengths (use as proof points): ${d.strengths.slice(0, 6).join(" · ")}`);
-  if (d.risks.length) lines.push(`- Risks / objections (address in FAQ or objection-handling section): ${d.risks.slice(0, 5).join(" · ")}`);
-  if (d.recommendations.length) lines.push(`- Validation / next steps: ${d.recommendations.slice(0, 8).join(" · ")}`);
-  if (d.leanCanvas?.uvp) lines.push(`- Unique value proposition: ${truncate(d.leanCanvas.uvp, 500)}`);
-  if (d.leanCanvas?.solution) lines.push(`- Solution (Lean Canvas): ${truncate(d.leanCanvas.solution, 400)}`);
-  if (d.leanCanvas?.problem) lines.push(`- Problem (Lean Canvas): ${truncate(d.leanCanvas.problem, 400)}`);
-  if (d.targetCustomer) lines.push(`- Target customer / ICP: ${truncate(d.targetCustomer, 700)}`);
-  if (d.valueProposition) lines.push(`- Value proposition: ${truncate(d.valueProposition, 700)}`);
-  if (d.problemSolution) lines.push(`- Problem–solution narrative: ${truncate(d.problemSolution, 900)}`);
-  if (d.businessModel) lines.push(`- Business model: ${truncate(d.businessModel, 600)}`);
-  if (d.competitiveSummary) lines.push(`- Competitive landscape: ${truncate(d.competitiveSummary, 600)}`);
-
-  lines.push(
-    `- Category scores: problem/solution ${cs.problemSolutionFit ?? "n/a"}/10 · market ${cs.marketOpportunity ?? "n/a"}/10 · competition ${cs.competitiveEdge ?? "n/a"}/10 · business model ${cs.businessModel ?? "n/a"}/10 · execution ${cs.teamExecution ?? "n/a"}/10 · timing ${cs.timingTrends ?? "n/a"}/10`
-  );
+  lines.push("### POSITIONING INPUT (internal — **never** put scores, /10, GO/NO-GO, or 'validation audit' language on the public page)");
+  lines.push("- Goal: a **ship-ready** marketing page for **this business’s customers**, similar in spirit to a polished SaaS homepage: short copy, strong hierarchy, mobile-friendly.");
+  if (d.summary) lines.push(`- Product story (turn into benefits, not a report): ${truncate(d.summary, 850)}`);
+  if (d.verdict) lines.push(`- Promotional angle (rephrase as a promise; do not quote verbatim): ${truncate(d.verdict, 350)}`);
+  if (d.strengths.length) lines.push(`- Themes to emphasize (benefit headlines): ${d.strengths.slice(0, 6).join(" · ")}`);
+  if (d.risks.length) lines.push(`- Buyer concerns to defuse in FAQ (positive, reassuring tone): ${d.risks.slice(0, 5).join(" · ")}`);
+  if (d.recommendations.length) lines.push(`- Optional roadmap / waitlist ideas (no internal jargon): ${d.recommendations.slice(0, 6).join(" · ")}`);
+  if (d.leanCanvas?.uvp) lines.push(`- Value proposition: ${truncate(d.leanCanvas.uvp, 480)}`);
+  if (d.leanCanvas?.solution) lines.push(`- What the product does: ${truncate(d.leanCanvas.solution, 400)}`);
+  if (d.leanCanvas?.problem) lines.push(`- Customer problem: ${truncate(d.leanCanvas.problem, 400)}`);
+  if (d.targetCustomer) lines.push(`- Ideal customer: ${truncate(d.targetCustomer, 650)}`);
+  if (d.valueProposition) lines.push(`- Messaging: ${truncate(d.valueProposition, 650)}`);
+  if (d.problemSolution) lines.push(`- Narrative: ${truncate(d.problemSolution, 800)}`);
+  if (d.businessModel) lines.push(`- How customers buy: ${truncate(d.businessModel, 550)}`);
+  if (d.competitiveSummary) lines.push(`- Differentiation / market (no numeric scores): ${truncate(d.competitiveSummary, 550)}`);
 
   const { tam, sam, som } = d.tamSamSom;
   if (tam || sam || som) {
-    lines.push(`- Market sizing: TAM ${tam ?? "—"} · SAM ${sam ?? "—"} · SOM ${som ?? "—"}`);
+    lines.push(`- **Market sizing (OK to mention as context):** TAM ${tam ?? "—"} · SAM ${sam ?? "—"} · SOM ${som ?? "—"}`);
   }
 
   lines.push("");
-  lines.push("### FULL REPORT EXCERPT (deeper detail for headlines, sections, FAQ — stay specific)");
-  lines.push(validationContent.slice(0, 16000));
+  lines.push("**Hard rule:** The HTML must not contain viability scores, category scores, or anything that reads like an AI critique of the business.");
 
   return lines.join("\n");
 }
@@ -68,18 +64,27 @@ export function buildValidationBriefForLanding(validationContent: string): strin
 export function landingPageSystemPrompt(): string {
   return `You are a principal designer + front-end engineer. You ship **download-ready** single-file HTML with **no build step**.
 
+## What you are building
+
+A **public launch page for the business** (the product in the brief) — **not** a validation dashboard, **not** Priority Debater’s results UI. It should look like something the founder could publish tomorrow: **short copy**, **pretty**, **responsive**, **confident**.
+
 ## Critical: do NOT embed the design-system CSS or JS
 
-The application **automatically injects** the full \`lp-*\` CSS kit (animations, glassmorphism, grids, hero, tables) and the **JavaScript** for mobile nav + counters + spotlight. **Do not** paste full-page CSS or any \`<script>\`. You **may** include **one** small \`<style>\` with **only** \`:root { --lp-accent: …; --lp-accent-2: …; --lp-success: …; }\` for brand tint — the injector preserves that before merging the kit.
+The application **automatically injects** the full \`lp-*\` CSS kit (responsive grids, mobile nav, animations) and **JavaScript** for nav + counters + spotlight. **Do not** paste full-page CSS or any \`<script>\`. You **may** include **one** small \`<style>\` with **only** \`:root { --lp-accent: …; --lp-accent-2: …; --lp-success: …; }\` — the injector preserves it.
 
-You **must** only write **semantic structure + copy** using the classes below.
+## Responsive layout (mandatory)
 
-## Visual bar: enterprise SaaS (Semrush / modern 21st.dev-level polish)
+- Every horizontal section uses \`.lp-container\` (max-width + side padding).
+- **Hero split** \`.lp-hero__split\` stacks on small screens (kit handles breakpoints).
+- **Tables / wide demos**: wrap in \`.lp-demo-table-wrap\` so horizontal scroll works on phones.
+- **Grids** use \`.lp-grid\` / \`.lp-grid--2\` / \`.lp-grid--3\` — single column on mobile by default in the kit.
+- Avoid tiny text walls; use \`.lp-section__lead\` sparingly (1–2 sentences).
 
-Think: **dark canvas**, **one hero product demo** (fake table or chart in a window chrome), **metrics row** with big numbers, **alternating section depth**, **trust** (no fake logos — use capability stats from the report). Patterns:
-- **Interactive demo**: \`.lp-demo-shell\` > \`.lp-demo-chrome\` (3 dots) + \`.lp-demo-table-wrap\` > \`table.lp-demo-table\` with plausible columns (e.g. Metric, Score, Trend) — static HTML rows, no API.
-- **Metric wall**: \`section.lp-metric-wall\` with \`.lp-metric-wall__item\` / \`.lp-metric-wall__value\` / \`.lp-metric-wall__label\` for 3–4 big stats (numbers from STRUCTURED DATA only).
-- **Editorial sections**: \`.lp-section-eyebrow\` + \`.lp-section__title\` for clear hierarchy like top-tier marketing sites.
+## Visual patterns (pick what fits — **no internal scores**)
+
+- **Hero demo (optional):** \`.lp-demo-shell\` + simple UI mock — columns like **Feature · Benefit** or product steps, **not** "Score" or "/10".
+- **Trust row (optional):** 3 short value props (e.g. "Fast setup", "Works with your stack") — **not** animated validation counters unless they are **plain marketing numbers** (e.g. years of experience) that are not from the audit.
+- **Editorial:** \`.lp-section-eyebrow\` + \`.lp-section__title\` + short lead.
 
 ## Markup MUST use these patterns (adapt to the **layout archetype** in the user message — hero may be split, band, or narrow editorial):
    - <body class="lp-page"> plus the **lp-layout--*** class specified in the user message
@@ -97,7 +102,7 @@ Think: **dark canvas**, **one hero product demo** (fake table or chart in a wind
    - Optional bento: .lp-bento with .lp-bento__item (modifiers --wide / --tall)
    - **Stats/counters:** use data-lp-count="1234" data-lp-prefix="$" data-lp-suffix="M" on stat numbers for animated counting; wrap in .lp-proof-bar
    - **Testimonials v2:** use .lp-testimonial with .lp-testimonial__stars, .lp-testimonial__text, .lp-testimonial__author, .lp-testimonial__avatar (initials), .lp-testimonial__name, .lp-testimonial__role
-   - **Badges:** use .lp-badge or .lp-badge--success for inline pills (e.g. "7/10 Viability Score")
+   - **Badges:** use .lp-badge (e.g. "New", "Early access", audience) — **never** internal scores or "/10"
    - Proof: .lp-proof-bar and/or .lp-quote; optional .lp-pullquote for magazine
    - FAQ: .lp-faq with <details>
    - Final: section.lp-cta > .lp-container > .lp-cta__inner with .lp-form (POST to formspree) — add .lp-orbs or .lp-particles for dramatic backdrop
@@ -119,8 +124,9 @@ Combine these freely: e.g. .lp-noise on body + .lp-spotlight on hero + .lp-text-
 ${LANDING_PAGE_COPY_SKILL}
 
 FACT RULES:
-- Every stat and claim must come from STRUCTURED DATA or the report — no invented user counts or revenue
-- Testimonials: plausible ICP quotes only; no celebrities
+- **Never** show validation scores, /10, GO/NO-GO, or "AI validation" — this is a **customer** page for the business.
+- Market sizing (TAM/SAM/SOM) from the brief is OK if present. Do not invent user counts, revenue, or awards.
+- Testimonials: short, plausible ICP-style quotes only; no celebrities; no fake company names as logos unless generic
 
 OUTPUT:
 - ONLY the full HTML document. No markdown fences. Start with <!DOCTYPE html>.
@@ -136,48 +142,32 @@ export function landingPageUserPrompt(
     images: LandingImageRef[];
   }
 ): string {
-  const brief = buildValidationBriefForLanding(validationContent);
+  const brief = buildMarketingBriefForLanding(validationContent);
   const { layoutVariant, layoutInstructions, images } = options;
 
-  return `Build a **single-page marketing site** that looks like a top-tier agency product — not a template.
+  return `Build a **single ship-ready landing page** for **"${setup.topic}"** — the business customers would see, **not** an internal validation readout.
 
-**Layout archetype (mandatory — follow this; it makes each page structurally different):**
+**Layout archetype (structure only — keep copy short):**
 - id: \`${layoutVariant}\`
 ${layoutInstructions}
 
-**Product / brand**
-- Name or topic: "${setup.topic}"
-- Core pitch: ${setup.position}
-- Extra context: ${setup.context?.trim() || "(none)"}
+**Founder inputs**
+- Working name/topic: "${setup.topic}"
+- Pitch: ${setup.position}
+- Extra: ${setup.context?.trim() || "(none)"}
 
-**Source material (use all of this)**:
+**Positioning (use for messaging — do NOT surface as scores or audits):**
 ${brief}
 
 ${formatImagesBlock(images)}
 
-**CRITICAL DESIGN RULES — what separates a $50 page from a $5,000 page:**
-1. **Visual variety within the page:** Never use the same component type twice in a row. If you use .lp-card grid for problems, use .lp-feature-row for solutions. If you use .lp-grid for features, use .lp-bento for proof. Mix it up.
-2. **Dynamic backgrounds:** The hero MUST have either .lp-orbs (floating blobs) or .lp-bg-mesh (animated gradient). At least ONE other section should also have a dynamic background element.
-3. **Depth layers:** Use .lp-glass on at least 1 card. Use .lp-card--glow on the most important card (e.g. the main feature or pricing highlight).
-4. **Animated numbers:** Any stat in the proof bar should use data-lp-count for animated counting.
-5. **Color variety:** Override --lp-accent and --lp-accent-2 in :root to match the business type. Tech = indigo/violet. Health = emerald/teal. Finance = blue/cyan. Food = orange/amber. Education = violet/pink. Creative = pink/rose.
-6. **No generic copy.** Every headline, every bullet point must reference THIS specific idea. If I can swap the product name and the copy still works, it's too generic.
+**Design rules**
+1. **Less text** than a typical generated page: punchy headlines, 1-line subheads, 3–5 bullets max per section where possible.
+2. **Responsive:** use \`.lp-container\` everywhere; use kit grids; wrap wide tables in \`.lp-demo-table-wrap\`.
+3. **Hero:** .lp-orbs or .lp-bg-mesh + .lp-noise on body if you want grain. Headline ≤10 words. **No** score badges. Optional hero visual: **stock image** (if URLs above) OR **.lp-demo-shell** with a **product-y** mock (features/benefits — not ratings).
+4. **Sections (4–6 blocks):** Nav → Hero → Value/features → How it works OR social proof → FAQ (3–4 Qs, buyer-focused) → Final CTA → Footer. Skip "metric wall" unless it uses **non-score** labels (e.g. market context from brief, or generic "2-min setup" only if honest).
+5. **Colors:** optional \`:root\` brand tint — match industry (tech indigo, health green, etc.).
+6. **Premium:** .lp-glass on one card, .lp-card--lift on feature cards, .lp-spotlight on hero optional.
 
-**Section checklist (adapt order + density to the layout archetype — do not default to the same 3-column card stack every time):**
-1. Sticky nav: logo text, anchors to major sections, primary CTA button
-2. Hero: match the archetype (split / band / narrow). Add .lp-orbs with 2-3 floating blobs OR .lp-bg-mesh. Eyebrow with .lp-badge, headline (≤12 words, gradient text if archetype permits), subhead, **two** CTAs, trust row with animated counters from **real** data. In the hero **visual** column, use **.lp-demo-shell** + **.lp-demo-table** (browser chrome + fake metrics table) **or** a provided stock image — Semrush-style product preview.
-3. **Metric wall:** include **section.lp-metric-wall** with 3–4 **.lp-metric-wall__item** blocks (values/labels from STRUCTURED DATA only — viability score, dimensions, TAM line, etc.). Place after hero or before features.
-4. Problem / pain: "You …" language from the report / ICP. Use cards OR bento tiles OR feature rows — NOT the same format as the next section
-5. Solution: mirror each pain with a named outcome. Different visual format than problems.
-6. How it works: 3–4 steps — use horizontal timeline or magazine rail if the archetype says so. Add .lp-particles background for subtle texture.
-7. Features / value: bento, grid, or sparse 2-col — match archetype. Use .lp-glass or .lp-card--glow on the most important feature.
-8. Proof: animated stats from TAM/SAM/SOM or validation scores + .lp-testimonial cards (2-3 with initials avatar, ICP-realistic quotes, star ratings). Place stock images in hero or bento if URLs provided.
-9. Pricing OR waitlist: honest — if pre-launch, lead with waitlist + what they get. Style with .lp-card--glow on recommended tier.
-10. FAQ: 5 questions from risks + category scores. Use .lp-faq with details/summary.
-11. Final CTA: dramatic section with .lp-orbs or .lp-bg-mesh background, .lp-cta__inner, email form.
-12. Footer with links.
-
-**Brand tint (mandatory — pick colors that fit the business):** include a single \`<style>\` block with **only** \`:root { --lp-accent: …; --lp-accent-2: …; --lp-success: …; }\` (or rely on defaults). Pick colors from the industry/vibe. Do NOT always use indigo.
-
-**Output:** complete HTML only — **no** full-page \`<style>\` or \`<script>\`; the app injects the design kit.`;
+**Output:** complete HTML only — **no** full-page \`<style>\` or \`<script>\`**; the app injects the kit.`;
 }
