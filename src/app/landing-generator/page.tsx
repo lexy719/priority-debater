@@ -26,10 +26,13 @@ import {
 import { loadSessionWithStatus } from "@/lib/session";
 import { injectLandingPageKit } from "@/lib/landing-page-html-inject";
 import {
+  CURATED_LANDING_TEMPLATE_IDS,
   DEFAULT_LANDING_TEMPLATE,
   LANDING_TEMPLATE_LABELS,
+  type CuratedLandingTemplateId,
   type LandingTemplateId,
 } from "@/lib/landing-templates/types";
+import { getLandingTemplatePreviewHtml } from "@/lib/landing-templates/template-preview";
 import { GradientMesh } from "@/components/ui/animated-background";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { ValidationSession } from "@/lib/types";
@@ -76,15 +79,25 @@ export default function LandingGeneratorPage() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [revealPreview, setRevealPreview] = useState(false);
   const [landingTemplate, setLandingTemplate] = useState<LandingTemplateId>(DEFAULT_LANDING_TEMPLATE);
+  /** After gallery: user chose a template (or custom) and sees the generate step */
+  const [templatePicked, setTemplatePicked] = useState(false);
   /** Which template produced the current HTML (for color tweaks + inject rules) */
   const [generatedWithTemplate, setGeneratedWithTemplate] = useState<LandingTemplateId | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadingSteps = useMemo(
-    () => (landingTemplate === "saas-nova" ? LOADING_STEPS_TEMPLATE : LOADING_STEPS_CUSTOM),
+    () => (landingTemplate === "custom" ? LOADING_STEPS_CUSTOM : LOADING_STEPS_TEMPLATE),
     [landingTemplate]
   );
+
+  const templatePreviewHtml = useMemo(() => {
+    const map = {} as Record<CuratedLandingTemplateId, string>;
+    for (const id of CURATED_LANDING_TEMPLATE_IDS) {
+      map[id] = getLandingTemplatePreviewHtml(id);
+    }
+    return map;
+  }, []);
 
   useEffect(() => {
     const result = loadSessionWithStatus();
@@ -254,6 +267,16 @@ export default function LandingGeneratorPage() {
       if (generatedWithTemplate === "saas-nova") {
         updated = updated.replace(/#7c3aed/gi, color).replace(/#4f46e5/gi, color);
       }
+      if (generatedWithTemplate === "editorial-aurora") {
+        updated = updated.replace(/#c2410c/gi, color).replace(/#ea580c/gi, color);
+      }
+      if (generatedWithTemplate === "bento-prism") {
+        updated = updated
+          .replace(/#22d3ee/gi, color)
+          .replace(/#06b6d4/gi, color)
+          .replace(/#a78bfa/gi, color)
+          .replace(/#8b5cf6/gi, color);
+      }
       setHtmlContent(updated);
     },
     [htmlContent, generatedWithTemplate]
@@ -326,98 +349,173 @@ export default function LandingGeneratorPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
-        {/* ── PRE-GENERATION CTA ── */}
+        {/* ── PRE-GENERATION: template gallery → generate ── */}
         {!htmlContent && !isGenerating && (
-          <div className="max-w-2xl mx-auto">
-            <div className="text-center mb-8">
+          <>
+            <div className="text-center mb-8 max-w-3xl mx-auto">
               <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
                 {session.setup.topic}
               </h1>
               <p className="text-white/30 text-sm">Landing Page Generator</p>
             </div>
 
-            <div className="relative rounded-2xl bg-gradient-to-br from-teal-500/8 to-emerald-500/8 border border-teal-500/15 p-8 sm:p-10 overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(20,184,166,0.06)_0%,_transparent_50%)]" />
-              <div className="relative">
-                {/* Icon */}
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/25 flex items-center justify-center mx-auto mb-6">
-                  <Globe className="w-8 h-8 text-teal-400" />
+            {!templatePicked ? (
+              <div className="max-w-6xl mx-auto">
+                <div className="text-center mb-10">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                    Choose a template
+                  </h2>
+                  <p className="text-white/40 text-sm max-w-2xl mx-auto leading-relaxed">
+                    Each layout is a full, responsive page with real photography. Previews use sample copy;
+                    after you pick one, we replace every headline and paragraph with copy from your idea and validation.
+                  </p>
                 </div>
 
-                <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 text-center">
-                  Generate a production-ready landing page
-                </h2>
-                <p className="text-white/40 text-sm leading-relaxed mb-6 max-w-lg mx-auto text-center">
-                  Pick a <strong className="text-white/60">designed template</strong> (recommended) and we only write the copy from your idea —
-                  or use <strong className="text-white/60">custom</strong> for a full AI-built layout (more hit-or-miss).
-                </p>
-
-                {/* Template picker */}
-                <div className="grid sm:grid-cols-2 gap-3 mb-8">
-                  {(["saas-nova", "custom"] as const).map((id) => {
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                  {CURATED_LANDING_TEMPLATE_IDS.map((id) => {
                     const meta = LANDING_TEMPLATE_LABELS[id];
-                    const selected = landingTemplate === id;
                     return (
                       <button
                         key={id}
                         type="button"
-                        onClick={() => setLandingTemplate(id)}
-                        className={`text-left rounded-xl border p-4 transition-all ${
-                          selected
-                            ? "border-teal-500/50 bg-teal-500/10 ring-1 ring-teal-500/25"
-                            : "border-white/[0.08] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.04]"
-                        }`}
+                        onClick={() => {
+                          setLandingTemplate(id);
+                          setTemplatePicked(true);
+                        }}
+                        className="group text-left rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:border-teal-500/35 hover:bg-white/[0.04] overflow-hidden transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40"
                       >
-                        <div className="flex items-center gap-2 mb-2">
-                          {id === "saas-nova" ? (
-                            <LayoutTemplate className="w-4 h-4 text-teal-400 shrink-0" />
-                          ) : (
-                            <Wand2 className="w-4 h-4 text-violet-400 shrink-0" />
-                          )}
-                          <span className="text-sm font-semibold text-white/90">{meta.title}</span>
-                          {id === "saas-nova" && (
-                            <span className="text-[10px] font-medium uppercase tracking-wider text-teal-400/90 ml-auto">
-                              Default
-                            </span>
-                          )}
+                        <div className="relative h-[220px] sm:h-[240px] overflow-hidden bg-[#07070c] border-b border-white/[0.06]">
+                          <iframe
+                            title={`Preview ${meta.title}`}
+                            srcDoc={templatePreviewHtml[id]}
+                            className="absolute left-0 top-0 w-[620px] h-[880px] border-0 pointer-events-none bg-[#07070c]"
+                            style={{
+                              transform: "scale(0.36)",
+                              transformOrigin: "top left",
+                            }}
+                            sandbox="allow-scripts"
+                          />
+                          <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_60px_rgba(0,0,0,0.35)]" />
                         </div>
-                        <p className="text-xs text-white/40 leading-relaxed">{meta.description}</p>
+                        <div className="p-4 sm:p-5">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <LayoutTemplate className="w-4 h-4 text-teal-400 shrink-0" />
+                            <span className="text-sm font-semibold text-white/90">{meta.title}</span>
+                            {id === DEFAULT_LANDING_TEMPLATE && (
+                              <span className="text-[10px] font-medium uppercase tracking-wider text-teal-400/90 ml-auto">
+                                Popular
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-white/40 leading-relaxed">{meta.description}</p>
+                          <p className="mt-3 text-[11px] font-medium text-teal-400/80 group-hover:text-teal-400">
+                            Use this template →
+                          </p>
+                        </div>
                       </button>
                     );
                   })}
                 </div>
 
-                {/* What you get grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
-                  {[
-                    { icon: "🎨", title: "Unique Design", desc: "Different layout each time" },
-                    { icon: "📱", title: "Fully Responsive", desc: "Mobile, tablet & desktop" },
-                    { icon: "✍️", title: "Real Copy", desc: "From your actual data" },
-                    { icon: "✨", title: "Animations", desc: "Smooth scroll & hover effects" },
-                    { icon: "🎯", title: "Conversion CTAs", desc: "Email capture & waitlist" },
-                    { icon: "📦", title: "Single HTML File", desc: "Download & host anywhere" },
-                  ].map((item) => (
-                    <div key={item.title} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 text-center">
-                      <div className="text-lg mb-1">{item.icon}</div>
-                      <div className="text-xs font-semibold text-white/70 mb-0.5">{item.title}</div>
-                      <div className="text-[10px] text-white/30">{item.desc}</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLandingTemplate("custom");
+                    setTemplatePicked(true);
+                  }}
+                  className="w-full max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-indigo-500/5 p-6 sm:p-7 text-left hover:border-violet-500/35 transition-all"
+                >
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 border border-violet-500/25">
+                    <Wand2 className="w-7 h-7 text-violet-300" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span className="text-sm font-semibold text-white/90">{LANDING_TEMPLATE_LABELS.custom.title}</span>
+                      <span className="text-[10px] uppercase tracking-wider text-violet-400/90">Experimental</span>
                     </div>
-                  ))}
-                </div>
+                    <p className="text-xs text-white/45 leading-relaxed">{LANDING_TEMPLATE_LABELS.custom.description}</p>
+                  </div>
+                  <span className="text-sm font-medium text-violet-300 shrink-0">Continue →</span>
+                </button>
+              </div>
+            ) : (
+              <div className="max-w-2xl mx-auto">
+                <div className="relative rounded-2xl bg-gradient-to-br from-teal-500/8 to-emerald-500/8 border border-teal-500/15 p-8 sm:p-10 overflow-hidden">
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(20,184,166,0.06)_0%,_transparent_50%)]" />
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/25 flex items-center justify-center mx-auto mb-6">
+                      <Globe className="w-8 h-8 text-teal-400" />
+                    </div>
 
-                <div className="flex justify-center">
-                  <button
-                    onClick={handleGenerate}
-                    className="inline-flex items-center justify-center gap-2.5 px-10 py-4 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold transition-all shadow-lg shadow-teal-500/25 text-sm group"
-                  >
-                    <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-                    Generate My Landing Page
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
+                    <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 text-center">
+                      Ready to generate
+                    </h2>
+                    <p className="text-white/40 text-sm leading-relaxed mb-6 max-w-lg mx-auto text-center">
+                      {landingTemplate === "custom" ? (
+                        <>
+                          <strong className="text-white/60">Custom</strong> — full page from our component kit (more variety, less predictable polish).
+                        </>
+                      ) : (
+                        <>
+                          <strong className="text-white/60">{LANDING_TEMPLATE_LABELS[landingTemplate].title}</strong> — we keep this layout and imagery; AI writes your headlines, body, and CTAs from your validation.
+                        </>
+                      )}
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-4 py-2 text-xs text-white/55">
+                        {landingTemplate === "custom" ? (
+                          <Wand2 className="w-3.5 h-3.5 text-violet-400" />
+                        ) : (
+                          <LayoutTemplate className="w-3.5 h-3.5 text-teal-400" />
+                        )}
+                        <span className="font-medium">{LANDING_TEMPLATE_LABELS[landingTemplate].title}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setTemplatePicked(false)}
+                        className="text-xs font-medium text-white/35 hover:text-white/60 underline underline-offset-2"
+                      >
+                        Change template
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
+                      {[
+                        {
+                          icon: "🎨",
+                          title: landingTemplate === "custom" ? "AI layout" : "Designer layout",
+                          desc: landingTemplate === "custom" ? "Built from our HTML kit" : "Fixed premium structure",
+                        },
+                        { icon: "📱", title: "Fully responsive", desc: "Mobile, tablet & desktop" },
+                        { icon: "✍️", title: "Your copy", desc: "From your idea + validation" },
+                        { icon: "🖼️", title: "Stock imagery", desc: "Unsplash when configured" },
+                        { icon: "🎯", title: "Conversion CTAs", desc: "Email capture & sections" },
+                        { icon: "📦", title: "Single HTML file", desc: "Download & host anywhere" },
+                      ].map((item) => (
+                        <div key={item.title} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 text-center">
+                          <div className="text-lg mb-1">{item.icon}</div>
+                          <div className="text-xs font-semibold text-white/70 mb-0.5">{item.title}</div>
+                          <div className="text-[10px] text-white/30">{item.desc}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex justify-center">
+                      <button
+                        onClick={handleGenerate}
+                        className="inline-flex items-center justify-center gap-2.5 px-10 py-4 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold transition-all shadow-lg shadow-teal-500/25 text-sm group"
+                      >
+                        <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                        Generate My Landing Page
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            )}
+          </>
         )}
 
         {/* ── LOADING STATE — full-screen beautiful loader ── */}

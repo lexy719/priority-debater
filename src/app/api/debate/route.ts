@@ -8,7 +8,11 @@ import {
   landingTemplateUserPrompt,
   normalizeSaasNovaSlots,
 } from "@/lib/landing-template-prompt";
-import { mergeSaasNovaTemplate } from "@/lib/landing-templates";
+import {
+  DEFAULT_LANDING_TEMPLATE,
+  isCuratedLandingTemplate,
+  mergeLandingTemplate,
+} from "@/lib/landing-templates";
 
 const MAX_TOPIC = 500;
 const MAX_POSITION = 2000;
@@ -1144,6 +1148,9 @@ RULES:
       const useScratchLayout = landingTemplateId === "custom";
 
       if (!useScratchLayout) {
+        const curatedId = isCuratedLandingTemplate(landingTemplateId)
+          ? landingTemplateId
+          : DEFAULT_LANDING_TEMPLATE;
         const landingImages = await fetchLandingPageImages(setup.topic);
         try {
           const completion = await openai.chat.completions.create({
@@ -1164,7 +1171,7 @@ RULES:
             /* use defaults from normalize */
           }
           const slots = normalizeSaasNovaSlots(parsed, setup);
-          const html = mergeSaasNovaTemplate(slots, landingImages);
+          const html = mergeLandingTemplate(curatedId, slots, landingImages);
           const encoder = new TextEncoder();
           const readable = new ReadableStream({
             start(controller) {
