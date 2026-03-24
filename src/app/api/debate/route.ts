@@ -3,6 +3,12 @@ import { shouldBlock, sanitizeForDisplay } from "@/lib/contentModeration";
 import { fetchLandingPageImages } from "@/lib/landing-images";
 import { getLayoutVariantInstructions, pickLayoutVariant } from "@/lib/landing-layout";
 import { landingPageSystemPrompt, landingPageUserPrompt } from "@/lib/landing-page-prompt";
+import {
+  landingTemplateSystemPrompt,
+  landingTemplateUserPrompt,
+  normalizeSaasNovaSlots,
+} from "@/lib/landing-template-prompt";
+import { mergeSaasNovaTemplate } from "@/lib/landing-templates";
 
 const MAX_TOPIC = 500;
 const MAX_POSITION = 2000;
@@ -406,9 +412,21 @@ export async function POST(request: Request) {
       persona?: string;
       category?: string;
       categoryScore?: number;
+      /** "saas-nova" (default) = curated template + AI copy; "custom" = full HTML from kit */
+      landingTemplateId?: string;
     };
 
-    const { action, setup: rawSetup, messages: rawMessages, quickAction, validationContent, persona, category, categoryScore } = body;
+    const {
+      action,
+      setup: rawSetup,
+      messages: rawMessages,
+      quickAction,
+      validationContent,
+      persona,
+      category,
+      categoryScore,
+      landingTemplateId,
+    } = body;
 
     const setup = rawSetup
       ? {
@@ -1120,9 +1138,53 @@ RULES:
       }
     }
 
-    // Handle landing page generation (structured brief from parsed validation + full excerpt)
+    // Handle landing page generation — curated template (default) or custom full HTML
     if (action === "landing-page" && setup?.topic) {
       const vc = typeof validationContent === "string" ? validationContent : "";
+      const useScratchLayout = landingTemplateId === "custom";
+
+      if (!useScratchLayout) {
+        const landingImages = await fetchLandingPageImages(setup.topic);
+        try {
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4.1",
+            messages: [
+              { role: "system", content: landingTemplateSystemPrompt() },
+              { role: "user", content: landingTemplateUserPrompt(setup, vc) },
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.65,
+            max_completion_tokens: 4096,
+          });
+          const text = completion.choices[0]?.message?.content?.trim() || "{}";
+          let parsed: unknown = {};
+          try {
+            parsed = JSON.parse(text) as unknown;
+          } catch {
+            /* use defaults from normalize */
+          }
+          const slots = normalizeSaasNovaSlots(parsed, setup);
+          const html = mergeSaasNovaTemplate(slots, landingImages);
+          const encoder = new TextEncoder();
+          const readable = new ReadableStream({
+            start(controller) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: html })}\n\n`));
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            },
+          });
+          return new Response(readable, {
+            headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+          });
+        } catch (tplError) {
+          console.error("Landing template generation error:", tplError);
+          return new Response(
+            JSON.stringify({ error: "Failed to generate landing page. Please try again." }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      }
+
       const layoutVariant = pickLayoutVariant(setup.topic);
       const layoutInstructions = getLayoutVariantInstructions(layoutVariant);
       const landingImages = await fetchLandingPageImages(setup.topic);

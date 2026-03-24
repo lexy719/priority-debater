@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -20,9 +20,16 @@ import {
   Code2,
   Eye,
   RotateCcw,
+  LayoutTemplate,
+  Wand2,
 } from "lucide-react";
 import { loadSessionWithStatus } from "@/lib/session";
 import { injectLandingPageKit } from "@/lib/landing-page-html-inject";
+import {
+  DEFAULT_LANDING_TEMPLATE,
+  LANDING_TEMPLATE_LABELS,
+  type LandingTemplateId,
+} from "@/lib/landing-templates/types";
 import { GradientMesh } from "@/components/ui/animated-background";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { ValidationSession } from "@/lib/types";
@@ -36,8 +43,14 @@ const PREVIEW_WIDTHS: Record<PreviewSize, string> = {
   mobile: "375px",
 };
 
-// ── Loading progress steps ──
-const LOADING_STEPS = [
+// ── Loading progress steps (template mode = faster — copy only) ──
+const LOADING_STEPS_TEMPLATE = [
+  { label: "Reading your positioning", duration: 2000 },
+  { label: "Writing headlines & sections", duration: 6000 },
+  { label: "Filling the designer template", duration: 4000 },
+  { label: "Almost ready", duration: 2000 },
+];
+const LOADING_STEPS_CUSTOM = [
   { label: "Analyzing your validation data", duration: 3000 },
   { label: "Selecting layout archetype", duration: 2500 },
   { label: "Generating conversion-optimized copy", duration: 8000 },
@@ -62,8 +75,16 @@ export default function LandingGeneratorPage() {
   const [loadingStep, setLoadingStep] = useState(0);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [revealPreview, setRevealPreview] = useState(false);
+  const [landingTemplate, setLandingTemplate] = useState<LandingTemplateId>(DEFAULT_LANDING_TEMPLATE);
+  /** Which template produced the current HTML (for color tweaks + inject rules) */
+  const [generatedWithTemplate, setGeneratedWithTemplate] = useState<LandingTemplateId | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadingSteps = useMemo(
+    () => (landingTemplate === "saas-nova" ? LOADING_STEPS_TEMPLATE : LOADING_STEPS_CUSTOM),
+    [landingTemplate]
+  );
 
   useEffect(() => {
     const result = loadSessionWithStatus();
@@ -90,13 +111,13 @@ export default function LandingGeneratorPage() {
     let progressInterval: ReturnType<typeof setInterval>;
 
     const advanceStep = () => {
-      if (stepIdx >= LOADING_STEPS.length - 1) return;
+      if (stepIdx >= loadingSteps.length - 1) return;
       stepIdx++;
       setLoadingStep(stepIdx);
     };
 
     // Progress bar fills smoothly
-    const totalDuration = LOADING_STEPS.reduce((a, s) => a + s.duration, 0);
+    const totalDuration = loadingSteps.reduce((a, s) => a + s.duration, 0);
     let elapsed = 0;
     progressInterval = setInterval(() => {
       elapsed += 100;
@@ -107,9 +128,9 @@ export default function LandingGeneratorPage() {
     // Step through labels
     let accum = 0;
     const timers: ReturnType<typeof setTimeout>[] = [];
-    LOADING_STEPS.forEach((s, i) => {
+    loadingSteps.forEach((s, i) => {
       if (i === 0) return;
-      accum += LOADING_STEPS[i - 1].duration;
+      accum += loadingSteps[i - 1].duration;
       timers.push(setTimeout(() => { setLoadingStep(i); }, accum));
     });
 
@@ -117,7 +138,7 @@ export default function LandingGeneratorPage() {
       clearInterval(progressInterval);
       timers.forEach(clearTimeout);
     };
-  }, [isGenerating]);
+  }, [isGenerating, loadingSteps]);
 
   const handleGenerate = useCallback(async () => {
     if (!session) return;
@@ -137,6 +158,7 @@ export default function LandingGeneratorPage() {
           action: "landing-page",
           setup: session.setup,
           validationContent: session.validationContent,
+          landingTemplateId: landingTemplate,
         }),
       });
 
@@ -173,17 +195,20 @@ export default function LandingGeneratorPage() {
 
       if (!fullContent) throw new Error("No content received");
 
-      // Always merge the full lp-* CSS + JS kit (models often omit or truncate embedded styles).
-      const stitched = injectLandingPageKit(fullContent);
+      const stitched =
+        landingTemplate === "custom"
+          ? injectLandingPageKit(fullContent)
+          : fullContent;
 
       // Set progress to 100% then reveal
       setLoadingProgress(100);
-      setLoadingStep(LOADING_STEPS.length - 1);
+      setLoadingStep(loadingSteps.length - 1);
 
       // Small delay for the progress bar to hit 100% visually
       await new Promise(r => setTimeout(r, 600));
 
       setHtmlContent(stitched);
+      setGeneratedWithTemplate(landingTemplate);
       setIsGenerating(false);
 
       // Smooth reveal after iframe has a moment to render
@@ -193,7 +218,7 @@ export default function LandingGeneratorPage() {
       setHtmlContent("");
       setIsGenerating(false);
     }
-  }, [session]);
+  }, [session, landingTemplate, loadingSteps]);
 
   const handleCopyHtml = useCallback(() => {
     if (!htmlContent) return;
@@ -225,10 +250,13 @@ export default function LandingGeneratorPage() {
     (color: string) => {
       setPrimaryColor(color);
       if (!htmlContent) return;
-      const updated = htmlContent.replace(/#6366f1/gi, color);
+      let updated = htmlContent.replace(/#6366f1/gi, color);
+      if (generatedWithTemplate === "saas-nova") {
+        updated = updated.replace(/#7c3aed/gi, color).replace(/#4f46e5/gi, color);
+      }
       setHtmlContent(updated);
     },
-    [htmlContent]
+    [htmlContent, generatedWithTemplate]
   );
 
   if (!session) {
@@ -320,10 +348,44 @@ export default function LandingGeneratorPage() {
                   Generate a production-ready landing page
                 </h2>
                 <p className="text-white/40 text-sm leading-relaxed mb-6 max-w-lg mx-auto text-center">
-                  Our AI analyzes your validation report — scores, target customer, competitive advantages, risks —
-                  and builds a complete, deployable marketing page with conversion-optimized copy,
-                  responsive design, and animated visuals tailored to your specific business.
+                  Pick a <strong className="text-white/60">designed template</strong> (recommended) and we only write the copy from your idea —
+                  or use <strong className="text-white/60">custom</strong> for a full AI-built layout (more hit-or-miss).
                 </p>
+
+                {/* Template picker */}
+                <div className="grid sm:grid-cols-2 gap-3 mb-8">
+                  {(["saas-nova", "custom"] as const).map((id) => {
+                    const meta = LANDING_TEMPLATE_LABELS[id];
+                    const selected = landingTemplate === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setLandingTemplate(id)}
+                        className={`text-left rounded-xl border p-4 transition-all ${
+                          selected
+                            ? "border-teal-500/50 bg-teal-500/10 ring-1 ring-teal-500/25"
+                            : "border-white/[0.08] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.04]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          {id === "saas-nova" ? (
+                            <LayoutTemplate className="w-4 h-4 text-teal-400 shrink-0" />
+                          ) : (
+                            <Wand2 className="w-4 h-4 text-violet-400 shrink-0" />
+                          )}
+                          <span className="text-sm font-semibold text-white/90">{meta.title}</span>
+                          {id === "saas-nova" && (
+                            <span className="text-[10px] font-medium uppercase tracking-wider text-teal-400/90 ml-auto">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-white/40 leading-relaxed">{meta.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
 
                 {/* What you get grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
@@ -403,10 +465,10 @@ export default function LandingGeneratorPage() {
                 {/* Current step */}
                 <div className="text-center mb-6">
                   <p className="text-white/70 text-sm font-medium mb-1">
-                    {LOADING_STEPS[loadingStep]?.label || "Finalizing..."}
+                    {loadingSteps[loadingStep]?.label || "Finalizing..."}
                   </p>
                   <p className="text-white/20 text-xs">
-                    Step {loadingStep + 1} of {LOADING_STEPS.length}
+                    Step {loadingStep + 1} of {loadingSteps.length}
                   </p>
                 </div>
 
@@ -420,7 +482,7 @@ export default function LandingGeneratorPage() {
 
                 {/* Step list */}
                 <div className="space-y-2">
-                  {LOADING_STEPS.map((step, i) => (
+                  {loadingSteps.map((step, i) => (
                     <div
                       key={i}
                       className={`flex items-center gap-3 text-xs transition-all duration-300 ${
