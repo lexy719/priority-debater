@@ -42,7 +42,8 @@ export function getLandingTemplatePreviewHtml(
   const pool =
     options?.images && options.images.length > 0 ? options.images : FALLBACK_LANDING_IMAGES;
 
-  const idx = id === "saas-nova" ? 0 : id === "editorial-aurora" ? 1 : 2;
+  const idxMap: Record<string, number> = { "saas-nova": 0, "editorial-aurora": 1, "bento-prism": 2, "startup-horizon": 3, "minimal-slate": 4 };
+  const idx = idxMap[id] ?? 0;
   const img = pool[idx % pool.length];
 
   return mergeLandingTemplate(id, slots, [img]);

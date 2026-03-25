@@ -1,7 +1,9 @@
 import type { LandingImageRef } from "@/lib/landing-images";
 import { BENTO_PRISM_TEMPLATE } from "./bento-prism";
 import { EDITORIAL_AURORA_TEMPLATE } from "./editorial-aurora";
+import { MINIMAL_SLATE_TEMPLATE } from "./minimal-slate";
 import { SAAS_NOVA_TEMPLATE } from "./saas-nova";
+import { STARTUP_HORIZON_TEMPLATE } from "./startup-horizon";
 import type { CuratedLandingTemplateId, LandingTemplateId } from "./types";
 import { applyRawBlock, applyTemplateSlots, escapeAttr } from "./merge-slots";
 
@@ -13,6 +15,10 @@ export function getTemplateSource(id: LandingTemplateId): string | null {
       return EDITORIAL_AURORA_TEMPLATE;
     case "bento-prism":
       return BENTO_PRISM_TEMPLATE;
+    case "startup-horizon":
+      return STARTUP_HORIZON_TEMPLATE;
+    case "minimal-slate":
+      return MINIMAL_SLATE_TEMPLATE;
     default:
       return null;
   }

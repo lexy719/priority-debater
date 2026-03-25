@@ -49,9 +49,53 @@ const PREVIEW_WIDTHS: Record<PreviewSize, string> = {
 
 /** Gallery iframes use a desktop layout width so templates hit desktop breakpoints; scaled to fit each card. */
 const GALLERY_VIEWPORT_W = 1280;
-const GALLERY_VIEWPORT_H = 720;
-const GALLERY_FRAME_W = 320;
+const GALLERY_VIEWPORT_H = 800;
+const GALLERY_FRAME_W = 380;
 const GALLERY_SCALE = GALLERY_FRAME_W / GALLERY_VIEWPORT_W;
+
+/** Per-template accent colors for the gallery cards */
+const TEMPLATE_ACCENTS: Record<string, { border: string; hoverBorder: string; glow: string; text: string; bg: string; badge: string }> = {
+  "saas-nova": {
+    border: "border-violet-500/15",
+    hoverBorder: "hover:border-violet-500/40",
+    glow: "shadow-violet-500/10",
+    text: "text-violet-400",
+    bg: "from-violet-500/8 via-transparent to-indigo-500/4",
+    badge: "bg-violet-500/15 text-violet-300 border-violet-500/25",
+  },
+  "editorial-aurora": {
+    border: "border-amber-500/15",
+    hoverBorder: "hover:border-amber-500/35",
+    glow: "shadow-amber-500/8",
+    text: "text-amber-400",
+    bg: "from-amber-500/8 via-transparent to-orange-500/4",
+    badge: "bg-amber-500/15 text-amber-300 border-amber-500/25",
+  },
+  "bento-prism": {
+    border: "border-cyan-500/15",
+    hoverBorder: "hover:border-cyan-500/40",
+    glow: "shadow-cyan-500/10",
+    text: "text-cyan-400",
+    bg: "from-cyan-500/8 via-transparent to-violet-500/4",
+    badge: "bg-cyan-500/15 text-cyan-300 border-cyan-500/25",
+  },
+  "startup-horizon": {
+    border: "border-rose-500/15",
+    hoverBorder: "hover:border-rose-500/40",
+    glow: "shadow-rose-500/10",
+    text: "text-rose-400",
+    bg: "from-rose-500/8 via-transparent to-orange-500/4",
+    badge: "bg-rose-500/15 text-rose-300 border-rose-500/25",
+  },
+  "minimal-slate": {
+    border: "border-zinc-400/15",
+    hoverBorder: "hover:border-zinc-400/40",
+    glow: "shadow-zinc-400/10",
+    text: "text-zinc-300",
+    bg: "from-zinc-400/8 via-transparent to-blue-500/4",
+    badge: "bg-zinc-400/15 text-zinc-200 border-zinc-400/25",
+  },
+};
 
 // ── Loading progress steps (template mode = faster — copy only) ──
 const LOADING_STEPS_TEMPLATE = [
@@ -387,53 +431,24 @@ export default function LandingGeneratorPage() {
         {/* ── PRE-GENERATION: template gallery → generate ── */}
         {!htmlContent && !isGenerating && (
           <>
-            <div className="text-center mb-8 max-w-3xl mx-auto">
-              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                {session.setup.topic}
-              </h1>
-              <p className="text-white/30 text-sm">Landing Page Generator</p>
-            </div>
-
             {!templatePicked ? (
-              <div className="max-w-6xl mx-auto">
-                <div className="text-center mb-10">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/4 px-3 py-1 text-[11px] text-white/45 mb-4">
-                    <Monitor className="w-3.5 h-3.5 text-teal-400/90 shrink-0" />
-                    Desktop-width previews
+              <div className="max-w-[1320px] mx-auto">
+                {/* Compact header */}
+                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
+                  <div className="min-w-0">
+                    <p className="text-white/30 text-xs font-medium uppercase tracking-wider mb-1.5">Landing page for</p>
+                    <h1 className="text-xl sm:text-2xl font-bold text-white truncate">{session.setup.topic}</h1>
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
-                    Choose a template
-                  </h2>
-                  <p className="text-white/40 text-sm max-w-2xl mx-auto leading-relaxed">
-                    Each card shows the <strong className="text-white/55 font-medium">desktop layout</strong> of the full page (scaled to fit).
-                    Copy uses <strong className="text-white/55 font-medium">your title and pitch</strong> as defaults (AI refines everything after you generate).
-                    {previewHeroFromFallback === true ? (
-                      <>
-                        {" "}
-                        Hero photos are <strong className="text-white/55 font-medium">built-in Unsplash stills</strong> — the same images are merged into your downloaded HTML (add{" "}
-                        <code className="text-white/45">UNSPLASH_ACCESS_KEY</code> so we can search Unsplash using your title and pitch).
-                      </>
-                    ) : previewHeroFromFallback === false ? (
-                      <>
-                        {" "}
-                        Hero photos come from <strong className="text-white/55 font-medium">Unsplash</strong> using your <strong className="text-white/55 font-medium">title and pitch</strong> — the same search runs when you generate.
-                      </>
-                    ) : null}
+                  <p className="text-white/25 text-xs shrink-0">
+                    Pick a design — AI writes your copy
                   </p>
-                  {previewImagePool === undefined && (
-                    <p className="mt-2 text-[11px] text-teal-400/50">Fetching image matches for your idea…</p>
-                  )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-7 mb-10">
+                {/* Template grid — 3 curated templates */}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
                   {CURATED_LANDING_TEMPLATE_IDS.map((id) => {
                     const meta = LANDING_TEMPLATE_LABELS[id];
-                    const bezel =
-                      id === "saas-nova"
-                        ? "from-violet-500/12 via-transparent to-indigo-500/6"
-                        : id === "editorial-aurora"
-                          ? "from-amber-500/12 via-transparent to-orange-500/5"
-                          : "from-cyan-500/10 via-transparent to-violet-500/8";
+                    const accent = TEMPLATE_ACCENTS[id] ?? TEMPLATE_ACCENTS["saas-nova"];
                     return (
                       <button
                         key={id}
@@ -442,161 +457,131 @@ export default function LandingGeneratorPage() {
                           setLandingTemplate(id);
                           setTemplatePicked(true);
                         }}
-                        className="group text-left rounded-2xl border border-white/9 bg-linear-to-b from-white/5 to-white/1.5 hover:border-teal-500/30 hover:from-teal-500/6 hover:to-white/3 overflow-hidden transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/45 shadow-[0_24px_48px_-28px_rgba(0,0,0,0.7)]"
+                        className={`group text-left rounded-2xl border ${accent.border} ${accent.hoverBorder} bg-[#0a0a12] overflow-hidden transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20 hover:shadow-lg ${accent.glow} hover:-translate-y-1`}
                       >
-                        <div
-                          className={`relative border-b border-white/6 bg-linear-to-b ${bezel} to-[#050508]`}
-                        >
-                          <div className="flex flex-col items-center py-7 px-3">
+                        {/* Preview area */}
+                        <div className={`relative bg-linear-to-b ${accent.bg} to-transparent`}>
+                          <div className="flex justify-center pt-5 pb-3 px-4">
                             <div
-                              className="rounded-[2.35rem] p-[9px] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_16px_40px_-12px_rgba(0,0,0,0.75)]"
+                              className="relative overflow-hidden rounded-xl bg-black ring-1 ring-white/10 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.8)]"
                               style={{
-                                background:
-                                  "linear-gradient(155deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04))",
+                                width: GALLERY_FRAME_W,
+                                height: Math.round(GALLERY_VIEWPORT_H * GALLERY_SCALE),
                               }}
                             >
-                              <div
-                                className="relative overflow-hidden rounded-[1.85rem] bg-black ring-1 ring-white/12"
+                              <iframe
+                                title={`Preview — ${meta.title}`}
+                                srcDoc={templatePreviewHtml[id]}
+                                width={GALLERY_VIEWPORT_W}
+                                height={GALLERY_VIEWPORT_H}
+                                className="absolute left-0 top-0 border-0 pointer-events-none bg-black"
                                 style={{
-                                  width: GALLERY_FRAME_W,
-                                  height: Math.round(GALLERY_VIEWPORT_H * GALLERY_SCALE),
+                                  transform: `scale(${GALLERY_SCALE})`,
+                                  transformOrigin: "top left",
                                 }}
-                              >
-                                <iframe
-                                  title={`Desktop preview — ${meta.title}`}
-                                  srcDoc={templatePreviewHtml[id]}
-                                  width={GALLERY_VIEWPORT_W}
-                                  height={GALLERY_VIEWPORT_H}
-                                  className="absolute left-0 top-0 border-0 pointer-events-none bg-black"
-                                  style={{
-                                    transform: `scale(${GALLERY_SCALE})`,
-                                    transformOrigin: "top left",
-                                  }}
-                                  sandbox="allow-scripts"
-                                />
-                              </div>
+                                sandbox="allow-scripts"
+                              />
                             </div>
-                            <span className="mt-3 text-[10px] font-medium uppercase tracking-[0.12em] text-white/25">
-                              Live HTML · desktop viewport
-                            </span>
                           </div>
                         </div>
-                        <div className="p-5 sm:p-5">
-                          <div className="flex items-center gap-2 mb-2">
-                            <LayoutTemplate className="w-4 h-4 text-teal-400 shrink-0" />
-                            <span className="text-sm font-semibold text-white/92">{meta.title}</span>
+
+                        {/* Info */}
+                        <div className="px-5 pt-3 pb-5">
+                          <div className="flex items-center gap-2.5 mb-2">
+                            <span className="text-[15px] font-semibold text-white/90">{meta.title}</span>
                             {id === DEFAULT_LANDING_TEMPLATE && (
-                              <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-400/90 ml-auto">
+                              <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${accent.badge}`}>
                                 Popular
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-white/42 leading-relaxed">{meta.description}</p>
-                          <p className="mt-4 text-[11px] font-semibold text-teal-400/85 group-hover:text-teal-400 flex items-center gap-1">
+                          <p className="text-xs text-white/38 leading-relaxed mb-3">{meta.description}</p>
+                          <div className={`text-[11px] font-semibold ${accent.text} opacity-70 group-hover:opacity-100 flex items-center gap-1 transition-opacity`}>
                             Use this template
-                            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                          </p>
+                            <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                          </div>
                         </div>
                       </button>
                     );
                   })}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLandingTemplate("custom");
-                    setTemplatePicked(true);
-                  }}
-                  className="w-full max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-violet-500/20 bg-linear-to-br from-violet-500/10 to-indigo-500/5 p-6 sm:p-7 text-left hover:border-violet-500/35 transition-all"
-                >
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 border border-violet-500/25">
-                    <Wand2 className="w-7 h-7 text-violet-300" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="text-sm font-semibold text-white/90">{LANDING_TEMPLATE_LABELS.custom.title}</span>
-                      <span className="text-[10px] uppercase tracking-wider text-violet-400/90">Experimental</span>
+                {/* Custom / AI option — compact bar */}
+                <div className="max-w-[1320px] mx-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLandingTemplate("custom");
+                      setTemplatePicked(true);
+                    }}
+                    className="group w-full flex items-center gap-4 rounded-xl border border-white/6 bg-white/[0.02] hover:bg-white/[0.04] hover:border-violet-500/25 px-5 py-4 text-left transition-all"
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 border border-violet-500/20">
+                      <Wand2 className="w-5 h-5 text-violet-400" />
                     </div>
-                    <p className="text-xs text-white/45 leading-relaxed">{LANDING_TEMPLATE_LABELS.custom.description}</p>
-                  </div>
-                  <span className="text-sm font-medium text-violet-300 shrink-0">Continue →</span>
-                </button>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-sm font-semibold text-white/80">{LANDING_TEMPLATE_LABELS.custom.title}</span>
+                      <span className="text-[10px] uppercase tracking-wider text-violet-400/70 ml-2">Experimental</span>
+                      <p className="text-[11px] text-white/30 leading-relaxed mt-0.5 hidden sm:block">Full page generated by AI — more variety, less predictable structure.</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-violet-400 shrink-0 transition-colors" />
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="max-w-2xl mx-auto">
-                <div className="relative rounded-2xl bg-linear-to-br from-teal-500/8 to-emerald-500/8 border border-teal-500/15 p-8 sm:p-10 overflow-hidden">
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(20,184,166,0.06)_0%,transparent_50%)]" />
-                  <div className="relative">
-                    <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/25 flex items-center justify-center mx-auto mb-6">
-                      <Globe className="w-8 h-8 text-teal-400" />
-                    </div>
+              <div className="max-w-xl mx-auto pt-4">
+                <div className="text-center mb-8">
+                  <p className="text-white/30 text-xs font-medium uppercase tracking-wider mb-1.5">Landing page for</p>
+                  <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{session.setup.topic}</h1>
+                </div>
 
-                    <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 text-center">
-                      Ready to generate
-                    </h2>
-                    <p className="text-white/40 text-sm leading-relaxed mb-6 max-w-lg mx-auto text-center">
-                      {landingTemplate === "custom" ? (
-                        <>
-                          <strong className="text-white/60">Custom</strong> — full page from our component kit (more variety, less predictable polish).
-                        </>
-                      ) : (
-                        <>
-                          <strong className="text-white/60">{LANDING_TEMPLATE_LABELS[landingTemplate].title}</strong> — we keep this layout and imagery; AI writes your headlines, body, and CTAs from your validation.
-                        </>
-                      )}
-                    </p>
-
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/4 px-4 py-2 text-xs text-white/55">
+                <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-6 sm:p-8">
+                  {/* Selected template */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${
+                        landingTemplate === "custom" ? "bg-violet-500/10 border-violet-500/20" : "bg-teal-500/10 border-teal-500/20"
+                      }`}>
                         {landingTemplate === "custom" ? (
-                          <Wand2 className="w-3.5 h-3.5 text-violet-400" />
+                          <Wand2 className="w-5 h-5 text-violet-400" />
                         ) : (
-                          <LayoutTemplate className="w-3.5 h-3.5 text-teal-400" />
+                          <LayoutTemplate className="w-5 h-5 text-teal-400" />
                         )}
-                        <span className="font-medium">{LANDING_TEMPLATE_LABELS[landingTemplate].title}</span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setTemplatePicked(false)}
-                        className="text-xs font-medium text-white/35 hover:text-white/60 underline underline-offset-2"
-                      >
-                        Change template
-                      </button>
+                      <div>
+                        <p className="text-sm font-semibold text-white/90">{LANDING_TEMPLATE_LABELS[landingTemplate].title}</p>
+                        <p className="text-[11px] text-white/35">
+                          {landingTemplate === "custom" ? "AI builds the full page" : "AI writes copy for this design"}
+                        </p>
+                      </div>
                     </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
-                      {[
-                        {
-                          icon: "🎨",
-                          title: landingTemplate === "custom" ? "AI layout" : "Designer layout",
-                          desc: landingTemplate === "custom" ? "Built from our HTML kit" : "Fixed premium structure",
-                        },
-                        { icon: "📱", title: "Fully responsive", desc: "Mobile, tablet & desktop" },
-                        { icon: "✍️", title: "Your copy", desc: "From your idea + validation" },
-                        { icon: "🖼️", title: "Stock imagery", desc: "Unsplash when configured" },
-                        { icon: "🎯", title: "Conversion CTAs", desc: "Email capture & sections" },
-                        { icon: "📦", title: "Single HTML file", desc: "Download & host anywhere" },
-                      ].map((item) => (
-                        <div key={item.title} className="rounded-xl bg-white/3 border border-white/6 p-3 text-center">
-                          <div className="text-lg mb-1">{item.icon}</div>
-                          <div className="text-xs font-semibold text-white/70 mb-0.5">{item.title}</div>
-                          <div className="text-[10px] text-white/30">{item.desc}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex justify-center">
-                      <button
-                        onClick={handleGenerate}
-                        className="inline-flex items-center justify-center gap-2.5 px-10 py-4 rounded-xl bg-linear-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold transition-all shadow-lg shadow-teal-500/25 text-sm group"
-                      >
-                        <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-                        Generate My Landing Page
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTemplatePicked(false)}
+                      className="text-xs font-medium text-white/30 hover:text-white/60 transition-colors"
+                    >
+                      Change
+                    </button>
                   </div>
+
+                  {/* What you get — compact pills */}
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {["Responsive", "Your copy", "Stock photos", "Email CTAs", "Single HTML file"].map((tag) => (
+                      <span key={tag} className="text-[10px] font-medium text-white/35 bg-white/4 border border-white/6 rounded-full px-2.5 py-1">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Generate button */}
+                  <button
+                    onClick={handleGenerate}
+                    className="w-full inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-linear-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold transition-all shadow-lg shadow-teal-500/25 text-sm group"
+                  >
+                    <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                    Generate Landing Page
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
                 </div>
               </div>
             )}

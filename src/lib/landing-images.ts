@@ -17,62 +17,178 @@ export type LandingImageRef = {
 };
 
 /**
- * When Unsplash is unavailable (no key, API error, or empty results), templates still need a hero photo.
- * Same pool as client-side template previews so gallery and generated HTML stay consistent.
+ * Diverse fallback pool — covers different business categories so the
+ * hero image looks reasonable even without an Unsplash API key.
  */
 export const FALLBACK_LANDING_IMAGES: LandingImageRef[] = [
   {
-    url: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=900&q=85&auto=format&fit=crop",
+    url: "https://images.unsplash.com/photo-1551434678-e076c223a692?w=900&q=85&auto=format&fit=crop",
     photoPageUrl: "https://unsplash.com",
     photographer: "Unsplash",
     photographerUrl: "https://unsplash.com",
-    suggestedAlt: "Team collaborating around a laptop",
+    suggestedAlt: "Developer working on code at a modern desk",
   },
   {
-    url: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=900&q=85&auto=format&fit=crop",
+    url: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=900&q=85&auto=format&fit=crop",
     photoPageUrl: "https://unsplash.com",
     photographer: "Unsplash",
     photographerUrl: "https://unsplash.com",
-    suggestedAlt: "Modern workspace",
+    suggestedAlt: "Analytics dashboard on a laptop screen",
   },
   {
-    url: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=900&q=85&auto=format&fit=crop",
+    url: "https://images.unsplash.com/photo-1553877522-43269d4ea984?w=900&q=85&auto=format&fit=crop",
     photoPageUrl: "https://unsplash.com",
     photographer: "Unsplash",
     photographerUrl: "https://unsplash.com",
-    suggestedAlt: "Team meeting",
+    suggestedAlt: "Creative brainstorming session with sticky notes",
+  },
+  {
+    url: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=900&q=85&auto=format&fit=crop",
+    photoPageUrl: "https://unsplash.com",
+    photographer: "Unsplash",
+    photographerUrl: "https://unsplash.com",
+    suggestedAlt: "Team working together on laptops",
+  },
+  {
+    url: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=900&q=85&auto=format&fit=crop",
+    photoPageUrl: "https://unsplash.com",
+    photographer: "Unsplash",
+    photographerUrl: "https://unsplash.com",
+    suggestedAlt: "Modern open office space with natural light",
+  },
+  {
+    url: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=900&q=85&auto=format&fit=crop",
+    photoPageUrl: "https://unsplash.com",
+    photographer: "Unsplash",
+    photographerUrl: "https://unsplash.com",
+    suggestedAlt: "Software code on a screen in dark mode",
   },
 ];
 
 const QUERY_MAX_LEN = 200;
 
+/** Words that add noise to image searches and should be filtered out. */
 const STOPWORDS = new Set([
-  "that", "this", "with", "from", "your", "will", "have", "been", "their", "what", "when", "where",
-  "which", "about", "into", "more", "than", "then", "them", "these", "those", "very", "just", "like",
-  "also", "only", "some", "such", "make", "made", "many", "using", "used", "team", "teams", "need",
-  "help", "helps", "build", "built", "get", "gets", "each", "other", "were", "they", "here", "there",
-  "want", "wants", "work", "works", "best", "most", "real", "time", "data", "user", "users",
+  // common English
+  "that", "this", "with", "from", "your", "will", "have", "been", "their",
+  "what", "when", "where", "which", "about", "into", "more", "than", "then",
+  "them", "these", "those", "very", "just", "like", "also", "only", "some",
+  "such", "make", "made", "many", "much", "each", "other", "were", "they",
+  "here", "there", "want", "wants", "able", "would", "could", "should",
+  "does", "doing", "being", "through", "between", "before", "after",
+  // business jargon (too generic for image search)
+  "product", "service", "services", "solution", "solutions", "platform",
+  "company", "business", "startup", "tool", "tools", "software", "system",
+  "application", "feature", "features", "customer", "customers", "market",
+  "industry", "leverage", "innovative", "innovative", "scalable", "seamless",
+  "robust", "cutting-edge", "world-class", "best-in-class", "leading",
+  "powerful", "comprehensive", "streamline", "optimize", "enable", "enables",
+  "empower", "empowers", "revolutionize", "transform", "transforming",
+  // verbs that don't help image search
+  "using", "used", "build", "built", "need", "needs", "help", "helps",
+  "work", "works", "create", "creating", "provide", "provides", "allow",
+  "allows", "offer", "offers", "give", "gives", "take", "takes",
+  "get", "gets", "keep", "keeps", "find", "finds", "show", "shows",
+  // other noise
+  "team", "teams", "user", "users", "people", "way", "ways",
+  "best", "most", "real", "time", "data", "based", "first", "well",
+  "high", "level", "free", "easy", "fast", "simple", "better", "new",
 ]);
 
 /**
- * Unsplash search string: product name + salient terms from the pitch so hero imagery matches the idea.
+ * Category detection: match topic + pitch against known verticals
+ * to inject better Unsplash search terms.
+ */
+const CATEGORY_KEYWORDS: Record<string, { patterns: RegExp; searchBoost: string }> = {
+  health: {
+    patterns: /\b(health|medical|wellness|fitness|doctor|patient|therapy|mental.?health|nutrition|diet|gym|workout|telehealth|pharma|clinic)\b/i,
+    searchBoost: "health wellness medical",
+  },
+  education: {
+    patterns: /\b(education|learning|tutor|school|student|course|teaching|edtech|classroom|university|training|lesson|curriculum)\b/i,
+    searchBoost: "education learning classroom",
+  },
+  finance: {
+    patterns: /\b(finance|fintech|banking|payment|invest|crypto|trading|insurance|accounting|budget|money|wallet|loan|credit)\b/i,
+    searchBoost: "finance technology banking",
+  },
+  food: {
+    patterns: /\b(food|restaurant|recipe|cooking|meal|delivery|kitchen|chef|grocery|dining|catering|menu|eat)\b/i,
+    searchBoost: "food cooking restaurant",
+  },
+  ecommerce: {
+    patterns: /\b(ecommerce|e-commerce|shop|store|retail|marketplace|sell|merchant|inventory|dropship|cart|checkout)\b/i,
+    searchBoost: "ecommerce shopping online store",
+  },
+  travel: {
+    patterns: /\b(travel|hotel|booking|flight|tourism|vacation|adventure|destination|trip|hostel|airbnb)\b/i,
+    searchBoost: "travel destination adventure",
+  },
+  realestate: {
+    patterns: /\b(real.?estate|property|housing|rent|apartment|mortgage|listing|broker|home.?buying)\b/i,
+    searchBoost: "real estate property home",
+  },
+  sustainability: {
+    patterns: /\b(sustain|green|eco|climate|solar|renewable|carbon|environment|recycl|clean.?energy)\b/i,
+    searchBoost: "sustainability green energy",
+  },
+  ai: {
+    patterns: /\b(artificial.?intelligence|machine.?learning|deep.?learning|neural|nlp|chatbot|automation|ai-powered|gpt|llm)\b/i,
+    searchBoost: "artificial intelligence technology",
+  },
+  saas: {
+    patterns: /\b(saas|dashboard|analytics|crm|erp|workflow|project.?management|collaboration|productivity|notion|slack)\b/i,
+    searchBoost: "dashboard technology software",
+  },
+  creative: {
+    patterns: /\b(design|creative|art|music|video|photo|content.?creation|media|podcast|streaming|studio|portfolio)\b/i,
+    searchBoost: "creative design studio",
+  },
+  social: {
+    patterns: /\b(social|community|network|messaging|chat|forum|dating|connect|influencer|content.?creator)\b/i,
+    searchBoost: "social network community",
+  },
+};
+
+/**
+ * Detect the business category from topic + position to boost image relevance.
+ */
+function detectCategory(topic: string, position?: string): string | null {
+  const text = `${topic} ${position ?? ""}`.toLowerCase();
+  for (const [, { patterns, searchBoost }] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (patterns.test(text)) return searchBoost;
+  }
+  return null;
+}
+
+/**
+ * Build an Unsplash search query from the idea's topic + pitch.
+ * Uses category detection + keyword extraction for relevant results.
  */
 export function buildIdeaImageSearchQuery(topic: string, position?: string): string {
-  const t = topic.replace(/\s+/g, " ").trim().slice(0, 100);
-  const base = t.length >= 3 ? t : "startup business";
-  const raw = (position ?? "").replace(/\s+/g, " ").trim();
-  if (raw.length < 18) return base.slice(0, QUERY_MAX_LEN);
+  const t = topic.replace(/\s+/g, " ").trim().slice(0, 80);
+  const base = t.length >= 3 ? t : "startup technology";
 
+  // Try category detection first for a focused search
+  const categoryBoost = detectCategory(topic, position);
+
+  const raw = (position ?? "").replace(/\s+/g, " ").trim();
+
+  // Extract meaningful keywords from the pitch
   const words = raw
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, " ")
     .split(/\s+/)
     .filter((w) => w.length >= 4 && !STOPWORDS.has(w));
-  const unique = [...new Set(words)].slice(0, 14).join(" ");
-  const combined =
-    unique.length >= 10 ? `${base} ${unique}` : `${base} ${raw.slice(0, 100)}`;
-  const q = combined.slice(0, QUERY_MAX_LEN).trim();
-  return q.length >= 3 ? q : base;
+  const unique = [...new Set(words)].slice(0, 8);
+
+  // Build query: topic + category context + pitch keywords
+  const parts: string[] = [base];
+  if (categoryBoost) parts.push(categoryBoost);
+  if (unique.length >= 2) parts.push(unique.slice(0, 5).join(" "));
+
+  const q = parts.join(" ").slice(0, QUERY_MAX_LEN).trim();
+  return q.length >= 3 ? q : "startup technology business";
 }
 
 export type FetchLandingImagesOptions = {
@@ -95,7 +211,7 @@ export async function fetchLandingPageImages(
   options?: FetchLandingImagesOptions
 ): Promise<LandingPageImagesResult> {
   const key = process.env.UNSPLASH_ACCESS_KEY?.trim();
-  const perPage = Math.min(30, Math.max(1, options?.perPage ?? 4));
+  const perPage = Math.min(30, Math.max(1, options?.perPage ?? 6));
   const sliceFallback = (): LandingImageRef[] =>
     FALLBACK_LANDING_IMAGES.slice(0, Math.min(perPage, FALLBACK_LANDING_IMAGES.length));
 
@@ -134,7 +250,7 @@ export async function fetchLandingPageImages(
       const photographer = photo.user?.name?.trim() || "Photographer";
       const photographerUrl = photo.user?.links?.html || "https://unsplash.com";
       const suggestedAlt =
-        (photo.alt_description || photo.description || `${query} — ${photographer}`).slice(0, 180);
+        (photo.alt_description || photo.description || `${topic} — ${photographer}`).slice(0, 180);
 
       out.push({
         url: imageUrl,
