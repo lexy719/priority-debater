@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { loadSessionWithStatus } from "@/lib/session";
 import { injectLandingPageKit } from "@/lib/landing-page-html-inject";
+import { extractDashboardData } from "@/lib/parse";
 import {
   CURATED_LANDING_TEMPLATE_IDS,
   DEFAULT_LANDING_TEMPLATE,
@@ -139,6 +140,13 @@ export default function LandingGeneratorPage() {
   /** Whether that pool is built-in stills (same as merged HTML) vs topic search from Unsplash */
   const [previewHeroFromFallback, setPreviewHeroFromFallback] = useState<boolean | undefined>(undefined);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  /** Viability score extracted from validation content */
+  const viabilityScore = useMemo(() => {
+    if (!session?.validationContent) return null;
+    const data = extractDashboardData(session.validationContent);
+    return data.score;
+  }, [session]);
 
   const loadingSteps = useMemo(
     () => (landingTemplate === "custom" ? LOADING_STEPS_CUSTOM : LOADING_STEPS_TEMPLATE),
@@ -435,9 +443,25 @@ export default function LandingGeneratorPage() {
               <div className="max-w-[1320px] mx-auto">
                 {/* Compact header */}
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
-                  <div className="min-w-0">
-                    <p className="text-white/30 text-xs font-medium uppercase tracking-wider mb-1.5">Landing page for</p>
-                    <h1 className="text-xl sm:text-2xl font-bold text-white truncate">{session.setup.topic}</h1>
+                  <div className="min-w-0 flex items-center gap-4">
+                    {viabilityScore !== null && (
+                      <div className={`shrink-0 w-14 h-14 rounded-2xl flex flex-col items-center justify-center border ${
+                        viabilityScore >= 7 ? "border-emerald-500/30 bg-emerald-500/10" :
+                        viabilityScore >= 5 ? "border-amber-500/30 bg-amber-500/10" :
+                        "border-red-500/30 bg-red-500/10"
+                      }`}>
+                        <span className={`text-lg font-bold leading-none ${
+                          viabilityScore >= 7 ? "text-emerald-400" :
+                          viabilityScore >= 5 ? "text-amber-400" :
+                          "text-red-400"
+                        }`}>{viabilityScore}</span>
+                        <span className="text-[9px] text-white/30 font-medium">/10</span>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-white/30 text-xs font-medium uppercase tracking-wider mb-1.5">Landing page for</p>
+                      <h1 className="text-xl sm:text-2xl font-bold text-white truncate">{session.setup.topic}</h1>
+                    </div>
                   </div>
                   <p className="text-white/25 text-xs shrink-0">
                     Pick a design — AI writes your copy

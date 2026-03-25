@@ -17,8 +17,8 @@ export type LandingImageRef = {
 };
 
 /**
- * Diverse fallback pool — covers different business categories so the
- * hero image looks reasonable even without an Unsplash API key.
+ * Diverse fallback pool — visually distinct images covering different moods
+ * and business categories. Each template picks a different one via index.
  */
 export const FALLBACK_LANDING_IMAGES: LandingImageRef[] = [
   {
@@ -29,39 +29,53 @@ export const FALLBACK_LANDING_IMAGES: LandingImageRef[] = [
     suggestedAlt: "Developer working on code at a modern desk",
   },
   {
-    url: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=900&q=85&auto=format&fit=crop",
+    url: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=900&q=85&auto=format&fit=crop",
     photoPageUrl: "https://unsplash.com",
     photographer: "Unsplash",
     photographerUrl: "https://unsplash.com",
-    suggestedAlt: "Analytics dashboard on a laptop screen",
+    suggestedAlt: "Sleek modern office interior with glass walls",
   },
   {
-    url: "https://images.unsplash.com/photo-1553877522-43269d4ea984?w=900&q=85&auto=format&fit=crop",
+    url: "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=900&q=85&auto=format&fit=crop",
     photoPageUrl: "https://unsplash.com",
     photographer: "Unsplash",
     photographerUrl: "https://unsplash.com",
-    suggestedAlt: "Creative brainstorming session with sticky notes",
+    suggestedAlt: "Abstract colorful gradient shapes on dark background",
   },
   {
-    url: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=900&q=85&auto=format&fit=crop",
+    url: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=900&q=85&auto=format&fit=crop",
     photoPageUrl: "https://unsplash.com",
     photographer: "Unsplash",
     photographerUrl: "https://unsplash.com",
-    suggestedAlt: "Team working together on laptops",
+    suggestedAlt: "Diverse team collaborating around a table with laptops",
   },
   {
-    url: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=900&q=85&auto=format&fit=crop",
+    url: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=900&q=85&auto=format&fit=crop",
     photoPageUrl: "https://unsplash.com",
     photographer: "Unsplash",
     photographerUrl: "https://unsplash.com",
-    suggestedAlt: "Modern open office space with natural light",
+    suggestedAlt: "Futuristic digital network visualization",
   },
   {
-    url: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=900&q=85&auto=format&fit=crop",
+    url: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=900&q=85&auto=format&fit=crop",
     photoPageUrl: "https://unsplash.com",
     photographer: "Unsplash",
     photographerUrl: "https://unsplash.com",
-    suggestedAlt: "Software code on a screen in dark mode",
+    suggestedAlt: "Business presentation in a bright conference room",
+  },
+  {
+    url: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=900&q=85&auto=format&fit=crop",
+    photoPageUrl: "https://unsplash.com",
+    photographer: "Unsplash",
+    photographerUrl: "https://unsplash.com",
+    suggestedAlt: "AI robot head with glowing circuits on dark background",
+  },
+  {
+    url: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=900&q=85&auto=format&fit=crop",
+    photoPageUrl: "https://unsplash.com",
+    photographer: "Unsplash",
+    photographerUrl: "https://unsplash.com",
+    suggestedAlt: "Modern skyscraper glass facade reflecting sky",
   },
 ];
 
@@ -222,6 +236,9 @@ export async function fetchLandingPageImages(
   url.searchParams.set("query", query);
   url.searchParams.set("per_page", String(perPage));
   url.searchParams.set("orientation", options?.orientation ?? "landscape");
+  // Randomize page to avoid always returning the same top results
+  const randomPage = Math.floor(Math.random() * 5) + 1;
+  url.searchParams.set("page", String(randomPage));
 
   try {
     const res = await fetch(url.toString(), {

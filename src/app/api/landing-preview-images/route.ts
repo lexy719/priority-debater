@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const position = sp.get("position")?.trim().slice(0, 2000) || "";
   const { images, usedFallback } = await fetchLandingPageImages(topic || "startup business", {
     orientation: "landscape",
-    perPage: 6,
+    perPage: 10,
     position: position || undefined,
   });
   return NextResponse.json({ images, usedFallback });

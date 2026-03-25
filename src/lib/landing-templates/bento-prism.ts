@@ -1,8 +1,15 @@
 /**
- * Bento Prism — Cyberpunk neon with true 6-column bento grid, animated mesh
- * gradient, scanning line effects, glassmorphism with colored tints,
- * animated gradient borders, matrix dot grid, neon glow interactions.
- * Inspired by 21st.dev, Aceternity UI, Linear, Raycast.
+ * Bento Prism — "Mega Dashboard Grid" cyberpunk layout.
+ * The entire above-the-fold is a 6-column bento grid mixing hero text,
+ * hero image, stat cards, and feature previews. Radically different from
+ * saas-nova (split hero) and editorial-aurora (full-bleed hero).
+ *
+ * Section order: Mega Bento Hero → How-It-Works Timeline → Features →
+ * Problem Cinematic Band → FAQ Accordion → CTA Floating Card.
+ *
+ * Cyberpunk dark theme, neon cyan/violet/emerald, glassmorphism,
+ * animated gradient borders, matrix dot grid, scanning line,
+ * mouse-follow spotlight, IntersectionObserver scroll reveals.
  */
 export const BENTO_PRISM_TEMPLATE = `<!DOCTYPE html>
 <html lang="en">
@@ -14,636 +21,491 @@ export const BENTO_PRISM_TEMPLATE = `<!DOCTYPE html>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
   <style>
-    @property --beam-pos{syntax:"<percentage>";initial-value:0%;inherits:false;}
+    @property --beam-pos{syntax:"<percentage>";initial-value:0%;inherits:false}
+    @property --glow-angle{syntax:"<angle>";initial-value:0deg;inherits:false}
 
-    :root{
-      --bg:#030712;
-      --bg2:#070b17;
-      --glass:rgba(255,255,255,0.035);
-      --glass-hover:rgba(255,255,255,0.06);
-      --glass-border:rgba(255,255,255,0.07);
-      --glass-border-hover:rgba(255,255,255,0.14);
-      --text:rgba(255,255,255,0.94);
-      --muted:rgba(255,255,255,0.55);
-      --faint:rgba(255,255,255,0.28);
-      --cyan:#22d3ee;
-      --cyan-dim:rgba(34,211,238,0.12);
-      --violet:#a78bfa;
-      --violet-dim:rgba(167,139,250,0.10);
-      --emerald:#34d399;
-      --radius:20px;
-      --radius-sm:14px;
-      --max:1140px;
-      --ease:cubic-bezier(0.4,0,0.2,1);
-    }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-    html{scroll-behavior:smooth;}
-    body{
-      font-family:"Plus Jakarta Sans",system-ui,sans-serif;
-      background:var(--bg);color:var(--text);
-      font-size:1rem;line-height:1.6;
-      -webkit-font-smoothing:antialiased;overflow-x:hidden;
+    :root{
+      --bg:#030712;--bg2:#070b17;
+      --glass:rgba(255,255,255,0.04);--glass-hover:rgba(255,255,255,0.07);
+      --glass-border:rgba(255,255,255,0.08);--glass-border-hover:rgba(255,255,255,0.16);
+      --text:rgba(255,255,255,0.94);--muted:rgba(255,255,255,0.55);--faint:rgba(255,255,255,0.28);
+      --cyan:#22d3ee;--cyan-dim:rgba(34,211,238,0.12);--cyan-glow:rgba(34,211,238,0.35);
+      --violet:#a78bfa;--violet-dim:rgba(167,139,250,0.12);--violet-glow:rgba(167,139,250,0.35);
+      --emerald:#34d399;--emerald-dim:rgba(52,211,153,0.12);--emerald-glow:rgba(52,211,153,0.35);
+      --radius:12px;--radius-lg:20px;
+      --font:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
     }
+    html{scroll-behavior:smooth;background:var(--bg);color:var(--text);font-family:var(--font);}
+    body{background:var(--bg);min-height:100vh;overflow-x:hidden;position:relative;}
+    img{max-width:100%;display:block;}
+    a{color:inherit;text-decoration:none;}
 
-    /* ═══ ANIMATED MESH BACKGROUND ═══ */
-    .mesh{
-      position:fixed;inset:0;pointer-events:none;z-index:0;
-      background:
-        radial-gradient(ellipse 80% 60% at 15% -10%,rgba(34,211,238,0.12),transparent 50%),
-        radial-gradient(ellipse 70% 55% at 90% 15%,rgba(167,139,250,0.14),transparent 45%),
-        radial-gradient(ellipse 60% 40% at 50% 100%,rgba(52,211,153,0.08),transparent 40%),
-        radial-gradient(ellipse 40% 30% at 5% 80%,rgba(167,139,250,0.06),transparent 35%);
-      animation:meshShift 20s ease-in-out infinite alternate;
-    }
-    @keyframes meshShift{
-      0%{filter:hue-rotate(0deg);}
-      100%{filter:hue-rotate(15deg);}
-    }
+    /* ---- Matrix dot grid background ---- */
+    body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+      background-image:radial-gradient(rgba(255,255,255,0.06) 1px,transparent 1px);
+      background-size:28px 28px;}
 
-    /* Dot grid */
-    .dot-grid{
-      pointer-events:none;position:fixed;inset:0;z-index:0;opacity:0.03;
-      background-image:radial-gradient(rgba(255,255,255,0.6) 1px,transparent 1px);
-      background-size:28px 28px;
-    }
+    /* ---- Scanning line ---- */
+    body::after{content:'';position:fixed;top:0;left:0;right:0;height:1px;z-index:9999;pointer-events:none;
+      background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:0.35;
+      animation:scanline 8s linear infinite;}
+    @keyframes scanline{0%{top:-1px}100%{top:100vh}}
 
-    /* Scanning line effect */
-    .scan-line{
-      pointer-events:none;position:fixed;top:0;left:0;right:0;height:1px;z-index:1;
-      background:linear-gradient(90deg,transparent,var(--cyan),transparent);
-      opacity:0.06;
-      animation:scanDown 8s linear infinite;
-    }
-    @keyframes scanDown{0%{top:0;}100%{top:100vh;}}
+    /* ---- Mouse spotlight (set via JS) ---- */
+    .spotlight{position:fixed;width:600px;height:600px;border-radius:50%;pointer-events:none;z-index:1;
+      background:radial-gradient(circle,rgba(34,211,238,0.06) 0%,transparent 70%);
+      transform:translate(-50%,-50%);transition:left 0.3s ease,top 0.3s ease;will-change:left,top;}
 
-    /* Noise */
-    .noise{
-      pointer-events:none;position:fixed;inset:0;z-index:1;opacity:0.025;
-      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    }
+    /* ---- Wrap ---- */
+    .wrap{max-width:1200px;margin:0 auto;padding:0 1.5rem;position:relative;z-index:2;}
 
-    /* ═══ SCROLL REVEAL ═══ */
-    .reveal{opacity:0;transform:translateY(36px);transition:opacity 0.8s var(--ease),transform 0.8s var(--ease);}
-    .reveal.vis{opacity:1;transform:translateY(0);}
-    .reveal-d1{transition-delay:0.1s;}.reveal-d2{transition-delay:0.2s;}.reveal-d3{transition-delay:0.3s;}.reveal-d4{transition-delay:0.4s;}
+    /* ---- Scroll reveal ---- */
+    .rv{opacity:0;transform:translateY(28px);transition:opacity 0.7s cubic-bezier(.22,1,.36,1),transform 0.7s cubic-bezier(.22,1,.36,1);}
+    .rv.vis{opacity:1;transform:none;}
+    .rv-d1{transition-delay:0.1s}.rv-d2{transition-delay:0.2s}.rv-d3{transition-delay:0.3s}.rv-d4{transition-delay:0.4s}.rv-d5{transition-delay:0.5s}
 
-    /* ═══ LAYOUT ═══ */
-    .wrap{width:100%;max-width:var(--max);margin:0 auto;padding:0 clamp(1.25rem,4vw,2.25rem);position:relative;z-index:2;}
-
-    /* ═══ HEADER ═══ */
-    header{
-      position:sticky;top:0;z-index:50;
-      border-bottom:1px solid var(--glass-border);
-      background:rgba(3,7,18,0.65);
-      backdrop-filter:blur(24px) saturate(1.3);-webkit-backdrop-filter:blur(24px) saturate(1.3);
-    }
-    .nav-inner{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:64px;flex-wrap:wrap;}
-    .logo{
-      font-weight:800;font-size:1.1rem;letter-spacing:-0.04em;text-decoration:none;
-      background:linear-gradient(135deg,#fff 30%,var(--cyan) 70%,var(--violet));
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-    }
-    .nav-links{display:none;gap:1.75rem;align-items:center;}
-    .nav-links a{color:var(--muted);text-decoration:none;font-size:0.85rem;font-weight:500;transition:color 0.2s;position:relative;}
-    .nav-links a::after{
-      content:'';position:absolute;bottom:-2px;left:0;width:0;height:1.5px;
-      background:linear-gradient(90deg,var(--cyan),var(--violet));border-radius:1px;
-      transition:width 0.3s var(--ease);
-    }
-    .nav-links a:hover{color:var(--text);}
-    .nav-links a:hover::after{width:100%;}
-    .nav-cta{
-      padding:0.5rem 1.15rem;border-radius:10px;font-weight:600;font-size:0.85rem;
-      text-decoration:none;color:#030712;
-      background:linear-gradient(135deg,var(--cyan),#06b6d4);
-      box-shadow:0 0 24px rgba(34,211,238,0.2);
-      transition:all 0.25s var(--ease);
-    }
-    .nav-cta:hover{box-shadow:0 0 40px rgba(34,211,238,0.35);transform:translateY(-1px);}
-    .nav-toggle{
-      display:flex;padding:0.5rem 0.75rem;border:1px solid var(--glass-border);
-      border-radius:10px;background:var(--glass);color:var(--text);
-      cursor:pointer;font-size:0.85rem;font-family:inherit;
-    }
-    @media(min-width:900px){.nav-links{display:flex;}.nav-toggle{display:none;}}
-    .nav-mobile{display:none;width:100%;flex-direction:column;gap:0.75rem;padding:0 0 1rem;}
+    /* ---- Header ---- */
+    header{position:sticky;top:0;z-index:100;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+      background:rgba(3,7,18,0.75);border-bottom:1px solid var(--glass-border);}
+    .hdr-inner{display:flex;align-items:center;justify-content:space-between;height:60px;}
+    .logo{font-weight:800;font-size:1.15rem;letter-spacing:-0.02em;
+      background:linear-gradient(135deg,var(--cyan),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .nav-desk{display:flex;gap:1.75rem;align-items:center;}
+    .nav-desk a{font-size:0.82rem;font-weight:500;color:var(--muted);transition:color 0.2s;}
+    .nav-desk a:hover{color:var(--text);}
+    .nav-cta{padding:0.4rem 1rem;border-radius:8px;font-weight:600;font-size:0.8rem;
+      background:linear-gradient(135deg,var(--cyan),var(--violet));color:#030712 !important;transition:opacity 0.2s;}
+    .nav-cta:hover{opacity:0.85;}
+    .nav-toggle{display:none;background:none;border:none;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:var(--font);}
+    .nav-mobile{display:none;flex-direction:column;gap:0.75rem;padding:1rem 0 1.25rem;
+      border-bottom:1px solid var(--glass-border);}
+    .nav-mobile a{font-size:0.9rem;color:var(--muted);font-weight:500;}
+    .nav-mobile a:hover{color:var(--text);}
     .nav-mobile.open{display:flex;}
-    .nav-mobile a{color:var(--muted);text-decoration:none;font-size:0.95rem;}
-    @media(min-width:900px){.nav-mobile{display:none!important;}}
+    @media(max-width:768px){.nav-desk{display:none;}.nav-toggle{display:block;}}
 
-    /* ═══ BUTTONS ═══ */
-    .btn{
-      display:inline-flex;align-items:center;justify-content:center;gap:0.45rem;
-      padding:0.75rem 1.4rem;border-radius:12px;font-weight:600;font-size:0.9rem;
-      text-decoration:none;border:1px solid transparent;cursor:pointer;font-family:inherit;
-      transition:all 0.3s var(--ease);white-space:nowrap;position:relative;
-    }
-    .btn-primary{
-      background:linear-gradient(135deg,var(--cyan),#06b6d4);color:#030712;
-      box-shadow:0 0 32px rgba(34,211,238,0.18);overflow:hidden;
-    }
-    .btn-primary::before{
-      content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
-      background:linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent);
-      transition:left 0.5s;
-    }
-    .btn-primary:hover::before{left:100%;}
-    .btn-primary:hover{box-shadow:0 0 48px rgba(34,211,238,0.32);transform:translateY(-2px);}
-    .btn-ghost{background:transparent;border-color:var(--glass-border);color:var(--text);}
-    .btn-ghost:hover{background:rgba(255,255,255,0.05);border-color:var(--glass-border-hover);transform:translateY(-1px);}
+    /* ---- Eyebrow ---- */
+    .eyebrow{display:flex;align-items:center;gap:0.5rem;font-size:0.75rem;font-weight:700;text-transform:uppercase;
+      letter-spacing:0.12em;color:var(--cyan);margin-bottom:0.75rem;}
+    .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan-glow);animation:pulse-dot 2s ease infinite;}
+    @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(1.6)}}
 
-    /* ═══ HERO ═══ */
-    .hero{padding:clamp(4rem,10vw,7rem) 0 clamp(3rem,7vw,5rem);text-align:center;position:relative;z-index:2;}
-    /* Spotlight */
-    .hero::before{
-      content:'';position:absolute;top:-250px;left:50%;transform:translateX(-50%);
-      width:1000px;height:700px;
-      background:
-        radial-gradient(ellipse 50% 50%,rgba(34,211,238,0.12),transparent 50%),
-        radial-gradient(ellipse 40% 40% at 60% 40%,rgba(167,139,250,0.08),transparent 50%);
-      pointer-events:none;z-index:-1;
-    }
+    /* ---- Section title ---- */
+    .sec-title{font-size:clamp(1.5rem,3.5vw,2.4rem);font-weight:800;letter-spacing:-0.03em;line-height:1.15;max-width:600px;margin-bottom:1rem;}
 
-    .hero-tag{
-      display:inline-flex;align-items:center;gap:0.6rem;
-      padding:0.45rem 1rem 0.45rem 0.7rem;border-radius:999px;
-      border:1px solid rgba(34,211,238,0.2);background:rgba(34,211,238,0.06);
-      font-size:0.78rem;font-weight:600;color:var(--cyan);margin-bottom:2rem;
-    }
-    .hero-tag .pulse{
-      width:8px;height:8px;border-radius:50%;background:var(--cyan);
-      box-shadow:0 0 10px var(--cyan);animation:neonPulse 2s ease infinite;
-    }
-    @keyframes neonPulse{0%,100%{box-shadow:0 0 10px var(--cyan);}50%{box-shadow:0 0 20px var(--cyan),0 0 40px rgba(34,211,238,0.3);}}
+    /* ============================================
+       1. MEGA BENTO HERO — 6 column dashboard grid
+       ============================================ */
+    .mega-hero{padding:5rem 0 3rem;position:relative;}
+    .bento-grid{display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:auto auto auto;gap:1rem;}
 
-    .hero h1{
-      font-size:clamp(2.5rem,6.5vw,4.2rem);font-weight:800;
-      line-height:1.04;letter-spacing:-0.045em;
-      margin:0 auto 1.25rem;max-width:16ch;
-      background:linear-gradient(135deg,var(--cyan) 0%,#fff 35%,#fff 65%,var(--violet) 100%);
-      background-size:200% 200%;animation:heroGradient 8s ease infinite;
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-    }
-    @keyframes heroGradient{0%,100%{background-position:0% 50%;}50%{background-position:100% 50%;}}
+    .bento-cell{background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius-lg);
+      padding:1.5rem;position:relative;overflow:hidden;transition:border-color 0.3s,background 0.3s,box-shadow 0.3s;}
+    .bento-cell:hover{border-color:var(--glass-border-hover);background:var(--glass-hover);
+      box-shadow:0 0 40px rgba(34,211,238,0.04);}
 
-    .hero .lead{color:var(--muted);font-size:clamp(1.02rem,2vw,1.18rem);max-width:48ch;margin:0 auto 2.5rem;line-height:1.75;}
-    .hero-ctas{display:flex;flex-wrap:wrap;gap:0.8rem;justify-content:center;margin-bottom:2.5rem;}
+    /* Grid placement */
+    .cell-headline{grid-column:1/5;grid-row:1/2;display:flex;flex-direction:column;justify-content:center;padding:2.5rem;}
+    .cell-hero-img{grid-column:5/7;grid-row:1/3;padding:0;}
+    .cell-stat{grid-column:1/3;grid-row:2/3;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;}
+    .cell-feature-peek{grid-column:3/5;grid-row:2/3;}
+    .cell-cta-area{grid-column:1/7;grid-row:3/4;display:flex;align-items:center;gap:1rem;padding:1.25rem 2rem;
+      background:linear-gradient(135deg,rgba(34,211,238,0.06),rgba(167,139,250,0.06));
+      border:1px solid rgba(34,211,238,0.15);}
 
-    /* Stat badges */
-    .badges{display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;margin-bottom:clamp(2.5rem,6vw,4rem);}
-    .badge{
-      display:inline-flex;align-items:center;gap:0.45rem;
-      padding:0.5rem 1rem;border-radius:999px;
-      background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-      border:1px solid var(--glass-border);
-      font-size:0.8rem;font-weight:500;color:var(--muted);white-space:nowrap;
-      transition:border-color 0.3s,color 0.3s;
-    }
-    .badge:hover{border-color:rgba(34,211,238,0.2);color:var(--text);}
-    .badge svg{width:14px;height:14px;stroke:var(--cyan);fill:none;stroke-width:2;stroke-linecap:round;}
+    .cell-headline h1{font-size:clamp(1.8rem,4.5vw,3.4rem);font-weight:800;letter-spacing:-0.04em;line-height:1.08;
+      background:linear-gradient(135deg,#fff 40%,var(--cyan) 70%,var(--violet));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .cell-headline .lead{font-size:clamp(0.95rem,1.4vw,1.15rem);color:var(--muted);line-height:1.6;margin-top:1rem;max-width:520px;}
 
-    /* Hero visual */
-    .hero-visual-wrap{
-      position:relative;max-width:780px;margin:0 auto;
-    }
-    /* Animated gradient border ring */
-    .hero-visual-wrap::before{
-      content:'';position:absolute;inset:-3px;border-radius:calc(var(--radius) + 7px);
-      background:conic-gradient(from var(--beam-pos),var(--cyan),var(--violet),var(--emerald),var(--cyan));
-      animation:beamSpin 4s linear infinite;z-index:-1;opacity:0.5;filter:blur(1px);
-    }
-    @keyframes beamSpin{from{--beam-pos:0%;}to{--beam-pos:100%;}}
-    /* Fallback for browsers without @property */
-    @supports not (background: paint(id)) {
-      .hero-visual-wrap::before{
-        background:linear-gradient(135deg,var(--cyan),var(--violet),var(--emerald),var(--cyan));
-        background-size:300% 300%;animation:borderShimmer 4s ease infinite;
-      }
-      @keyframes borderShimmer{0%,100%{background-position:0% 50%;}50%{background-position:100% 50%;}}
-    }
-    .hero-visual{
-      border-radius:calc(var(--radius) + 4px);overflow:hidden;min-height:240px;
-      border:1px solid rgba(34,211,238,0.1);
-      background:linear-gradient(145deg,rgba(34,211,238,0.05),var(--bg));
-      box-shadow:0 32px 80px -20px rgba(0,0,0,0.5),0 0 120px -40px rgba(34,211,238,0.15);
-    }
-    .hero-visual img{width:100%;height:100%;object-fit:cover;display:block;min-height:240px;}
-    .photo-credit{font-size:0.7rem;color:var(--faint);padding:0.5rem 0.75rem;}
-    .photo-credit a{color:var(--muted);}
+    /* Hero image cell */
+    .cell-hero-img .hero-visual{width:100%;height:100%;min-height:280px;overflow:hidden;border-radius:calc(var(--radius-lg) - 1px);}
+    .cell-hero-img .hero-visual img{width:100%;height:100%;object-fit:cover;}
+    .photo-credit{position:absolute;bottom:0;left:0;right:0;font-size:0.65rem;color:var(--faint);
+      padding:0.4rem 0.75rem;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);}
+    .photo-credit a{color:var(--muted);text-decoration:underline;text-underline-offset:2px;}
 
-    /* ═══ SECTIONS ═══ */
-    section{padding:clamp(5rem,10vw,8rem) 0;position:relative;z-index:2;}
-    .eyebrow{
-      font-size:0.68rem;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;
-      color:var(--cyan);margin-bottom:0.85rem;display:inline-flex;align-items:center;gap:0.5rem;
+    /* Stat card */
+    .cell-stat .stat-num{font-size:clamp(2.2rem,4vw,3.5rem);font-weight:800;
+      background:linear-gradient(135deg,var(--emerald),var(--cyan));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .cell-stat .stat-label{font-size:0.82rem;color:var(--muted);margin-top:0.25rem;font-weight:500;}
+    .cell-stat .stat-bar{width:80%;max-width:160px;height:4px;border-radius:4px;background:rgba(255,255,255,0.08);margin-top:0.75rem;overflow:hidden;}
+    .cell-stat .stat-bar-fill{height:100%;width:78%;border-radius:4px;
+      background:linear-gradient(90deg,var(--emerald),var(--cyan));animation:bar-fill 2s ease forwards;}
+    @keyframes bar-fill{from{width:0}to{width:78%}}
+
+    /* Feature peek */
+    .cell-feature-peek{display:flex;flex-direction:column;gap:0.6rem;}
+    .peek-item{display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0.75rem;border-radius:var(--radius);
+      background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);transition:border-color 0.2s;}
+    .peek-item:hover{border-color:var(--cyan-dim);}
+    .peek-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+    .peek-dot.c{background:var(--cyan);box-shadow:0 0 10px var(--cyan-glow);}
+    .peek-dot.v{background:var(--violet);box-shadow:0 0 10px var(--violet-glow);}
+    .peek-dot.e{background:var(--emerald);box-shadow:0 0 10px var(--emerald-glow);}
+    .peek-text{font-size:0.82rem;font-weight:600;color:var(--text);}
+
+    /* CTA area */
+    .cell-cta-area .hero-tag{display:flex;align-items:center;gap:0.5rem;font-size:0.72rem;font-weight:700;
+      text-transform:uppercase;letter-spacing:0.1em;color:var(--cyan);flex-shrink:0;}
+    .hero-tag .pulse{width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:pulse-dot 2s ease infinite;}
+    .btn{display:inline-flex;align-items:center;justify-content:center;padding:0.65rem 1.5rem;border-radius:10px;
+      font-size:0.88rem;font-weight:700;cursor:pointer;transition:all 0.25s;border:none;font-family:var(--font);}
+    .btn-primary{background:linear-gradient(135deg,var(--cyan),var(--violet));color:#030712;box-shadow:0 0 24px var(--cyan-dim);}
+    .btn-primary:hover{box-shadow:0 0 40px var(--cyan-glow);transform:translateY(-1px);}
+    .btn-ghost{background:transparent;border:1px solid var(--glass-border);color:var(--text);}
+    .btn-ghost:hover{border-color:var(--cyan);color:var(--cyan);}
+    .cell-cta-area .cta-btns{display:flex;gap:0.75rem;margin-left:auto;}
+
+    @media(max-width:900px){
+      .bento-grid{grid-template-columns:1fr 1fr;grid-template-rows:auto;}
+      .cell-headline{grid-column:1/-1;grid-row:auto;}
+      .cell-hero-img{grid-column:1/-1;grid-row:auto;min-height:220px;}
+      .cell-stat{grid-column:1/2;grid-row:auto;}
+      .cell-feature-peek{grid-column:2/3;grid-row:auto;}
+      .cell-cta-area{grid-column:1/-1;grid-row:auto;flex-wrap:wrap;}
+      .cell-cta-area .cta-btns{margin-left:0;}
     }
-    .eyebrow::before{content:'';width:20px;height:1.5px;background:linear-gradient(90deg,var(--cyan),var(--violet));border-radius:1px;}
-    .sec-title{
-      font-size:clamp(1.8rem,4vw,2.6rem);font-weight:700;
-      letter-spacing:-0.04em;line-height:1.08;margin:0 0 1rem;
+    @media(max-width:520px){
+      .bento-grid{grid-template-columns:1fr;}
+      .cell-stat,.cell-feature-peek{grid-column:1/-1;}
     }
 
-    /* ═══ PROBLEM — Split glass card ═══ */
-    .problem-glass{
-      max-width:860px;margin:0 auto;
-      padding:clamp(2.25rem,5vw,3.5rem);
-      border-radius:calc(var(--radius) + 4px);
-      backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-      background:linear-gradient(160deg,rgba(34,211,238,0.04),var(--glass),rgba(167,139,250,0.03));
-      border:1px solid var(--glass-border);
-      box-shadow:0 0 0 1px rgba(255,255,255,0.02) inset,0 32px 80px -24px rgba(0,0,0,0.3);
-      display:grid;gap:2.5rem;
-    }
-    @media(min-width:768px){.problem-glass{grid-template-columns:1fr 1fr;gap:clamp(2.5rem,5vw,4rem);}}
-    .prob-col .eyebrow{text-align:left;}
-    .prob-body{color:var(--muted);font-size:1rem;line-height:1.75;margin:0;}
-    .pullquote{
-      padding:1.5rem 1.75rem;border-radius:var(--radius-sm);
-      border:1px solid var(--glass-border);border-left:3px solid var(--cyan);
-      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-      background:rgba(34,211,238,0.03);
-      color:var(--muted);font-style:italic;font-size:0.95rem;line-height:1.65;
-    }
+    /* ============================================
+       2. HOW IT WORKS — Timeline with beam line
+       ============================================ */
+    .how-sec{padding:5rem 0;position:relative;}
+    .timeline{display:flex;gap:0;position:relative;margin-top:2.5rem;}
+    .timeline::before{content:'';position:absolute;top:38px;left:0;right:0;height:2px;
+      background:linear-gradient(90deg,var(--cyan-dim),var(--violet-dim),var(--emerald-dim));border-radius:2px;}
+    .timeline::after{content:'';position:absolute;top:37px;left:0;height:4px;width:60px;border-radius:4px;
+      background:linear-gradient(90deg,var(--cyan),var(--violet));
+      box-shadow:0 0 20px var(--cyan-glow),0 0 40px var(--violet-glow);
+      animation:beam-slide 4s ease-in-out infinite;}
+    @keyframes beam-slide{0%{left:0}50%{left:calc(100% - 60px)}100%{left:0}}
 
-    /* ═══ FEATURES — TRUE BENTO 6-COL GRID ═══ */
-    .bento-section{
-      background:linear-gradient(180deg,rgba(34,211,238,0.02),transparent 30%,transparent 70%,rgba(167,139,250,0.02));
-      border-top:1px solid var(--glass-border);border-bottom:1px solid var(--glass-border);
-    }
-    .bento{display:grid;gap:0.85rem;margin-top:2.5rem;}
-    @media(min-width:640px){.bento{grid-template-columns:repeat(6,1fr);}}
+    .tl-step{flex:1;text-align:center;padding:0 1rem;position:relative;}
+    .tl-num{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font-size:0.85rem;font-weight:800;margin:0 auto 1.25rem;position:relative;z-index:2;
+      background:var(--bg);border:2px solid var(--glass-border);}
+    .tl-step:nth-child(1) .tl-num{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 16px var(--cyan-dim);}
+    .tl-step:nth-child(2) .tl-num{border-color:var(--violet);color:var(--violet);box-shadow:0 0 16px var(--violet-dim);}
+    .tl-step:nth-child(3) .tl-num{border-color:var(--emerald);color:var(--emerald);box-shadow:0 0 16px var(--emerald-dim);}
+    .tl-step h3{font-size:1rem;font-weight:700;margin-bottom:0.4rem;}
+    .tl-step p{font-size:0.85rem;color:var(--muted);line-height:1.55;}
+    @media(max-width:640px){.timeline{flex-direction:column;gap:2rem;}
+      .timeline::before,.timeline::after{display:none;}
+      .tl-step{text-align:left;display:flex;gap:1rem;align-items:flex-start;padding:0;}
+      .tl-num{margin:0;flex-shrink:0;}}
 
-    .bento-card{
-      padding:clamp(1.5rem,3vw,2rem);border-radius:var(--radius);
-      border:1px solid var(--glass-border);
-      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-      background:var(--glass);
-      position:relative;overflow:hidden;
-      transition:transform 0.35s var(--ease),border-color 0.35s,box-shadow 0.35s;
-    }
-    /* Spotlight hover follow */
-    .bento-card::before{
-      content:'';position:absolute;inset:0;
-      background:radial-gradient(500px circle at var(--mx,50%) var(--my,50%),rgba(34,211,238,0.06),transparent 40%);
-      pointer-events:none;opacity:0;transition:opacity 0.4s;
-    }
-    .bento-card:hover::before{opacity:1;}
-    .bento-card:hover{
-      transform:translateY(-3px);
-      border-color:rgba(34,211,238,0.2);
-      box-shadow:0 16px 64px -16px rgba(34,211,238,0.1);
-    }
+    /* ============================================
+       3. FEATURES — Glassmorphism gradient borders
+       ============================================ */
+    .feat-sec{padding:5rem 0;}
+    .feat-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-top:2.5rem;}
+    .feat-card{position:relative;border-radius:var(--radius-lg);padding:2px;
+      background:conic-gradient(from var(--glow-angle),var(--cyan),var(--violet),var(--emerald),var(--cyan));
+      animation:rotate-border 6s linear infinite;}
+    @keyframes rotate-border{to{--glow-angle:360deg}}
+    .feat-card-inner{background:rgba(7,11,23,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+      border-radius:calc(var(--radius-lg) - 2px);padding:2rem 1.5rem;height:100%;
+      display:flex;flex-direction:column;gap:0.6rem;}
+    .feat-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;}
+    .feat-icon.ic1{background:var(--cyan-dim);color:var(--cyan);}
+    .feat-icon.ic2{background:var(--violet-dim);color:var(--violet);}
+    .feat-icon.ic3{background:var(--emerald-dim);color:var(--emerald);}
+    .feat-card-inner h3{font-size:1.05rem;font-weight:700;}
+    .feat-card-inner p{font-size:0.85rem;color:var(--muted);line-height:1.6;}
+    @media(max-width:720px){.feat-cards{grid-template-columns:1fr;}}
 
-    /* Bento layout */
-    @media(min-width:640px){
-      .bento-card:nth-child(1){grid-column:span 4;grid-row:span 2;}
-      .bento-card:nth-child(2){grid-column:span 2;}
-      .bento-card:nth-child(3){grid-column:span 2;}
-    }
-    @media(min-width:900px){
-      .bento-card:nth-child(1){grid-column:span 3;grid-row:span 2;}
-      .bento-card:nth-child(2){grid-column:span 3;}
-      .bento-card:nth-child(3){grid-column:span 3;}
-    }
+    /* ============================================
+       4. PROBLEM — Cinematic dark band pull quote
+       ============================================ */
+    .prob-sec{padding:5rem 0;position:relative;overflow:hidden;
+      background:linear-gradient(180deg,var(--bg) 0%,rgba(10,5,28,0.9) 30%,rgba(10,5,28,0.9) 70%,var(--bg) 100%);}
+    .prob-sec::before{content:'';position:absolute;inset:0;
+      background:radial-gradient(ellipse 80% 50% at 50% 50%,rgba(167,139,250,0.08),transparent);pointer-events:none;}
+    .prob-inner{max-width:760px;margin:0 auto;text-align:center;}
+    .prob-body{font-size:1rem;color:var(--muted);line-height:1.7;margin-bottom:2rem;}
+    .pullquote{font-size:clamp(1.2rem,2.5vw,1.8rem);font-weight:700;font-style:italic;line-height:1.35;
+      color:var(--text);position:relative;padding:1.5rem 2rem;
+      border-left:3px solid var(--violet);
+      background:linear-gradient(135deg,rgba(167,139,250,0.06),transparent);border-radius:0 var(--radius) var(--radius) 0;}
 
-    /* Card 1 — hero card (tall) */
-    .bento-card:nth-child(1){
-      display:flex;flex-direction:column;justify-content:center;
-      background:linear-gradient(160deg,rgba(34,211,238,0.06),var(--glass),rgba(167,139,250,0.04));
-    }
-    .bento-card:nth-child(1) .card-icon{width:56px;height:56px;border-radius:16px;}
-    .bento-card:nth-child(1) .card-icon svg{width:28px;height:28px;}
-    .bento-card:nth-child(1) h3{font-size:1.2rem;}
-    .bento-card:nth-child(1) p{font-size:0.98rem;}
+    /* ============================================
+       5. FAQ — Accordion with neon glow
+       ============================================ */
+    .faq-sec{padding:5rem 0;}
+    .faq-list{max-width:700px;margin:2rem auto 0;display:flex;flex-direction:column;gap:0.75rem;}
+    .faq-item{border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;transition:border-color 0.3s,box-shadow 0.3s;}
+    .faq-item.open{border-color:var(--cyan);box-shadow:0 0 24px var(--cyan-dim);}
+    .faq-q{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;cursor:pointer;
+      font-weight:600;font-size:0.92rem;background:var(--glass);transition:background 0.2s;user-select:none;}
+    .faq-q:hover{background:var(--glass-hover);}
+    .faq-q .chevron{font-size:0.75rem;color:var(--muted);transition:transform 0.3s;}
+    .faq-item.open .faq-q .chevron{transform:rotate(180deg);color:var(--cyan);}
+    .faq-a{max-height:0;overflow:hidden;transition:max-height 0.4s cubic-bezier(.22,1,.36,1),padding 0.3s;}
+    .faq-item.open .faq-a{max-height:300px;padding:0 1.25rem 1.25rem;}
+    .faq-a p{font-size:0.85rem;color:var(--muted);line-height:1.65;}
 
-    .card-icon{
-      width:48px;height:48px;border-radius:14px;
-      background:linear-gradient(135deg,var(--cyan-dim),var(--violet-dim));
-      border:1px solid rgba(34,211,238,0.12);
-      display:flex;align-items:center;justify-content:center;margin-bottom:1.15rem;
-    }
-    .card-icon svg{width:22px;height:22px;stroke:var(--cyan);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
-    .bento-card h3{margin:0 0 0.55rem;font-size:1.05rem;font-weight:650;letter-spacing:-0.02em;}
-    .bento-card p{margin:0;color:var(--muted);font-size:0.9rem;line-height:1.6;}
+    /* ============================================
+       6. CTA — Floating glass card + border beam
+       ============================================ */
+    .cta-sec{padding:5rem 0 4rem;}
+    .cta-card{max-width:600px;margin:0 auto;position:relative;border-radius:var(--radius-lg);padding:2px;
+      background:conic-gradient(from var(--glow-angle),var(--cyan),var(--violet),var(--emerald),var(--cyan));
+      animation:rotate-border 5s linear infinite;}
+    .cta-card-inner{background:rgba(7,11,23,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+      border-radius:calc(var(--radius-lg) - 2px);padding:3rem 2.5rem;text-align:center;}
+    .cta-card-inner h2{font-size:clamp(1.4rem,3vw,2rem);font-weight:800;letter-spacing:-0.03em;margin-bottom:0.6rem;
+      background:linear-gradient(135deg,#fff,var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .cta-card-inner>p{color:var(--muted);font-size:0.92rem;margin-bottom:0.5rem;}
+    .cta-label{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--violet);margin-bottom:1.25rem;}
+    .cta-form{display:flex;gap:0.5rem;max-width:400px;margin:0 auto;}
+    .cta-form input{flex:1;padding:0.7rem 1rem;border-radius:10px;border:1px solid var(--glass-border);
+      background:var(--glass);color:var(--text);font-size:0.88rem;font-family:var(--font);outline:none;transition:border-color 0.2s;}
+    .cta-form input:focus{border-color:var(--cyan);}
+    .cta-form button{flex-shrink:0;}
 
-    /* ═══ HOW IT WORKS — Horizontal timeline ═══ */
-    .timeline-section{position:relative;}
-    .timeline{display:grid;gap:1.25rem;margin-top:3rem;position:relative;}
-    @media(min-width:768px){
-      .timeline{grid-template-columns:repeat(3,1fr);gap:0;}
-    }
-    /* Connecting beam line */
-    @media(min-width:768px){
-      .timeline::before{
-        content:'';position:absolute;top:28px;left:calc(16.67%);right:calc(16.67%);
-        height:2px;
-        background:linear-gradient(90deg,var(--cyan),var(--violet),var(--emerald));
-        border-radius:2px;z-index:0;
-      }
-    }
-    .tl-step{text-align:center;position:relative;z-index:1;padding:0 1.25rem;}
-    .tl-dot{
-      width:56px;height:56px;border-radius:50%;margin:0 auto 1.5rem;
-      background:var(--bg);
-      border:2px solid var(--glass-border);
-      display:flex;align-items:center;justify-content:center;
-      font-weight:800;font-size:1rem;
-      position:relative;
-      transition:border-color 0.3s,box-shadow 0.3s;
-    }
-    .tl-dot span{
-      background:linear-gradient(135deg,var(--cyan),var(--violet));
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-    }
-    .tl-step:hover .tl-dot{
-      border-color:var(--cyan);
-      box-shadow:0 0 32px rgba(34,211,238,0.15),0 0 0 4px rgba(34,211,238,0.06);
-    }
-    .tl-step h3{margin:0 0 0.5rem;font-size:1.05rem;font-weight:650;letter-spacing:-0.02em;}
-    .tl-step p{margin:0;color:var(--muted);font-size:0.9rem;line-height:1.6;max-width:32ch;margin-left:auto;margin-right:auto;}
+    /* ---- Footer ---- */
+    footer{border-top:1px solid var(--glass-border);padding:1.5rem 0;text-align:center;
+      font-size:0.75rem;color:var(--faint);position:relative;z-index:2;}
 
-    /* ═══ FAQ — Neon glass accordion ═══ */
-    .faq-list{margin-top:2.25rem;max-width:700px;display:flex;flex-direction:column;gap:0.6rem;}
-    .faq-item{
-      border:1px solid var(--glass-border);border-radius:var(--radius-sm);
-      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-      background:var(--glass);overflow:hidden;
-      transition:border-color 0.3s,box-shadow 0.3s;
-    }
-    .faq-item:hover{border-color:var(--glass-border-hover);}
-    .faq-item[open]{border-color:rgba(34,211,238,0.2);box-shadow:0 0 40px rgba(34,211,238,0.04);}
-    .faq-item summary{
-      cursor:pointer;padding:1.15rem 1.35rem;font-weight:600;font-size:0.95rem;
-      list-style:none;display:flex;align-items:center;justify-content:space-between;gap:1rem;
-      transition:color 0.2s;user-select:none;
-    }
-    .faq-item summary::-webkit-details-marker{display:none;}
-    .faq-item summary .chev{
-      width:20px;height:20px;flex-shrink:0;stroke:var(--muted);fill:none;
-      stroke-width:2;stroke-linecap:round;
-      transition:transform 0.35s var(--ease),stroke 0.35s;
-    }
-    .faq-item[open] summary .chev{transform:rotate(180deg);stroke:var(--cyan);}
-    .faq-item[open] summary{color:var(--cyan);border-bottom:1px solid var(--glass-border);}
-    .faq-item .ans{padding:1.1rem 1.35rem 1.25rem;color:var(--muted);font-size:0.92rem;line-height:1.65;}
-
-    /* ═══ CTA — Animated border beam ═══ */
-    .cta-final{text-align:center;padding:clamp(5rem,10vw,8rem) 0;}
-    .cta-box{
-      max-width:640px;margin:0 auto;
-      padding:clamp(2.5rem,6vw,3.5rem);
-      border-radius:calc(var(--radius) + 4px);
-      position:relative;overflow:hidden;
-      backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-      background:rgba(255,255,255,0.025);
-    }
-    /* Animated conic gradient border */
-    .cta-box::before{
-      content:'';position:absolute;inset:-200%;width:500%;height:500%;
-      top:50%;left:50%;transform:translate(-50%,-50%);
-      background:conic-gradient(from 0deg,transparent,var(--cyan),transparent,var(--violet),transparent);
-      animation:ctaRot 5s linear infinite;z-index:-2;
-    }
-    .cta-box::after{content:'';position:absolute;inset:2px;border-radius:inherit;background:var(--bg);z-index:-1;}
-    @keyframes ctaRot{from{transform:translate(-50%,-50%) rotate(0deg);}to{transform:translate(-50%,-50%) rotate(360deg);}}
-
-    .cta-box h2{margin:0 0 0.6rem;font-size:clamp(1.5rem,3.2vw,2rem);font-weight:700;letter-spacing:-0.03em;position:relative;z-index:1;}
-    .cta-box>p{margin:0 0 1.75rem;color:var(--muted);font-size:0.95rem;line-height:1.6;position:relative;z-index:1;}
-    .cta-label{font-size:0.82rem;color:var(--faint);margin:0 0 0.75rem;font-weight:500;position:relative;z-index:1;}
-    .cta-row{display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;position:relative;z-index:1;}
-    .cta-row input{
-      flex:1 1 200px;min-width:0;padding:0.72rem 1rem;border-radius:10px;
-      border:1px solid var(--glass-border);background:rgba(0,0,0,0.5);
-      color:var(--text);font:inherit;font-size:0.9rem;outline:none;
-      transition:border-color 0.3s,box-shadow 0.3s;
-    }
-    .cta-row input::placeholder{color:var(--faint);}
-    .cta-row input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,0.12);}
-
-    /* ═══ FOOTER ═══ */
-    footer{
-      padding:2.5rem 0;border-top:1px solid var(--glass-border);
-      color:var(--faint);font-size:0.85rem;text-align:center;
-      position:relative;z-index:2;
-    }
-
-    /* ═══ UTILITIES ═══ */
-    ::selection{background:rgba(34,211,238,0.25);color:#fff;}
-    :focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
-    ::-webkit-scrollbar{width:8px;}
-    ::-webkit-scrollbar-track{background:var(--bg);}
-    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.07);border-radius:4px;}
-    ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.14);}
+    /* ---- Ambient orbs ---- */
+    .orb{position:absolute;border-radius:50%;filter:blur(100px);pointer-events:none;opacity:0.35;z-index:0;}
+    .orb-c{width:500px;height:500px;background:var(--cyan);top:-200px;right:-100px;}
+    .orb-v{width:400px;height:400px;background:var(--violet);bottom:-150px;left:-80px;}
   </style>
 </head>
 <body>
-  <div class="mesh" aria-hidden="true"></div>
-  <div class="dot-grid" aria-hidden="true"></div>
-  <div class="scan-line" aria-hidden="true"></div>
-  <div class="noise" aria-hidden="true"></div>
+  <!-- Spotlight (follows mouse) -->
+  <div class="spotlight" id="spot"></div>
 
-  <!-- ─── Header ─── -->
+  <!-- Ambient orbs -->
+  <div class="orb orb-c"></div>
+  <div class="orb orb-v"></div>
+
+  <!-- ======== HEADER ======== -->
   <header data-tpl-nav>
-    <div class="wrap nav-inner">
+    <div class="wrap hdr-inner">
       <a class="logo" href="#">%%BRAND_NAME%%</a>
-      <nav class="nav-links">
-        <a href="#problem">%%NAV_PROBLEM%%</a>
-        <a href="#features">%%NAV_FEATURES%%</a>
+      <nav class="nav-desk">
         <a href="#how">%%NAV_HOW%%</a>
+        <a href="#features">%%NAV_FEATURES%%</a>
+        <a href="#problem">%%NAV_PROBLEM%%</a>
         <a href="#faq">%%NAV_FAQ%%</a>
+        <a class="nav-cta" href="#cta">%%NAV_CTA%%</a>
       </nav>
-      <a class="nav-cta" href="#cta">%%NAV_CTA%%</a>
       <button type="button" class="nav-toggle" data-tpl-nav-toggle aria-label="Menu">Menu</button>
     </div>
     <nav class="nav-mobile wrap" data-tpl-nav-mobile>
-      <a href="#problem">%%NAV_PROBLEM%%</a>
-      <a href="#features">%%NAV_FEATURES%%</a>
       <a href="#how">%%NAV_HOW%%</a>
+      <a href="#features">%%NAV_FEATURES%%</a>
+      <a href="#problem">%%NAV_PROBLEM%%</a>
       <a href="#faq">%%NAV_FAQ%%</a>
       <a class="nav-cta" href="#cta" style="margin-top:0.5rem;text-align:center;display:block;">%%NAV_CTA%%</a>
     </nav>
   </header>
 
-  <main>
-    <!-- ─── Hero ─── -->
-    <section class="hero">
-      <div class="wrap">
-        <div class="hero-tag reveal"><span class="pulse"></span>%%FLOAT_CARD_TITLE%%</div>
-        <h1 class="reveal reveal-d1">%%HERO_HEADLINE%%</h1>
-        <p class="lead reveal reveal-d2">%%HERO_SUB%%</p>
-        <div class="hero-ctas reveal reveal-d2">
-          <a class="btn btn-primary" href="#cta">%%CTA_PRIMARY%%</a>
-          <a class="btn btn-ghost" href="#how">%%CTA_SECONDARY%%</a>
-        </div>
-        <div class="badges reveal reveal-d3">
-          <span class="badge">
-            <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            %%FEATURE1_TITLE%%
-          </span>
-          <span class="badge">
-            <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            %%FEATURE2_TITLE%%
-          </span>
-          <span class="badge">
-            <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-            %%FEATURE3_TITLE%%
-          </span>
-        </div>
-        <div class="hero-visual-wrap reveal reveal-d4">
-          %%RAW_HERO_VISUAL%%
-        </div>
-      </div>
-    </section>
+  <!-- ======== 1. MEGA BENTO HERO ======== -->
+  <section class="mega-hero">
+    <div class="wrap">
+      <div class="bento-grid">
 
-    <!-- ─── Problem ─── -->
-    <section id="problem">
-      <div class="wrap">
-        <div class="problem-glass reveal">
-          <div class="prob-col">
-            <p class="eyebrow">%%PROBLEM_EYEBROW%%</p>
-            <h2 class="sec-title">%%PROBLEM_TITLE%%</h2>
-            <p class="prob-body">%%PROBLEM_BODY%%</p>
-          </div>
-          <div class="prob-col">
-            <blockquote class="pullquote">%%PROBLEM_QUOTE%%</blockquote>
+        <!-- Headline cell (4 cols) -->
+        <div class="bento-cell cell-headline rv">
+          <h1>%%HERO_HEADLINE%%</h1>
+          <p class="lead">%%HERO_SUB%%</p>
+        </div>
+
+        <!-- Hero image cell (2 cols, 2 rows) -->
+        <div class="bento-cell cell-hero-img rv rv-d1">
+          <div class="hero-visual">
+            %%RAW_HERO_VISUAL%%
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- ─── Features — Bento grid ─── -->
-    <section id="features" class="bento-section">
-      <div class="wrap">
-        <p class="eyebrow reveal">%%BENEFITS_EYEBROW%%</p>
-        <h2 class="sec-title reveal">%%BENEFITS_TITLE%%</h2>
-        <div class="bento">
-          <div class="bento-card reveal reveal-d1">
-            <div class="card-icon">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-            </div>
+        <!-- Stat card -->
+        <div class="bento-cell cell-stat rv rv-d2">
+          <div class="stat-num">10x</div>
+          <div class="stat-label">Faster Results</div>
+          <div class="stat-bar"><div class="stat-bar-fill"></div></div>
+        </div>
+
+        <!-- Feature peek -->
+        <div class="bento-cell cell-feature-peek rv rv-d3">
+          <div class="peek-item"><span class="peek-dot c"></span><span class="peek-text">%%FEATURE1_TITLE%%</span></div>
+          <div class="peek-item"><span class="peek-dot v"></span><span class="peek-text">%%FEATURE2_TITLE%%</span></div>
+          <div class="peek-item"><span class="peek-dot e"></span><span class="peek-text">%%FEATURE3_TITLE%%</span></div>
+        </div>
+
+        <!-- CTA bar spanning full width -->
+        <div class="bento-cell cell-cta-area rv rv-d4">
+          <div class="hero-tag"><span class="pulse"></span>%%FLOAT_CARD_TITLE%%</div>
+          <div class="cta-btns">
+            <a class="btn btn-primary" href="#cta">%%CTA_PRIMARY%%</a>
+            <a class="btn btn-ghost" href="#how">%%CTA_SECONDARY%%</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== 2. HOW IT WORKS (timeline beam) ======== -->
+  <section class="how-sec" id="how">
+    <div class="wrap">
+      <p class="eyebrow rv" style="justify-content:center;"><span class="dot"></span>%%HOW_EYEBROW%%</p>
+      <h2 class="sec-title rv" style="margin:0 auto;text-align:center;">%%HOW_TITLE%%</h2>
+      <div class="timeline">
+        <div class="tl-step rv rv-d1">
+          <div class="tl-num">1</div>
+          <h3>%%HOW_STEP1_TITLE%%</h3>
+          <p>%%HOW_STEP1_BODY%%</p>
+        </div>
+        <div class="tl-step rv rv-d2">
+          <div class="tl-num">2</div>
+          <h3>%%HOW_STEP2_TITLE%%</h3>
+          <p>%%HOW_STEP2_BODY%%</p>
+        </div>
+        <div class="tl-step rv rv-d3">
+          <div class="tl-num">3</div>
+          <h3>%%HOW_STEP3_TITLE%%</h3>
+          <p>%%HOW_STEP3_BODY%%</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== 3. FEATURES (glassmorphism gradient border) ======== -->
+  <section class="feat-sec" id="features">
+    <div class="wrap">
+      <p class="eyebrow rv"><span class="dot"></span>%%BENEFITS_EYEBROW%%</p>
+      <h2 class="sec-title rv">%%BENEFITS_TITLE%%</h2>
+      <div class="feat-cards">
+        <div class="feat-card rv rv-d1">
+          <div class="feat-card-inner">
+            <div class="feat-icon ic1">&#9670;</div>
             <h3>%%FEATURE1_TITLE%%</h3>
             <p>%%FEATURE1_BODY%%</p>
           </div>
-          <div class="bento-card reveal reveal-d2">
-            <div class="card-icon">
-              <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-            </div>
+        </div>
+        <div class="feat-card rv rv-d2">
+          <div class="feat-card-inner">
+            <div class="feat-icon ic2">&#9670;</div>
             <h3>%%FEATURE2_TITLE%%</h3>
             <p>%%FEATURE2_BODY%%</p>
           </div>
-          <div class="bento-card reveal reveal-d3">
-            <div class="card-icon">
-              <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            </div>
+        </div>
+        <div class="feat-card rv rv-d3">
+          <div class="feat-card-inner">
+            <div class="feat-icon ic3">&#9670;</div>
             <h3>%%FEATURE3_TITLE%%</h3>
             <p>%%FEATURE3_BODY%%</p>
           </div>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- ─── How It Works — Horizontal timeline ─── -->
-    <section id="how" class="timeline-section">
-      <div class="wrap" style="text-align:center;">
-        <p class="eyebrow reveal" style="justify-content:center;">%%HOW_EYEBROW%%</p>
-        <h2 class="sec-title reveal" style="margin-left:auto;margin-right:auto;">%%HOW_TITLE%%</h2>
-      </div>
-      <div class="wrap">
-        <div class="timeline">
-          <div class="tl-step reveal reveal-d1">
-            <div class="tl-dot"><span>1</span></div>
-            <h3>%%HOW_STEP1_TITLE%%</h3>
-            <p>%%HOW_STEP1_BODY%%</p>
-          </div>
-          <div class="tl-step reveal reveal-d2">
-            <div class="tl-dot"><span>2</span></div>
-            <h3>%%HOW_STEP2_TITLE%%</h3>
-            <p>%%HOW_STEP2_BODY%%</p>
-          </div>
-          <div class="tl-step reveal reveal-d3">
-            <div class="tl-dot"><span>3</span></div>
-            <h3>%%HOW_STEP3_TITLE%%</h3>
-            <p>%%HOW_STEP3_BODY%%</p>
-          </div>
+  <!-- ======== 4. PROBLEM (cinematic dark band) ======== -->
+  <section class="prob-sec" id="problem">
+    <div class="wrap prob-inner">
+      <p class="eyebrow rv" style="justify-content:center;"><span class="dot"></span>%%PROBLEM_EYEBROW%%</p>
+      <h2 class="sec-title rv" style="margin:0 auto 1rem;text-align:center;">%%PROBLEM_TITLE%%</h2>
+      <p class="prob-body rv rv-d1">%%PROBLEM_BODY%%</p>
+      <blockquote class="pullquote rv rv-d2">%%PROBLEM_QUOTE%%</blockquote>
+    </div>
+  </section>
+
+  <!-- ======== 5. FAQ (neon accordion) ======== -->
+  <section class="faq-sec" id="faq">
+    <div class="wrap">
+      <p class="eyebrow rv"><span class="dot"></span>%%FAQ_EYEBROW%%</p>
+      <h2 class="sec-title rv">%%FAQ_TITLE%%</h2>
+      <div class="faq-list">
+        <div class="faq-item rv rv-d1">
+          <div class="faq-q"><span>%%FAQ1_Q%%</span><span class="chevron">&#9660;</span></div>
+          <div class="faq-a"><p>%%FAQ1_A%%</p></div>
+        </div>
+        <div class="faq-item rv rv-d2">
+          <div class="faq-q"><span>%%FAQ2_Q%%</span><span class="chevron">&#9660;</span></div>
+          <div class="faq-a"><p>%%FAQ2_A%%</p></div>
+        </div>
+        <div class="faq-item rv rv-d3">
+          <div class="faq-q"><span>%%FAQ3_Q%%</span><span class="chevron">&#9660;</span></div>
+          <div class="faq-a"><p>%%FAQ3_A%%</p></div>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- ─── FAQ ─── -->
-    <section id="faq">
-      <div class="wrap">
-        <p class="eyebrow reveal">%%FAQ_EYEBROW%%</p>
-        <h2 class="sec-title reveal">%%FAQ_TITLE%%</h2>
-        <div class="faq-list">
-          <details class="faq-item reveal reveal-d1">
-            <summary>
-              <span>%%FAQ1_Q%%</span>
-              <svg class="chev" viewBox="0 0 20 20"><polyline points="5 7.5 10 12.5 15 7.5"/></svg>
-            </summary>
-            <div class="ans">%%FAQ1_A%%</div>
-          </details>
-          <details class="faq-item reveal reveal-d2">
-            <summary>
-              <span>%%FAQ2_Q%%</span>
-              <svg class="chev" viewBox="0 0 20 20"><polyline points="5 7.5 10 12.5 15 7.5"/></svg>
-            </summary>
-            <div class="ans">%%FAQ2_A%%</div>
-          </details>
-          <details class="faq-item reveal reveal-d3">
-            <summary>
-              <span>%%FAQ3_Q%%</span>
-              <svg class="chev" viewBox="0 0 20 20"><polyline points="5 7.5 10 12.5 15 7.5"/></svg>
-            </summary>
-            <div class="ans">%%FAQ3_A%%</div>
-          </details>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── CTA ─── -->
-    <section id="cta" class="cta-final">
-      <div class="wrap">
-        <div class="cta-box reveal">
+  <!-- ======== 6. CTA (floating glass card) ======== -->
+  <section class="cta-sec" id="cta">
+    <div class="wrap">
+      <div class="cta-card rv">
+        <div class="cta-card-inner">
           <h2>%%CTA_FINAL_TITLE%%</h2>
           <p>%%CTA_FINAL_SUB%%</p>
           <p class="cta-label">%%FLOAT_CARD_TITLE%%</p>
-          <form class="cta-row" action="#" method="get" onsubmit="return false;">
+          <div class="cta-form">
             <input type="email" name="email" placeholder="%%EMAIL_PLACEHOLDER%%" autocomplete="email">
             <button type="button" class="btn btn-primary">%%FLOAT_CTA_LABEL%%</button>
-          </form>
+          </div>
         </div>
       </div>
-    </section>
-  </main>
+    </div>
+  </section>
 
   <footer><div class="wrap">%%FOOTER_LINE%%</div></footer>
 
   <script>
   (function(){
-    /* Mobile nav */
+    /* ---- Mobile nav toggle ---- */
     var h=document.querySelector("[data-tpl-nav]");
     if(h){
       var t=h.querySelector("[data-tpl-nav-toggle]");
       var m=h.querySelector("[data-tpl-nav-mobile]");
       if(t&&m){t.addEventListener("click",function(){m.classList.toggle("open");});}
-      document.querySelectorAll('a[href^="#"]').forEach(function(a){
-        a.addEventListener("click",function(){if(m&&m.classList.contains("open"))m.classList.remove("open");});
-      });
+      m&&m.querySelectorAll("a").forEach(function(a){a.addEventListener("click",function(){m.classList.remove("open");});});
     }
-    /* Scroll reveal */
-    var obs=new IntersectionObserver(function(entries){
-      entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add("vis");obs.unobserve(e.target);}});
-    },{threshold:0.08,rootMargin:"0px 0px -40px 0px"});
-    document.querySelectorAll(".reveal").forEach(function(el){obs.observe(el);});
 
-    /* Card spotlight follow */
-    document.querySelectorAll(".bento-card").forEach(function(card){
-      card.addEventListener("mousemove",function(e){
-        var r=card.getBoundingClientRect();
-        card.style.setProperty("--mx",(e.clientX-r.left)+"px");
-        card.style.setProperty("--my",(e.clientY-r.top)+"px");
+    /* ---- Scroll reveal (IntersectionObserver) ---- */
+    var rvEls=document.querySelectorAll(".rv");
+    if("IntersectionObserver" in window){
+      var obs=new IntersectionObserver(function(entries){
+        entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add("vis");obs.unobserve(e.target);}});
+      },{threshold:0.12,rootMargin:"0px 0px -40px 0px"});
+      rvEls.forEach(function(el){obs.observe(el);});
+    }else{rvEls.forEach(function(el){el.classList.add("vis");});}
+
+    /* ---- FAQ accordion ---- */
+    document.querySelectorAll(".faq-q").forEach(function(q){
+      q.addEventListener("click",function(){
+        var item=q.parentElement;
+        var wasOpen=item.classList.contains("open");
+        document.querySelectorAll(".faq-item.open").forEach(function(o){o.classList.remove("open");});
+        if(!wasOpen)item.classList.add("open");
       });
     });
+
+    /* ---- Mouse spotlight ---- */
+    var spot=document.getElementById("spot");
+    if(spot&&window.matchMedia("(pointer:fine)").matches){
+      document.addEventListener("mousemove",function(e){
+        spot.style.left=e.clientX+"px";spot.style.top=e.clientY+"px";
+      });
+    }
+
+    /* ---- Sticky header shadow on scroll ---- */
+    var header=document.querySelector("header");
+    if(header){
+      window.addEventListener("scroll",function(){
+        header.style.boxShadow=window.scrollY>20?"0 4px 30px rgba(0,0,0,0.4)":"none";
+      },{passive:true});
+    }
   })();
   </script>
 </body>
