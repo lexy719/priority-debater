@@ -83,10 +83,27 @@ function extractTamSamSom(content: string): TamSamSom {
   };
 }
 
+/**
+ * Overall viability only — avoid matching rubric lines like "4-5/10 (CAUTION)" or category scores.
+ */
+function extractOverallViabilityScore(content: string): number | null {
+  const patterns: RegExp[] = [
+    /###\s*Viability Score\s*:?\s*\*?\*?\s*\[?(\d+(?:\.\d+)?)\]?\s*\/\s*10/i,
+    /\*\*Viability Score\s*:?\s*\*?\s*\[?(\d+(?:\.\d+)?)\]?\s*\/\s*10/i,
+    /^Viability Score\s*:?\s*\[?(\d+(?:\.\d+)?)\]?\s*\/\s*10/im,
+  ];
+  for (const re of patterns) {
+    const m = content.match(re);
+    if (m) {
+      const n = parseFloat(m[1]);
+      if (Number.isFinite(n) && n >= 0 && n <= 10) return Math.round(n * 10) / 10;
+    }
+  }
+  return null;
+}
+
 export function extractDashboardData(content: string) {
-  const scoreMatch =
-    content.match(/(?:viability score|score)[:\s]*\[?(\d+)\]?\/10/i) || content.match(/(\d+)\/10/);
-  const score = scoreMatch ? parseInt(scoreMatch[1]) : null;
+  const score = extractOverallViabilityScore(content);
 
   const parseListItems = (text: string) =>
     text

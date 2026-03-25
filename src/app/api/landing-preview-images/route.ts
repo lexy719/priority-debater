@@ -4,14 +4,17 @@ import { fetchLandingPageImages } from "@/lib/landing-images";
 export const dynamic = "force-dynamic";
 
 /**
- * Portrait stock photos for template gallery previews, keyed off the user's idea topic.
- * Requires UNSPLASH_ACCESS_KEY; returns [] when unset (client falls back to bundled stills).
+ * Stock photos for template gallery previews (same orientation + pool shape as curated HTML merge).
+ * Uses Unsplash when UNSPLASH_ACCESS_KEY is set; otherwise returns the same built-in stills as merge.
  */
 export async function GET(request: Request) {
-  const topic = new URL(request.url).searchParams.get("topic")?.trim().slice(0, 200) || "";
-  const images = await fetchLandingPageImages(topic || "startup business", {
-    orientation: "portrait",
+  const sp = new URL(request.url).searchParams;
+  const topic = sp.get("topic")?.trim().slice(0, 200) || "";
+  const position = sp.get("position")?.trim().slice(0, 2000) || "";
+  const { images, usedFallback } = await fetchLandingPageImages(topic || "startup business", {
+    orientation: "landscape",
     perPage: 6,
+    position: position || undefined,
   });
-  return NextResponse.json({ images });
+  return NextResponse.json({ images, usedFallback });
 }

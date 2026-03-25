@@ -87,6 +87,11 @@ Output **only** the JSON object.`;
 /** Defaults if model omits keys */
 export function defaultSaasNovaSlots(setup: DebateSetup): Record<string, string> {
   const brand = setup.topic.trim().slice(0, 60) || "Your product";
+  const pitch = setup.position.replace(/\s+/g, " ").trim();
+  const heroSub =
+    pitch.length >= 24
+      ? (pitch.length <= 280 ? pitch : `${pitch.slice(0, 279)}…`)
+      : "Everything you need in one place — built for teams who move fast.";
   return {
     BRAND_NAME: brand,
     NAV_PROBLEM: "Problem",
@@ -98,7 +103,7 @@ export function defaultSaasNovaSlots(setup: DebateSetup): Record<string, string>
     EMAIL_PLACEHOLDER: "you@company.com",
     FLOAT_CTA_LABEL: "Get started",
     HERO_HEADLINE: `The smarter way to run ${brand}`,
-    HERO_SUB: "Everything you need in one place — built for teams who move fast.",
+    HERO_SUB: heroSub,
     CTA_PRIMARY: "Start free",
     CTA_SECONDARY: "See how it works",
     PROBLEM_EYEBROW: "The problem",

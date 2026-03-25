@@ -106,6 +106,7 @@ function ScoreRing({ score, size = 100 }: { score: number; size?: number }) {
   const progress = (score / 10) * circumference;
   const color = score >= 7 ? "#10b981" : score >= 5 ? "#f59e0b" : "#ef4444";
   const bgColor = score >= 7 ? "rgba(16,185,129,0.1)" : score >= 5 ? "rgba(245,158,11,0.1)" : "rgba(239,68,68,0.1)";
+  const label = Number.isInteger(score) ? String(score) : score.toFixed(1).replace(/\.0$/, "");
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="transform -rotate-90">
@@ -113,7 +114,7 @@ function ScoreRing({ score, size = 100 }: { score: number; size?: number }) {
         <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke={color} strokeWidth="5" strokeDasharray={circumference} strokeDashoffset={circumference - progress} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-black" style={{ color }}>{score}</span>
+        <span className="text-2xl font-black tabular-nums" style={{ color }}>{label}</span>
         <span className="text-[10px] text-white/25 font-medium">/ 10</span>
       </div>
     </div>

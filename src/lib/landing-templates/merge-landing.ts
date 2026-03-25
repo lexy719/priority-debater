@@ -41,7 +41,7 @@ export function mergeLandingTemplate(
 ): string {
   const src = getTemplateSource(id);
   if (!src) throw new Error(`Unknown curated template: ${id}`);
-  let html = applyTemplateSlots(src, slots);
+  const html = applyTemplateSlots(src, slots);
   return applyRawBlock(html, "HERO_VISUAL", buildHeroVisualBlock(images));
 }
 

@@ -1151,7 +1151,9 @@ RULES:
         const curatedId = isCuratedLandingTemplate(landingTemplateId)
           ? landingTemplateId
           : DEFAULT_LANDING_TEMPLATE;
-        const landingImages = await fetchLandingPageImages(setup.topic);
+        const { images: landingImages } = await fetchLandingPageImages(setup.topic, {
+          position: setup.position,
+        });
         try {
           const completion = await openai.chat.completions.create({
             model: "gpt-4.1",
@@ -1194,7 +1196,9 @@ RULES:
 
       const layoutVariant = pickLayoutVariant(setup.topic);
       const layoutInstructions = getLayoutVariantInstructions(layoutVariant);
-      const landingImages = await fetchLandingPageImages(setup.topic);
+      const { images: landingImages } = await fetchLandingPageImages(setup.topic, {
+        position: setup.position,
+      });
       try {
         const stream = await openai.chat.completions.create({
           model: "gpt-4.1",

@@ -110,79 +110,52 @@ const DEMO_IDEA = {
   ],
 } as const;
 
-/** Example score shape only — real reports use your idea and vary widely. */
-const DEMO_SCORE = 7;
-const DEMO_SCORE_MAX = 10;
-
-/** Animated ring — shows the *kind* of output, not a prediction for your idea */
+/** Placeholder ring — never shows a fake numeric score (real scores come from your validation report). */
 function ViabilityScoreRing({ active }: { active: boolean }) {
   const r = 54;
   const stroke = 7;
   const c = 2 * Math.PI * r;
-  const pct = DEMO_SCORE / DEMO_SCORE_MAX;
-  const targetOffset = c * (1 - pct);
 
   return (
     <div className="relative flex shrink-0 flex-col items-center" aria-hidden>
       <div className="relative h-[148px] w-[148px] sm:h-[168px] sm:w-[168px]">
         <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120" aria-hidden>
-          <defs>
-            <linearGradient id="hero-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#34d399" />
-              <stop offset="45%" stopColor="#2dd4bf" />
-              <stop offset="100%" stopColor="#818cf8" />
-            </linearGradient>
-            <filter id="hero-ring-glow" x="-40%" y="-40%" width="180%" height="180%">
-              <feGaussianBlur stdDeviation="2.5" result="b" />
-              <feMerge>
-                <feMergeNode in="b" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
           <circle
             cx="60"
             cy="60"
             r={r}
             fill="none"
-            stroke="rgba(255,255,255,0.06)"
+            stroke="rgba(255,255,255,0.07)"
             strokeWidth={stroke}
           />
-          <motion.circle
+          <circle
             cx="60"
             cy="60"
             r={r}
             fill="none"
-            stroke="url(#hero-ring-grad)"
+            stroke="rgba(148,163,184,0.28)"
             strokeWidth={stroke}
             strokeLinecap="round"
-            strokeDasharray={c}
-            filter="url(#hero-ring-glow)"
-            initial={{ strokeDashoffset: c }}
-            animate={active ? { strokeDashoffset: targetOffset } : { strokeDashoffset: c }}
-            transition={{ duration: 1.15, ease: [0.22, 1, 0.36, 1] }}
+            strokeDasharray={`${c * 0.06} ${c * 0.05}`}
+            opacity={active ? 0.95 : 0.35}
           />
         </svg>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pt-0.5">
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
           <motion.span
-            className="text-[2rem] font-semibold tabular-nums tracking-tight sm:text-[2.25rem]"
-            style={{
-              color: "rgba(255,255,255,0.95)",
-              letterSpacing: "-0.04em",
-            }}
-            initial={{ opacity: 0, scale: 0.85 }}
-            animate={active ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.85 }}
-            transition={{ delay: 0.35, duration: 0.45, ease: [0.25, 0.4, 0.25, 1] }}
+            className="text-[1.35rem] font-semibold leading-tight tracking-tight text-white/88 sm:text-2xl"
+            initial={{ opacity: 0, y: 4 }}
+            animate={active ? { opacity: 1, y: 0 } : {}}
+            transition={{ delay: 0.2, duration: 0.4 }}
           >
-            {DEMO_SCORE}
+            —
           </motion.span>
           <motion.span
-            className="text-[10px] font-medium uppercase tracking-[0.14em] text-white/35"
+            className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-white/32"
             initial={{ opacity: 0 }}
             animate={active ? { opacity: 1 } : {}}
-            transition={{ delay: 0.5, duration: 0.35 }}
+            transition={{ delay: 0.35, duration: 0.35 }}
           >
-            / {DEMO_SCORE_MAX} example
+            / 10 · your report
           </motion.span>
         </div>
       </div>
@@ -190,9 +163,9 @@ function ViabilityScoreRing({ active }: { active: boolean }) {
         className="mt-2 max-w-[220px] text-center text-[10px] leading-snug text-white/40"
         initial={{ opacity: 0, y: 6 }}
         animate={active ? { opacity: 1, y: 0 } : {}}
-        transition={{ delay: 0.65, duration: 0.4 }}
+        transition={{ delay: 0.5, duration: 0.4 }}
       >
-        Yours will differ — we score after you run validation
+        No number here — only your real validation produces a score
       </motion.p>
     </div>
   );
@@ -209,19 +182,28 @@ const DEMO_PERSONAS = [
 function DemoPreview({ play }: { play: boolean }) {
   const [active, setActive] = useState(false);
   useEffect(() => {
-    if (!play) {
+    let cancelled = false;
+    const outer = requestAnimationFrame(() => {
+      if (cancelled) return;
+      if (!play) {
+        setActive(false);
+        return;
+      }
       setActive(false);
-      return;
-    }
-    setActive(false);
-    const t = requestAnimationFrame(() => setActive(true));
-    return () => cancelAnimationFrame(t);
+      requestAnimationFrame(() => {
+        if (!cancelled) setActive(true);
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(outer);
+    };
   }, [play]);
 
   return (
     <div className="relative mx-auto max-w-5xl px-4 sm:px-0">
       <div
-        className="relative overflow-hidden rounded-2xl border border-white/[0.07]"
+        className="relative overflow-hidden rounded-2xl border border-white/7"
         style={{
           background: "linear-gradient(165deg, #12121a 0%, #0a0a0e 45%, #0e0e14 100%)",
           boxShadow: "0 32px 64px -16px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05)",
@@ -265,7 +247,7 @@ function DemoPreview({ play }: { play: boolean }) {
             animate={active ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.45, ease: [0.25, 0.4, 0.25, 1] }}
           >
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-white/45">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-white/45">
               <span className="h-1.5 w-1.5 rounded-full bg-violet-400/90" />
               Sample stress-test
             </span>
@@ -286,7 +268,7 @@ function DemoPreview({ play }: { play: boolean }) {
             {/* Idea card — always full width of mock so copy never collapses */}
             <div className="w-full min-w-0">
               <div
-                className="rounded-2xl border border-white/[0.08] p-5 sm:p-6"
+                className="rounded-2xl border border-white/8 p-5 sm:p-6"
                 style={{
                   background: "linear-gradient(165deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
                   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
@@ -304,11 +286,11 @@ function DemoPreview({ play }: { play: boolean }) {
                 >
                   {DEMO_IDEA.title}
                 </h3>
-                <div className="space-y-2 border-t border-white/[0.06] pt-3">
+                <div className="space-y-2 border-t border-white/6 pt-3">
                   {DEMO_IDEA.lines.map((line, i) => (
                     <motion.p
                       key={i}
-                      className="text-[12px] leading-relaxed text-white/45 break-normal [overflow-wrap:anywhere]"
+                      className="text-[12px] leading-relaxed text-white/45 break-normal wrap-anywhere"
                       initial={{ opacity: 0, x: -8 }}
                       animate={active ? { opacity: 1, x: 0 } : {}}
                       transition={{ delay: 0.12 + i * 0.08, duration: 0.4 }}
@@ -342,7 +324,7 @@ function DemoPreview({ play }: { play: boolean }) {
                 ].map((row, i) => (
                   <motion.div
                     key={i}
-                    className="flex gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5"
+                    className="flex gap-2.5 rounded-xl border border-white/6 bg-white/3 px-3 py-2.5"
                     initial={{ opacity: 0, y: 8 }}
                     animate={active ? { opacity: 1, y: 0 } : {}}
                     transition={{ delay: 0.55 + i * 0.07, duration: 0.4 }}
@@ -355,7 +337,7 @@ function DemoPreview({ play }: { play: boolean }) {
             </div>
 
             {/* Personas */}
-            <div className="w-full min-w-0 border-t border-white/[0.06] pt-6">
+            <div className="w-full min-w-0 border-t border-white/6 pt-6">
               <p className="mb-3 text-center text-[10px] font-medium uppercase tracking-wider text-white/30 sm:text-left">
                 Five lenses · one report
               </p>
@@ -366,10 +348,10 @@ function DemoPreview({ play }: { play: boolean }) {
                     initial={{ opacity: 0, scale: 0.96 }}
                     animate={active ? { opacity: 1, scale: 1 } : {}}
                     transition={{ delay: 0.2 + i * 0.05, duration: 0.35 }}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-white/55"
+                    className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/4 px-2.5 py-1.5 text-[11px] font-medium text-white/55"
                     title={p.label}
                   >
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/35 to-violet-500/25 text-[10px] font-semibold text-white/90">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-indigo-500/35 to-violet-500/25 text-[10px] font-semibold text-white/90">
                       {p.id}
                     </span>
                     {p.label}
@@ -384,41 +366,10 @@ function DemoPreview({ play }: { play: boolean }) {
   );
 }
 
-// ── Compact Step Card for "How It Works" ──────────────────────────────
-function StepCard({ step, index }: { step: { num: string; title: string; desc: string; icon: React.ReactNode; accent: string; gradient: string }; index: number }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-40px" });
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 20 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.5, delay: index * 0.1 }}
-      className="group cursor-default"
-    >
-      <div className="rounded-xl bg-white/[0.03] p-5 h-full border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.05] transition-all duration-300">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-lg bg-white/[0.06] flex items-center justify-center shrink-0">
-            {step.icon}
-          </div>
-          <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.25)" }}>{step.num}</span>
-        </div>
-        <h3 className="text-[14px] font-semibold mb-1" style={{ color: "rgba(255,255,255,0.9)", letterSpacing: "-0.01em" }}>{step.title}</h3>
-        <p className="text-[12px] leading-relaxed" style={{ color: "rgba(255,255,255,0.35)" }}>{step.desc}</p>
-      </div>
-    </motion.div>
-  );
-}
-
 // ── Main Page ───────────────────────────────────────────────────────────
 export default function Home() {
   const demoRef = useRef<HTMLDivElement>(null);
   const demoInView = useInView(demoRef, { once: true, margin: "-100px" });
-  const [demoPlay, setDemoPlay] = useState(false);
-
-  useEffect(() => {
-    if (demoInView) setDemoPlay(true);
-  }, [demoInView]);
 
   // Landing is designed dark-only (starfield + light text). Force `data-theme` while
   // this page is mounted so a saved light preference cannot wash out the hero.
@@ -459,7 +410,7 @@ export default function Home() {
                 {item}
               </Link>
             ))}
-            <Link href="/validate" className="ml-3 px-5 py-2 rounded-lg text-white text-[13px] font-medium hover:bg-white/[0.15] transition-all" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <Link href="/validate" className="ml-3 px-5 py-2 rounded-lg text-white text-[13px] font-medium hover:bg-white/15 transition-all" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.08)" }}>
               Test My Idea &rarr;
             </Link>
           </div>
@@ -472,7 +423,7 @@ export default function Home() {
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left — copy */}
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3.5 py-1 text-[12px] mb-6" style={{ color: "rgba(255,255,255,0.5)" }}>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/4 px-3.5 py-1 text-[12px] mb-6" style={{ color: "rgba(255,255,255,0.5)" }}>
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Free &middot; No signup &middot; 2 min
               </span>
@@ -516,7 +467,7 @@ export default function Home() {
               animate={demoInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
               transition={{ duration: 0.8, delay: 0.2 }}
             >
-              <DemoPreview play={demoPlay} />
+              <DemoPreview play={demoInView} />
             </motion.div>
           </div>
         </div>
@@ -563,7 +514,7 @@ export default function Home() {
             ].map((step, i) => (
               <Reveal key={step.num} delay={i * 0.1}>
                 <div className="text-center">
-                  <div className="w-14 h-14 rounded-full border border-white/[0.08] bg-white/[0.03] flex items-center justify-center mx-auto mb-4 relative z-10" style={{ color: "rgba(255,255,255,0.5)" }}>
+                  <div className="w-14 h-14 rounded-full border border-white/8 bg-white/3 flex items-center justify-center mx-auto mb-4 relative z-10" style={{ color: "rgba(255,255,255,0.5)" }}>
                     <span className="text-[16px] font-semibold">{step.num}</span>
                   </div>
                   <h3 className="text-[15px] font-semibold mb-1.5" style={{ letterSpacing: "-0.01em" }}>{step.title}</h3>
@@ -600,10 +551,10 @@ export default function Home() {
               },
             ].map((f, i) => (
               <StaggerChild key={i}>
-                <div className="p-6 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all h-full">
+                <div className="p-6 rounded-xl border border-white/6 bg-white/3 hover:bg-white/5 hover:border-white/10 transition-all h-full">
                   <div className="flex gap-2 mb-4">
                     {f.icons.map((icon, j) => (
-                      <div key={j} className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center" style={{ color: "rgba(255,255,255,0.45)" }}>{icon}</div>
+                      <div key={j} className="w-8 h-8 rounded-lg bg-white/6 flex items-center justify-center" style={{ color: "rgba(255,255,255,0.45)" }}>{icon}</div>
                     ))}
                   </div>
                   <h3 className="text-[15px] font-semibold mb-2" style={{ letterSpacing: "-0.01em" }}>{f.title}</h3>
@@ -622,8 +573,8 @@ export default function Home() {
               { icon: <Users className="w-4 h-4" />, title: "ICP & Positioning", desc: "Who buys and why they care" },
             ].map((f, i) => (
               <StaggerChild key={i}>
-                <div className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all">
-                  <div className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center mb-3" style={{ color: "rgba(255,255,255,0.45)" }}>{f.icon}</div>
+                <div className="p-4 rounded-xl border border-white/6 bg-white/3 hover:bg-white/5 hover:border-white/10 transition-all">
+                  <div className="w-8 h-8 rounded-lg bg-white/6 flex items-center justify-center mb-3" style={{ color: "rgba(255,255,255,0.45)" }}>{f.icon}</div>
                   <p className="font-medium text-[13px] mb-0.5" style={{ letterSpacing: "-0.01em" }}>{f.title}</p>
                   <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>{f.desc}</p>
                 </div>
@@ -640,8 +591,8 @@ export default function Home() {
               { icon: <Swords className="w-4 h-4" />, title: "AI Debate Mode", desc: "Defend it or kill it" },
             ].map((f, i) => (
               <StaggerChild key={i}>
-                <div className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all">
-                  <div className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center mb-3" style={{ color: "rgba(255,255,255,0.45)" }}>{f.icon}</div>
+                <div className="p-4 rounded-xl border border-white/6 bg-white/3 hover:bg-white/5 hover:border-white/10 transition-all">
+                  <div className="w-8 h-8 rounded-lg bg-white/6 flex items-center justify-center mb-3" style={{ color: "rgba(255,255,255,0.45)" }}>{f.icon}</div>
                   <p className="font-medium text-[13px] mb-0.5" style={{ letterSpacing: "-0.01em" }}>{f.title}</p>
                   <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>{f.desc}</p>
                 </div>
@@ -655,7 +606,7 @@ export default function Home() {
       <section className="relative z-10 py-20 sm:py-28">
         <div className="max-w-[1200px] mx-auto px-6">
           <Reveal>
-            <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.03]">
+            <div className="relative rounded-2xl overflow-hidden border border-white/6 bg-white/3">
 
               <div className="relative p-8 sm:p-12 flex flex-col lg:flex-row items-center gap-10" style={{ background: "transparent" }}>
                 <div className="flex-1">
@@ -664,7 +615,7 @@ export default function Home() {
                     whileInView={{ rotate: [0, -8, 8, -4, 0] }}
                     transition={{ duration: 0.8, delay: 0.2 }}
                     viewport={{ once: true }}
-                    className="inline-flex p-3 rounded-xl bg-white/[0.06] border border-white/[0.06] mb-5"
+                    className="inline-flex p-3 rounded-xl bg-white/6 border border-white/6 mb-5"
                   >
                     <Swords className="w-8 h-8" style={{ color: "rgba(255,255,255,0.5)" }} />
                   </motion.div>
@@ -690,7 +641,7 @@ export default function Home() {
                         className="flex items-center gap-2 text-[12px]"
                         style={{ color: "rgba(255,255,255,0.45)" }}
                       >
-                        <div className="w-4 h-4 rounded-full bg-white/[0.06] flex items-center justify-center shrink-0">
+                        <div className="w-4 h-4 rounded-full bg-white/6 flex items-center justify-center shrink-0">
                           <Check className="w-2.5 h-2.5" style={{ color: "rgba(255,255,255,0.4)" }} />
                         </div>
                         {f}
@@ -706,11 +657,11 @@ export default function Home() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.5, delay: 0.2 }}
-                    className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 space-y-3"
+                    className="rounded-2xl bg-white/4 border border-white/6 p-4 space-y-3"
                   >
                     <div className="flex gap-2 items-start">
                       <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0 text-[10px]">&#x1F5E1;&#xFE0F;</div>
-                      <div className="bg-white/[0.06] rounded-xl rounded-tl-none px-3 py-2 text-[11px] text-white/60 leading-relaxed">
+                      <div className="bg-white/6 rounded-xl rounded-tl-none px-3 py-2 text-[11px] text-white/60 leading-relaxed">
                         Your TAM assumes every business needs this. What&apos;s your actual serviceable market?
                       </div>
                     </div>
@@ -722,7 +673,7 @@ export default function Home() {
                     </div>
                     <div className="flex gap-2 items-start">
                       <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0 text-[10px]">&#x1F5E1;&#xFE0F;</div>
-                      <div className="bg-white/[0.06] rounded-xl rounded-tl-none px-3 py-2">
+                      <div className="bg-white/6 rounded-xl rounded-tl-none px-3 py-2">
                         <span className="inline-block w-3 h-3 rounded-full border-2 border-white/20 border-t-indigo-400 animate-spin" />
                       </div>
                     </div>
@@ -742,12 +693,12 @@ export default function Home() {
             <h2 className="text-2xl sm:text-3xl font-semibold" style={{ letterSpacing: "-0.03em", color: "rgba(255,255,255,0.95)" }}>Because yes-men don&apos;t build great companies</h2>
           </Reveal>
           <Reveal delay={0.15}>
-            <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/[0.06] backdrop-blur-sm bg-white/[0.02] [-webkit-overflow-scrolling:touch]">
+            <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/6 backdrop-blur-sm bg-white/2 [-webkit-overflow-scrolling:touch]">
               <table className="w-full min-w-[520px] text-[13px]">
                 <thead>
                   <tr style={{ background: "rgba(255,255,255,0.03)" }}>
                     <th className="text-left py-3.5 px-5 text-white/40 font-medium">Feature</th>
-                    <th className="text-center py-3.5 px-5 text-indigo-400 font-semibold bg-indigo-500/[0.08]">Priority Debater</th>
+                    <th className="text-center py-3.5 px-5 text-indigo-400 font-semibold bg-indigo-500/8">Priority Debater</th>
                     <th className="text-center py-3.5 px-5 text-white/30 font-medium">Generic AI / Others</th>
                   </tr>
                 </thead>
@@ -765,9 +716,9 @@ export default function Home() {
                     ["No signup required", true, false],
                     ["Price", "Free forever", "$20+/mo"],
                   ] as [string, boolean | string, boolean | string][]).map(([feature, us, them], i) => (
-                    <tr key={i} className="hover:bg-white/[0.02] transition-colors">
+                    <tr key={i} className="hover:bg-white/2 transition-colors">
                       <td className="py-3 px-5 text-white/50">{feature}</td>
-                      <td className="py-3 px-5 text-center bg-indigo-500/[0.04]">
+                      <td className="py-3 px-5 text-center bg-indigo-500/4">
                         {us === true ? <Check className="w-4 h-4 text-emerald-400 mx-auto" /> :
                          typeof us === "string" ? <span className="text-emerald-400 font-semibold">{us}</span> : null}
                       </td>
@@ -809,11 +760,11 @@ export default function Home() {
                 value={`faq-${i}`}
                 className="group border-b-0 border-0 bg-transparent"
               >
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05] transition-colors group-data-[state=open]:border-white/[0.1]">
+                <div className="rounded-xl border border-white/6 bg-white/3 hover:bg-white/5 transition-colors group-data-[state=open]:border-white/10">
                   <div className="overflow-hidden rounded-[0.7rem]">
                     <AccordionTrigger className="gap-3 px-4 py-4 text-left hover:no-underline [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:opacity-40 [&[data-state=open]>svg]:rotate-180">
                       <span className="flex min-w-0 flex-1 items-start gap-3">
-                        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.06]" style={{ color: "rgba(255,255,255,0.4)" }}>
+                        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/6" style={{ color: "rgba(255,255,255,0.4)" }}>
                           <CircleHelp className="h-3.5 w-3.5" strokeWidth={2} />
                         </span>
                         <span className="min-w-0 pt-0.5 text-left text-[13px] font-medium leading-snug" style={{ color: "rgba(255,255,255,0.85)" }}>
@@ -836,7 +787,7 @@ export default function Home() {
       <section className="relative z-10 pb-24 sm:pb-32">
         <Reveal>
           <div className="max-w-[1200px] mx-auto px-6">
-            <div className="relative text-center py-20 px-6 rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.02]">
+            <div className="relative text-center py-20 px-6 rounded-2xl overflow-hidden border border-white/6 bg-white/2">
               {/* Subtle top glow */}
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] pointer-events-none" style={{ background: "radial-gradient(ellipse, rgba(140,150,255,0.06) 0%, transparent 70%)" }} />
 

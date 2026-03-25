@@ -21,9 +21,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const stored = localStorage.getItem("theme") as Theme | null;
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const initial = stored || (prefersDark ? "dark" : "dark"); // default to dark
-    setTheme(initial);
-    document.documentElement.setAttribute("data-theme", initial);
-    setMounted(true);
+    const id = requestAnimationFrame(() => {
+      setTheme(initial);
+      document.documentElement.setAttribute("data-theme", initial);
+      setMounted(true);
+    });
+    return () => cancelAnimationFrame(id);
   }, []);
 
   const toggle = () => {

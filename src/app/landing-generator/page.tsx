@@ -47,10 +47,10 @@ const PREVIEW_WIDTHS: Record<PreviewSize, string> = {
   mobile: "375px",
 };
 
-/** Gallery iframes render at mobile CSS width so templates use their phone breakpoints. */
-const GALLERY_VIEWPORT_W = 390;
-const GALLERY_VIEWPORT_H = 844;
-const GALLERY_FRAME_W = 214;
+/** Gallery iframes use a desktop layout width so templates hit desktop breakpoints; scaled to fit each card. */
+const GALLERY_VIEWPORT_W = 1280;
+const GALLERY_VIEWPORT_H = 720;
+const GALLERY_FRAME_W = 320;
 const GALLERY_SCALE = GALLERY_FRAME_W / GALLERY_VIEWPORT_W;
 
 // ── Loading progress steps (template mode = faster — copy only) ──
@@ -90,10 +90,11 @@ export default function LandingGeneratorPage() {
   const [templatePicked, setTemplatePicked] = useState(false);
   /** Which template produced the current HTML (for color tweaks + inject rules) */
   const [generatedWithTemplate, setGeneratedWithTemplate] = useState<LandingTemplateId | null>(null);
-  /** Unsplash pool for gallery previews; undefined = fetch not finished */
+  /** Pool for gallery previews; undefined = fetch not finished */
   const [previewImagePool, setPreviewImagePool] = useState<LandingImageRef[] | undefined>(undefined);
+  /** Whether that pool is built-in stills (same as merged HTML) vs topic search from Unsplash */
+  const [previewHeroFromFallback, setPreviewHeroFromFallback] = useState<boolean | undefined>(undefined);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadingSteps = useMemo(
     () => (landingTemplate === "custom" ? LOADING_STEPS_CUSTOM : LOADING_STEPS_TEMPLATE),
@@ -117,13 +118,24 @@ export default function LandingGeneratorPage() {
     if (!session) return;
     let cancelled = false;
     setPreviewImagePool(undefined);
-    fetch(`/api/landing-preview-images?topic=${encodeURIComponent(session.setup.topic)}`)
+    setPreviewHeroFromFallback(undefined);
+    fetch(
+      `/api/landing-preview-images?topic=${encodeURIComponent(session.setup.topic)}&position=${encodeURIComponent(session.setup.position || "")}`
+    )
       .then((r) => r.json())
-      .then((d: { images?: LandingImageRef[] }) => {
-        if (!cancelled) setPreviewImagePool(Array.isArray(d.images) ? d.images : []);
+      .then((d: { images?: LandingImageRef[]; usedFallback?: boolean }) => {
+        if (!cancelled) {
+          setPreviewImagePool(Array.isArray(d.images) ? d.images : []);
+          setPreviewHeroFromFallback(
+            typeof d.usedFallback === "boolean" ? d.usedFallback : true
+          );
+        }
       })
       .catch(() => {
-        if (!cancelled) setPreviewImagePool([]);
+        if (!cancelled) {
+          setPreviewImagePool([]);
+          setPreviewHeroFromFallback(true);
+        }
       });
     return () => {
       cancelled = true;
@@ -152,19 +164,10 @@ export default function LandingGeneratorPage() {
       return;
     }
 
-    let stepIdx = 0;
-    let progressInterval: ReturnType<typeof setInterval>;
-
-    const advanceStep = () => {
-      if (stepIdx >= loadingSteps.length - 1) return;
-      stepIdx++;
-      setLoadingStep(stepIdx);
-    };
-
     // Progress bar fills smoothly
     const totalDuration = loadingSteps.reduce((a, s) => a + s.duration, 0);
     let elapsed = 0;
-    progressInterval = setInterval(() => {
+    const progressInterval = setInterval(() => {
       elapsed += 100;
       const pct = Math.min(95, (elapsed / totalDuration) * 100);
       setLoadingProgress(pct);
@@ -316,7 +319,7 @@ export default function LandingGeneratorPage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#08080e]">
+      <div className="min-h-dvh flex items-center justify-center bg-[#08080e]">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500/50" />
       </div>
     );
@@ -325,14 +328,14 @@ export default function LandingGeneratorPage() {
   const isReady = htmlContent && !isGenerating;
 
   return (
-    <div className="relative min-h-screen min-h-[100dvh] bg-[#08080e]">
+    <div className="relative min-h-dvh bg-[#08080e]">
       <GradientMesh className="opacity-40" />
       {/* Top bar */}
-      <div className="sticky top-0 z-10 bg-[#08080e]/80 backdrop-blur-xl border-b border-white/[0.06]">
+      <div className="sticky top-0 z-10 bg-[#08080e]/80 backdrop-blur-xl border-b border-white/6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
           <div className="flex items-center gap-3 min-w-0">
             <Link href="/" className="flex items-center gap-2 group shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
                 <Zap className="w-4 h-4 text-white" />
               </div>
               <span className="hidden sm:inline text-sm font-semibold text-white/70 group-hover:text-white transition-colors">
@@ -345,7 +348,7 @@ export default function LandingGeneratorPage() {
           <div className="flex items-center gap-1">
             <Link
               href="/results"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/4 transition-all"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Results</span>
@@ -354,7 +357,7 @@ export default function LandingGeneratorPage() {
               <>
                 <button
                   onClick={handleCopyHtml}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/4 transition-all"
                   title="Copy HTML"
                 >
                   {copyToast ? (
@@ -366,7 +369,7 @@ export default function LandingGeneratorPage() {
                 </button>
                 <button
                   onClick={handleDownload}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/4 transition-all"
                   title="Download HTML"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -394,21 +397,28 @@ export default function LandingGeneratorPage() {
             {!templatePicked ? (
               <div className="max-w-6xl mx-auto">
                 <div className="text-center mb-10">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1 text-[11px] text-white/45 mb-4">
-                    <Smartphone className="w-3.5 h-3.5 text-teal-400/90 shrink-0" />
-                    Mobile-first previews on desktop
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/4 px-3 py-1 text-[11px] text-white/45 mb-4">
+                    <Monitor className="w-3.5 h-3.5 text-teal-400/90 shrink-0" />
+                    Desktop-width previews
                   </div>
                   <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
                     Choose a template
                   </h2>
                   <p className="text-white/40 text-sm max-w-2xl mx-auto leading-relaxed">
-                    Each card shows the <strong className="text-white/55 font-medium">phone layout</strong> of a full page.
-                    Headlines preview with <strong className="text-white/55 font-medium">your idea title</strong>
-                    {previewImagePool && previewImagePool.length > 0 ? (
-                      <> — hero photos are pulled from Unsplash using your topic when the server has an API key.</>
-                    ) : (
-                      <> — with stock photography when Unsplash is configured on the server; otherwise we use curated stills.</>
-                    )}
+                    Each card shows the <strong className="text-white/55 font-medium">desktop layout</strong> of the full page (scaled to fit).
+                    Copy uses <strong className="text-white/55 font-medium">your title and pitch</strong> as defaults (AI refines everything after you generate).
+                    {previewHeroFromFallback === true ? (
+                      <>
+                        {" "}
+                        Hero photos are <strong className="text-white/55 font-medium">built-in Unsplash stills</strong> — the same images are merged into your downloaded HTML (add{" "}
+                        <code className="text-white/45">UNSPLASH_ACCESS_KEY</code> so we can search Unsplash using your title and pitch).
+                      </>
+                    ) : previewHeroFromFallback === false ? (
+                      <>
+                        {" "}
+                        Hero photos come from <strong className="text-white/55 font-medium">Unsplash</strong> using your <strong className="text-white/55 font-medium">title and pitch</strong> — the same search runs when you generate.
+                      </>
+                    ) : null}
                   </p>
                   {previewImagePool === undefined && (
                     <p className="mt-2 text-[11px] text-teal-400/50">Fetching image matches for your idea…</p>
@@ -420,10 +430,10 @@ export default function LandingGeneratorPage() {
                     const meta = LANDING_TEMPLATE_LABELS[id];
                     const bezel =
                       id === "saas-nova"
-                        ? "from-violet-500/[0.12] via-transparent to-indigo-500/[0.06]"
+                        ? "from-violet-500/12 via-transparent to-indigo-500/6"
                         : id === "editorial-aurora"
-                          ? "from-amber-500/[0.12] via-transparent to-orange-500/[0.05]"
-                          : "from-cyan-500/[0.1] via-transparent to-violet-500/[0.08]";
+                          ? "from-amber-500/12 via-transparent to-orange-500/5"
+                          : "from-cyan-500/10 via-transparent to-violet-500/8";
                     return (
                       <button
                         key={id}
@@ -432,10 +442,10 @@ export default function LandingGeneratorPage() {
                           setLandingTemplate(id);
                           setTemplatePicked(true);
                         }}
-                        className="group text-left rounded-2xl border border-white/[0.09] bg-gradient-to-b from-white/[0.05] to-white/[0.015] hover:border-teal-500/30 hover:from-teal-500/[0.06] hover:to-white/[0.03] overflow-hidden transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/45 shadow-[0_24px_48px_-28px_rgba(0,0,0,0.7)]"
+                        className="group text-left rounded-2xl border border-white/9 bg-linear-to-b from-white/5 to-white/1.5 hover:border-teal-500/30 hover:from-teal-500/6 hover:to-white/3 overflow-hidden transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/45 shadow-[0_24px_48px_-28px_rgba(0,0,0,0.7)]"
                       >
                         <div
-                          className={`relative border-b border-white/[0.06] bg-gradient-to-b ${bezel} to-[#050508]`}
+                          className={`relative border-b border-white/6 bg-linear-to-b ${bezel} to-[#050508]`}
                         >
                           <div className="flex flex-col items-center py-7 px-3">
                             <div
@@ -453,7 +463,7 @@ export default function LandingGeneratorPage() {
                                 }}
                               >
                                 <iframe
-                                  title={`Mobile preview — ${meta.title}`}
+                                  title={`Desktop preview — ${meta.title}`}
                                   srcDoc={templatePreviewHtml[id]}
                                   width={GALLERY_VIEWPORT_W}
                                   height={GALLERY_VIEWPORT_H}
@@ -467,7 +477,7 @@ export default function LandingGeneratorPage() {
                               </div>
                             </div>
                             <span className="mt-3 text-[10px] font-medium uppercase tracking-[0.12em] text-white/25">
-                              Live HTML · mobile viewport
+                              Live HTML · desktop viewport
                             </span>
                           </div>
                         </div>
@@ -498,7 +508,7 @@ export default function LandingGeneratorPage() {
                     setLandingTemplate("custom");
                     setTemplatePicked(true);
                   }}
-                  className="w-full max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-indigo-500/5 p-6 sm:p-7 text-left hover:border-violet-500/35 transition-all"
+                  className="w-full max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-violet-500/20 bg-linear-to-br from-violet-500/10 to-indigo-500/5 p-6 sm:p-7 text-left hover:border-violet-500/35 transition-all"
                 >
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 border border-violet-500/25">
                     <Wand2 className="w-7 h-7 text-violet-300" />
@@ -515,10 +525,10 @@ export default function LandingGeneratorPage() {
               </div>
             ) : (
               <div className="max-w-2xl mx-auto">
-                <div className="relative rounded-2xl bg-gradient-to-br from-teal-500/8 to-emerald-500/8 border border-teal-500/15 p-8 sm:p-10 overflow-hidden">
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(20,184,166,0.06)_0%,_transparent_50%)]" />
+                <div className="relative rounded-2xl bg-linear-to-br from-teal-500/8 to-emerald-500/8 border border-teal-500/15 p-8 sm:p-10 overflow-hidden">
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(20,184,166,0.06)_0%,transparent_50%)]" />
                   <div className="relative">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/25 flex items-center justify-center mx-auto mb-6">
+                    <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/25 flex items-center justify-center mx-auto mb-6">
                       <Globe className="w-8 h-8 text-teal-400" />
                     </div>
 
@@ -538,7 +548,7 @@ export default function LandingGeneratorPage() {
                     </p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-4 py-2 text-xs text-white/55">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/4 px-4 py-2 text-xs text-white/55">
                         {landingTemplate === "custom" ? (
                           <Wand2 className="w-3.5 h-3.5 text-violet-400" />
                         ) : (
@@ -568,7 +578,7 @@ export default function LandingGeneratorPage() {
                         { icon: "🎯", title: "Conversion CTAs", desc: "Email capture & sections" },
                         { icon: "📦", title: "Single HTML file", desc: "Download & host anywhere" },
                       ].map((item) => (
-                        <div key={item.title} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 text-center">
+                        <div key={item.title} className="rounded-xl bg-white/3 border border-white/6 p-3 text-center">
                           <div className="text-lg mb-1">{item.icon}</div>
                           <div className="text-xs font-semibold text-white/70 mb-0.5">{item.title}</div>
                           <div className="text-[10px] text-white/30">{item.desc}</div>
@@ -579,7 +589,7 @@ export default function LandingGeneratorPage() {
                     <div className="flex justify-center">
                       <button
                         onClick={handleGenerate}
-                        className="inline-flex items-center justify-center gap-2.5 px-10 py-4 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold transition-all shadow-lg shadow-teal-500/25 text-sm group"
+                        className="inline-flex items-center justify-center gap-2.5 px-10 py-4 rounded-xl bg-linear-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold transition-all shadow-lg shadow-teal-500/25 text-sm group"
                       >
                         <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
                         Generate My Landing Page
@@ -603,10 +613,10 @@ export default function LandingGeneratorPage() {
               <p className="text-white/30 text-sm">{session.setup.topic}</p>
             </div>
 
-            <div className="relative rounded-2xl bg-white/[0.02] border border-white/[0.06] p-8 sm:p-10 overflow-hidden">
+            <div className="relative rounded-2xl bg-white/2 border border-white/6 p-8 sm:p-10 overflow-hidden">
               {/* Animated background gradient */}
               <div className="absolute inset-0 opacity-30">
-                <div className="absolute inset-0 bg-gradient-to-br from-teal-500/20 via-transparent to-emerald-500/10 animate-pulse" style={{ animationDuration: "3s" }} />
+                <div className="absolute inset-0 bg-linear-to-br from-teal-500/20 via-transparent to-emerald-500/10 animate-pulse" style={{ animationDuration: "3s" }} />
               </div>
 
               <div className="relative">
@@ -646,9 +656,9 @@ export default function LandingGeneratorPage() {
                 </div>
 
                 {/* Progress bar */}
-                <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden mb-6">
+                <div className="h-1.5 bg-white/6 rounded-full overflow-hidden mb-6">
                   <div
-                    className="h-full bg-gradient-to-r from-teal-500 to-emerald-400 rounded-full transition-all duration-500 ease-out"
+                    className="h-full bg-linear-to-r from-teal-500 to-emerald-400 rounded-full transition-all duration-500 ease-out"
                     style={{ width: `${loadingProgress}%` }}
                   />
                 </div>
@@ -671,7 +681,7 @@ export default function LandingGeneratorPage() {
                           ? "bg-teal-500/20"
                           : i === loadingStep
                           ? "bg-teal-500/10 ring-2 ring-teal-500/30"
-                          : "bg-white/[0.04]"
+                          : "bg-white/4"
                       }`}>
                         {i < loadingStep ? (
                           <CheckCircle2 className="w-3 h-3 text-teal-400" />
@@ -721,12 +731,12 @@ export default function LandingGeneratorPage() {
             <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
               <div className="flex items-center gap-2">
                 {/* Preview / Code toggle */}
-                <div className="flex items-center bg-white/[0.04] border border-white/[0.06] rounded-xl p-1">
+                <div className="flex items-center bg-white/4 border border-white/6 rounded-xl p-1">
                   <button
                     onClick={() => setViewMode("preview")}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       viewMode === "preview"
-                        ? "bg-white/[0.08] text-white"
+                        ? "bg-white/8 text-white"
                         : "text-white/30 hover:text-white/50"
                     }`}
                   >
@@ -737,7 +747,7 @@ export default function LandingGeneratorPage() {
                     onClick={() => setViewMode("code")}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       viewMode === "code"
-                        ? "bg-white/[0.08] text-white"
+                        ? "bg-white/8 text-white"
                         : "text-white/30 hover:text-white/50"
                     }`}
                   >
@@ -748,7 +758,7 @@ export default function LandingGeneratorPage() {
 
                 {/* Preview size toggles — only in preview mode */}
                 {viewMode === "preview" && (
-                  <div className="flex items-center bg-white/[0.04] border border-white/[0.06] rounded-xl p-1">
+                  <div className="flex items-center bg-white/4 border border-white/6 rounded-xl p-1">
                     {(["desktop", "tablet", "mobile"] as PreviewSize[]).map((size) => {
                       const Icon = size === "desktop" ? Monitor : size === "tablet" ? Tablet : Smartphone;
                       return (
@@ -757,7 +767,7 @@ export default function LandingGeneratorPage() {
                           onClick={() => setPreviewSize(size)}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                             previewSize === size
-                              ? "bg-white/[0.08] text-white"
+                              ? "bg-white/8 text-white"
                               : "text-white/30 hover:text-white/50"
                           }`}
                         >
@@ -775,8 +785,8 @@ export default function LandingGeneratorPage() {
                     onClick={() => setShowColorPicker(!showColorPicker)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${
                       showColorPicker
-                        ? "bg-white/[0.08] text-white border-white/[0.1]"
-                        : "text-white/30 hover:text-white/50 border-white/[0.06] bg-white/[0.04]"
+                        ? "bg-white/8 text-white border-white/10"
+                        : "text-white/30 hover:text-white/50 border-white/6 bg-white/4"
                     }`}
                   >
                     <Palette className="w-3.5 h-3.5" />
@@ -787,7 +797,7 @@ export default function LandingGeneratorPage() {
                     <span className="hidden sm:inline">Colors</span>
                   </button>
                   {showColorPicker && (
-                    <div className="absolute top-full left-0 mt-2 p-4 rounded-xl bg-[#141420] border border-white/[0.08] shadow-2xl z-20 min-w-[220px]">
+                    <div className="absolute top-full left-0 mt-2 p-4 rounded-xl bg-[#141420] border border-white/8 shadow-2xl z-20 min-w-[220px]">
                       <p className="text-xs text-white/40 mb-3 font-medium">Brand Color</p>
                       <div className="flex items-center gap-3 mb-3">
                         <input
@@ -800,7 +810,7 @@ export default function LandingGeneratorPage() {
                           type="text"
                           value={primaryColor}
                           onChange={(e) => setPrimaryColor(e.target.value)}
-                          className="flex-1 px-3 py-2 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white text-xs font-mono"
+                          className="flex-1 px-3 py-2 rounded-lg bg-white/6 border border-white/8 text-white text-xs font-mono"
                         />
                       </div>
                       <div className="flex gap-2 flex-wrap mb-3">
@@ -834,7 +844,7 @@ export default function LandingGeneratorPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleGenerate}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs font-medium text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/4 border border-white/6 text-xs font-medium text-white/30 hover:text-white/60 hover:bg-white/6 transition-all"
                   title="Regenerate"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -842,7 +852,7 @@ export default function LandingGeneratorPage() {
                 </button>
                 <button
                   onClick={handleCopyHtml}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs font-medium text-white/40 hover:text-white/60 hover:bg-white/[0.06] transition-all"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/4 border border-white/6 text-xs font-medium text-white/40 hover:text-white/60 hover:bg-white/6 transition-all"
                 >
                   {copyToast ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   {copyToast ? "Copied!" : "Copy HTML"}
@@ -864,16 +874,16 @@ export default function LandingGeneratorPage() {
                 style={{ maxWidth: PREVIEW_WIDTHS[previewSize] }}
               >
                 {/* Browser chrome mockup */}
-                <div className="rounded-2xl border border-white/[0.08] overflow-hidden shadow-2xl shadow-black/50">
+                <div className="rounded-2xl border border-white/8 overflow-hidden shadow-2xl shadow-black/50">
                   {/* Browser top bar */}
-                  <div className="flex items-center gap-2 px-4 py-2.5 bg-[#0e0e16] border-b border-white/[0.06]">
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-[#0e0e16] border-b border-white/6">
                     <div className="flex items-center gap-1.5">
                       <div className="w-3 h-3 rounded-full bg-red-500/60" />
                       <div className="w-3 h-3 rounded-full bg-amber-500/60" />
                       <div className="w-3 h-3 rounded-full bg-emerald-500/60" />
                     </div>
                     <div className="flex-1 flex justify-center">
-                      <div className="flex items-center gap-2 px-4 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/25 text-xs max-w-sm w-full">
+                      <div className="flex items-center gap-2 px-4 py-1 rounded-lg bg-white/4 border border-white/6 text-white/25 text-xs max-w-sm w-full">
                         <Globe className="w-3 h-3 shrink-0" />
                         <span className="truncate">{session.setup.topic.toLowerCase().replace(/\s+/g, "-")}.com</span>
                       </div>
@@ -895,12 +905,12 @@ export default function LandingGeneratorPage() {
 
             {/* Code mode — syntax view */}
             {viewMode === "code" && (
-              <div className="rounded-2xl border border-white/[0.08] overflow-hidden bg-[#0a0a14]">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06] bg-white/[0.02]">
+              <div className="rounded-2xl border border-white/8 overflow-hidden bg-[#0a0a14]">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-white/6 bg-white/2">
                   <span className="text-xs text-white/30 font-mono">index.html</span>
                   <span className="text-xs text-white/15">{(new Blob([htmlContent])).size > 1024 ? `${Math.round(new Blob([htmlContent]).size / 1024)}KB` : `${new Blob([htmlContent]).size}B`}</span>
                 </div>
-                <pre className="p-4 overflow-auto max-h-[70vh] text-xs text-white/50 font-mono leading-relaxed whitespace-pre-wrap break-words">
+                <pre className="p-4 overflow-auto max-h-[70vh] text-xs text-white/50 font-mono leading-relaxed whitespace-pre-wrap wrap-break-word">
                   {htmlContent}
                 </pre>
               </div>
