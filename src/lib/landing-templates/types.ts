@@ -17,29 +17,44 @@ export function isCuratedLandingTemplate(id: unknown): id is CuratedLandingTempl
 
 export const DEFAULT_LANDING_TEMPLATE: CuratedLandingTemplateId = "saas-nova";
 
-export const LANDING_TEMPLATE_LABELS: Record<LandingTemplateId, { title: string; description: string }> = {
+export const LANDING_TEMPLATE_LABELS: Record<
+  LandingTemplateId,
+  { title: string; description: string; layout: string }
+> = {
   "saas-nova": {
     title: "SaaS Nova",
-    description: "Dark aurora glow, animated orbs, gradient text, spotlight cards — investor-ready polish.",
+    layout: "Dark mesh hero + gradient frame visual · glass bento features · FAQ · gradient email CTA",
+    description:
+      "Obsidian / indigo product UI: Syne headlines, glass cards, cyan–violet glow. Strong default for B2B SaaS.",
   },
   "editorial-aurora": {
     title: "Editorial Aurora",
-    description: "Warm paper, serif headlines, magazine rhythm — premium B2B with a human voice.",
+    layout: "Magazine headline + full-bleed image band · split problem · numbered steps · serif FAQ",
+    description:
+      "Warm paper, Playfair + DM Sans, amber accent. Premium editorial and service brands.",
   },
   "bento-prism": {
     title: "Bento Prism",
-    description: "Midnight glass, cyan–violet mesh, scanning line, neon bento grid — product launch energy.",
+    layout: "Neon bento (hero image + copy + 3 cells) · problem · steps · benefits bridge · FAQ · glow CTA",
+    description:
+      "Dark lattice, JetBrains tags, cyan–magenta glass. Devtools, AI, and high-tech launches.",
   },
   "startup-horizon": {
     title: "Startup Horizon",
-    description: "Bold rose-to-amber gradient, marquee ticker, staggered cards — hot startup vibes.",
+    layout: "Sunrise gradient hero + card visual · scrolling marquee · 3-up features · dark CTA",
+    description:
+      "Coral–rose–amber energy, Jakarta Sans, ticker of benefits. Consumer apps and bold startups.",
   },
   "minimal-slate": {
     title: "Minimal Slate",
-    description: "Ultra-clean monochrome, Swiss grid, sharp typography — Apple-level elegance.",
+    layout: "Swiss grid hero + framed image · rules-only sections · 3-column features · minimal CTA",
+    description:
+      "Near-monochrome Inter, thin borders, maximum whitespace. Design-led and prosumer products.",
   },
   custom: {
     title: "Custom (AI layout)",
-    description: "Full page built by AI from the component kit. Maximum variety, less predictable structure.",
+    layout: "Varies each run — chosen from the shared HTML kit (nav, hero, sections, CTA)",
+    description:
+      "Full page generated from your validation brief. More variety, less predictable structure than fixed templates.",
   },
 };

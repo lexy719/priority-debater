@@ -1,6 +1,7 @@
 "use client";
 
 import type { CategoryScores } from "@/lib/parse";
+import { SCORE_MAX, tierColorClasses } from "@/lib/scoring-scale";
 
 const LABELS: { key: keyof CategoryScores; label: string; shortLabel: string }[] = [
   { key: "problemSolutionFit", label: "Problem-Solution Fit", shortLabel: "Problem Fit" },
@@ -22,11 +23,11 @@ export function RadarChart({ scores }: { scores: CategoryScores }) {
   const hasScores = LABELS.some((l) => scores[l.key] != null);
   if (!hasScores) return null;
 
-  const rings = [2, 4, 6, 8, 10];
+  const rings = [20, 40, 60, 80, 100];
 
   const dataPoints = LABELS.map((l, i) => {
     const val = scores[l.key] ?? 0;
-    const r = (val / 10) * maxR;
+    const r = (val / SCORE_MAX) * maxR;
     return polarToXY(cx, cy, r, i, n);
   });
   const dataPath = dataPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
@@ -36,7 +37,7 @@ export function RadarChart({ scores }: { scores: CategoryScores }) {
       <svg viewBox="0 0 300 300" className="w-full h-auto">
         {/* Grid rings */}
         {rings.map((ring) => {
-          const r = (ring / 10) * maxR;
+          const r = (ring / SCORE_MAX) * maxR;
           const pts = Array.from({ length: n }, (_, i) => polarToXY(cx, cy, r, i, n));
           const path = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
           return <path key={ring} d={path} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={ring === 10 ? 1.5 : 0.5} />;
@@ -64,7 +65,7 @@ export function RadarChart({ scores }: { scores: CategoryScores }) {
             <text key={i} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="central" fill="rgba(255,255,255,0.35)" fontSize={10} fontWeight={500}>
               {l.shortLabel}
               {val != null && (
-                <tspan x={p.x} dy={13} fontSize={10} fontWeight={700} fill="rgba(255,255,255,0.7)">{val}/10</tspan>
+                <tspan x={p.x} dy={13} fontSize={10} fontWeight={700} fill="rgba(255,255,255,0.7)">{val}/{SCORE_MAX}</tspan>
               )}
             </text>
           );
@@ -83,15 +84,15 @@ export function ScoreBreakdownBars({ scores }: { scores: CategoryScores }) {
       {LABELS.map((l) => {
         const val = scores[l.key];
         if (val == null) return null;
-        const pct = (val / 10) * 100;
-        const color = val >= 7 ? "bg-emerald-500" : val >= 5 ? "bg-amber-500" : "bg-red-500";
+        const pct = Math.min(100, Math.max(0, val));
+        const color = tierColorClasses(val).bar;
         return (
           <div key={l.key}>
             <div className="flex justify-between items-center mb-1">
               <span className="text-xs font-medium text-white/40">{l.label}</span>
-              <span className="text-xs font-bold text-white/70">{val}/10</span>
+              <span className="text-xs font-bold text-white/70">{val}</span>
             </div>
-            <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+            <div className="h-1.5 bg-white/6 rounded-full overflow-hidden">
               <div className={`h-full rounded-full ${color} transition-all duration-700`} style={{ width: `${pct}%` }} />
             </div>
           </div>

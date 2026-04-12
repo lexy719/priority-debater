@@ -24,6 +24,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { loadSessionWithStatus } from "@/lib/session";
+import { readSseLines } from "@/lib/sse-lines";
 import { injectLandingPageKit } from "@/lib/landing-page-html-inject";
 import { extractDashboardData } from "@/lib/parse";
 import {
@@ -33,9 +34,9 @@ import {
   type CuratedLandingTemplateId,
   type LandingTemplateId,
 } from "@/lib/landing-templates/types";
+import { classifyIdeaCategory } from "@/lib/idea-category";
 import { getLandingTemplatePreviewHtml } from "@/lib/landing-templates/template-preview";
 import { GradientMesh } from "@/components/ui/animated-background";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import type { LandingImageRef } from "@/lib/landing-images";
 import type { ValidationSession } from "@/lib/types";
 
@@ -50,8 +51,10 @@ const PREVIEW_WIDTHS: Record<PreviewSize, string> = {
 
 /** Gallery iframes use a desktop layout width so templates hit desktop breakpoints; scaled to fit each card. */
 const GALLERY_VIEWPORT_W = 1280;
-const GALLERY_VIEWPORT_H = 800;
-const GALLERY_FRAME_W = 380;
+/** Taller viewport so the scaled crop shows hero + headline (not an empty-looking strip). */
+const GALLERY_VIEWPORT_H = 880;
+/** Wider frame = slightly larger thumbnail without changing template breakpoints. */
+const GALLERY_FRAME_W = 420;
 const GALLERY_SCALE = GALLERY_FRAME_W / GALLERY_VIEWPORT_W;
 
 /** Per-template accent colors for the gallery cards */
@@ -138,7 +141,9 @@ export default function LandingGeneratorPage() {
   /** Pool for gallery previews; undefined = fetch not finished */
   const [previewImagePool, setPreviewImagePool] = useState<LandingImageRef[] | undefined>(undefined);
   /** Whether that pool is built-in stills (same as merged HTML) vs topic search from Unsplash */
-  const [previewHeroFromFallback, setPreviewHeroFromFallback] = useState<boolean | undefined>(undefined);
+  const [, setPreviewHeroFromFallback] = useState<boolean | undefined>(undefined);
+  /** From API — vertical used for Unsplash + generation prompts */
+  const [previewIdeaCategory, setPreviewIdeaCategory] = useState<{ id: string; label: string } | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   /** Viability score extracted from validation content */
@@ -147,6 +152,12 @@ export default function LandingGeneratorPage() {
     const data = extractDashboardData(session.validationContent);
     return data.score;
   }, [session]);
+
+  const verticalLabelForUi =
+    session &&
+    (previewIdeaCategory?.label ??
+      session.ideaCategory?.label ??
+      classifyIdeaCategory(session.setup.topic, session.setup.position).label);
 
   const loadingSteps = useMemo(
     () => (landingTemplate === "custom" ? LOADING_STEPS_CUSTOM : LOADING_STEPS_TEMPLATE),
@@ -171,22 +182,31 @@ export default function LandingGeneratorPage() {
     let cancelled = false;
     setPreviewImagePool(undefined);
     setPreviewHeroFromFallback(undefined);
+    setPreviewIdeaCategory(null);
     fetch(
       `/api/landing-preview-images?topic=${encodeURIComponent(session.setup.topic)}&position=${encodeURIComponent(session.setup.position || "")}`
     )
       .then((r) => r.json())
-      .then((d: { images?: LandingImageRef[]; usedFallback?: boolean }) => {
+      .then((d: { images?: LandingImageRef[]; usedFallback?: boolean; category?: { id?: string; label?: string } }) => {
         if (!cancelled) {
           setPreviewImagePool(Array.isArray(d.images) ? d.images : []);
           setPreviewHeroFromFallback(
             typeof d.usedFallback === "boolean" ? d.usedFallback : true
           );
+          if (d.category && typeof d.category.label === "string" && d.category.label) {
+            setPreviewIdeaCategory({ id: String(d.category.id ?? "default"), label: d.category.label });
+          } else {
+            const c = classifyIdeaCategory(session.setup.topic, session.setup.position);
+            setPreviewIdeaCategory({ id: c.id, label: c.label });
+          }
         }
       })
       .catch(() => {
         if (!cancelled) {
           setPreviewImagePool([]);
           setPreviewHeroFromFallback(true);
+          const c = classifyIdeaCategory(session.setup.topic, session.setup.position);
+          setPreviewIdeaCategory({ id: c.id, label: c.label });
         }
       });
     return () => {
@@ -270,28 +290,19 @@ export default function LandingGeneratorPage() {
       const reader = response.body?.getReader();
       if (!reader) throw new Error("No response stream");
 
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split("\n")) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") break;
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.content) fullContent += parsed.content;
-              if (parsed.error) throw new Error(parsed.error);
-            } catch (e) {
-              if (e instanceof Error && e.message !== "Stream interrupted") {
-                /* skip parse errors */
-              } else throw e;
-            }
-          }
+      await readSseLines(reader, (line) => {
+        if (!line.startsWith("data: ")) return;
+        const data = line.slice(6);
+        if (data === "[DONE]") return;
+        try {
+          const parsed = JSON.parse(data) as { content?: string; error?: string };
+          if (parsed.error) throw new Error(parsed.error);
+          if (parsed.content) fullContent += parsed.content;
+        } catch (e) {
+          if (e instanceof SyntaxError) return;
+          throw e;
         }
-      }
+      });
 
       if (!fullContent) throw new Error("No content received");
 
@@ -429,7 +440,6 @@ export default function LandingGeneratorPage() {
                 </button>
               </>
             )}
-            <ThemeToggle />
           </div>
         </div>
       </div>
@@ -446,30 +456,36 @@ export default function LandingGeneratorPage() {
                   <div className="min-w-0 flex items-center gap-4">
                     {viabilityScore !== null && (
                       <div className={`shrink-0 w-14 h-14 rounded-2xl flex flex-col items-center justify-center border ${
-                        viabilityScore >= 7 ? "border-emerald-500/30 bg-emerald-500/10" :
-                        viabilityScore >= 5 ? "border-amber-500/30 bg-amber-500/10" :
+                        viabilityScore >= 70 ? "border-emerald-500/30 bg-emerald-500/10" :
+                        viabilityScore >= 50 ? "border-amber-500/30 bg-amber-500/10" :
                         "border-red-500/30 bg-red-500/10"
                       }`}>
                         <span className={`text-lg font-bold leading-none ${
-                          viabilityScore >= 7 ? "text-emerald-400" :
-                          viabilityScore >= 5 ? "text-amber-400" :
+                          viabilityScore >= 70 ? "text-emerald-400" :
+                          viabilityScore >= 50 ? "text-amber-400" :
                           "text-red-400"
                         }`}>{viabilityScore}</span>
-                        <span className="text-[9px] text-white/30 font-medium">/10</span>
+                        <span className="text-[9px] text-white/30 font-medium">/100</span>
                       </div>
                     )}
                     <div>
                       <p className="text-white/30 text-xs font-medium uppercase tracking-wider mb-1.5">Landing page for</p>
+                      {verticalLabelForUi && (
+                        <p className="text-[11px] font-medium text-indigo-300/85 mb-1">{verticalLabelForUi}</p>
+                      )}
                       <h1 className="text-xl sm:text-2xl font-bold text-white truncate">{session.setup.topic}</h1>
+                      <p className="text-[11px] text-white/25 mt-1 max-w-md">
+                        Hero images are chosen to fit this vertical and your pitch (Unsplash when configured).
+                      </p>
                     </div>
                   </div>
-                  <p className="text-white/25 text-xs shrink-0">
-                    Pick a design — AI writes your copy
+                  <p className="text-white/25 text-xs shrink-0 max-w-xs text-right leading-relaxed">
+                    Pick a layout — previews show real structure; AI replaces all copy with yours.
                   </p>
                 </div>
 
-                {/* Template grid — 3 curated templates */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
+                {/* Template grid — 2 columns on large screens for readable previews */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                   {CURATED_LANDING_TEMPLATE_IDS.map((id) => {
                     const meta = LANDING_TEMPLATE_LABELS[id];
                     const accent = TEMPLATE_ACCENTS[id] ?? TEMPLATE_ACCENTS["saas-nova"];
@@ -485,9 +501,9 @@ export default function LandingGeneratorPage() {
                       >
                         {/* Preview area */}
                         <div className={`relative bg-linear-to-b ${accent.bg} to-transparent`}>
-                          <div className="flex justify-center pt-5 pb-3 px-4">
+                          <div className="flex justify-center pt-5 pb-4 px-4">
                             <div
-                              className="relative overflow-hidden rounded-xl bg-black ring-1 ring-white/10 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.8)]"
+                              className="relative overflow-hidden rounded-xl bg-zinc-950 ring-1 ring-white/10 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.85)]"
                               style={{
                                 width: GALLERY_FRAME_W,
                                 height: Math.round(GALLERY_VIEWPORT_H * GALLERY_SCALE),
@@ -498,7 +514,7 @@ export default function LandingGeneratorPage() {
                                 srcDoc={templatePreviewHtml[id]}
                                 width={GALLERY_VIEWPORT_W}
                                 height={GALLERY_VIEWPORT_H}
-                                className="absolute left-0 top-0 border-0 pointer-events-none bg-black"
+                                className="absolute left-0 top-0 border-0 pointer-events-none bg-zinc-950"
                                 style={{
                                   transform: `scale(${GALLERY_SCALE})`,
                                   transformOrigin: "top left",
@@ -510,7 +526,7 @@ export default function LandingGeneratorPage() {
                         </div>
 
                         {/* Info */}
-                        <div className="px-5 pt-3 pb-5">
+                        <div className="px-5 pt-2 pb-5">
                           <div className="flex items-center gap-2.5 mb-2">
                             <span className="text-[15px] font-semibold text-white/90">{meta.title}</span>
                             {id === DEFAULT_LANDING_TEMPLATE && (
@@ -519,7 +535,8 @@ export default function LandingGeneratorPage() {
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-white/38 leading-relaxed mb-3">{meta.description}</p>
+                          <p className="text-[11px] text-white/32 leading-snug mb-2 line-clamp-2">{meta.layout}</p>
+                          <p className="text-xs text-white/45 leading-relaxed mb-3">{meta.description}</p>
                           <div className={`text-[11px] font-semibold ${accent.text} opacity-70 group-hover:opacity-100 flex items-center gap-1 transition-opacity`}>
                             Use this template
                             <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
@@ -538,7 +555,7 @@ export default function LandingGeneratorPage() {
                       setLandingTemplate("custom");
                       setTemplatePicked(true);
                     }}
-                    className="group w-full flex items-center gap-4 rounded-xl border border-white/6 bg-white/[0.02] hover:bg-white/[0.04] hover:border-violet-500/25 px-5 py-4 text-left transition-all"
+                    className="group w-full flex items-center gap-4 rounded-xl border border-white/6 bg-white/2 hover:bg-white/4 hover:border-violet-500/25 px-5 py-4 text-left transition-all"
                   >
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 border border-violet-500/20">
                       <Wand2 className="w-5 h-5 text-violet-400" />
@@ -559,7 +576,7 @@ export default function LandingGeneratorPage() {
                   <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{session.setup.topic}</h1>
                 </div>
 
-                <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-6 sm:p-8">
+                <div className="rounded-2xl border border-white/8 bg-white/2 p-6 sm:p-8">
                   {/* Selected template */}
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">

@@ -11,10 +11,14 @@ export async function GET(request: Request) {
   const sp = new URL(request.url).searchParams;
   const topic = sp.get("topic")?.trim().slice(0, 200) || "";
   const position = sp.get("position")?.trim().slice(0, 2000) || "";
-  const { images, usedFallback } = await fetchLandingPageImages(topic || "startup business", {
+  const { images, usedFallback, category } = await fetchLandingPageImages(topic || "startup business", {
     orientation: "landscape",
     perPage: 10,
     position: position || undefined,
   });
-  return NextResponse.json({ images, usedFallback });
+  return NextResponse.json({
+    images,
+    usedFallback,
+    category: { id: category.id, label: category.label },
+  });
 }

@@ -21,17 +21,17 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    "bg-[var(--accent-primary)] text-white hover:brightness-110 active:brightness-95 shadow-[0_0_20px_var(--glow-accent)]",
+    "bg-primary text-white hover:brightness-110 active:brightness-95 shadow-glow-sm",
   secondary:
-    "bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-primary)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-focus)]",
+    "bg-elevated text-foreground border border-border hover:bg-card-hover hover:border-ring",
   ghost:
-    "bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]",
+    "bg-transparent text-secondary hover:bg-elevated hover:text-foreground",
   outline:
-    "bg-transparent border border-[var(--border-primary)] text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-accent)]",
+    "bg-transparent border border-border text-foreground hover:border-primary hover:text-accent",
   danger:
     "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20",
   glow:
-    "relative bg-[var(--accent-primary)] text-white hover:brightness-110 shadow-[0_0_30px_var(--glow-accent)] hover:shadow-[0_0_50px_var(--glow-accent)]",
+    "relative bg-primary text-white hover:brightness-110 shadow-glow-md hover:shadow-glow-lg",
 };
 
 const sizes: Record<ButtonSize, string> = {
@@ -63,7 +63,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         className={cn(
           "inline-flex items-center justify-center font-medium transition-all duration-200",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/50",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
           "disabled:pointer-events-none disabled:opacity-50",
           variants[variant],
           sizes[size],

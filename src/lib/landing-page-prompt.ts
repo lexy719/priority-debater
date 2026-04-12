@@ -140,10 +140,13 @@ export function landingPageUserPrompt(
     layoutVariant: LayoutVariantId;
     layoutInstructions: string;
     images: LandingImageRef[];
+    /** Heuristic vertical for tone + section emphasis */
+    verticalLabel?: string;
   }
 ): string {
   const brief = buildMarketingBriefForLanding(validationContent);
-  const { layoutVariant, layoutInstructions, images } = options;
+  const { layoutVariant, layoutInstructions, images, verticalLabel } = options;
+  const vertical = verticalLabel?.trim() || "General business & technology";
 
   return `Build a **single ship-ready landing page** for **"${setup.topic}"** — the business customers would see, **not** an internal validation readout.
 
@@ -155,6 +158,7 @@ ${layoutInstructions}
 - Working name/topic: "${setup.topic}"
 - Pitch: ${setup.position}
 - Extra: ${setup.context?.trim() || "(none)"}
+- **Vertical / audience:** ${vertical} — match headline tone, FAQ objections, and hero emphasis to this category. Stock imagery (below) is already chosen to fit; align copy with the same vibe.
 
 **Positioning (use for messaging — do NOT surface as scores or audits):**
 ${brief}

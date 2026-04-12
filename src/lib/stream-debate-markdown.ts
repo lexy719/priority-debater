@@ -1,0 +1,61 @@
+import type { LogoBrief } from "@/lib/logo-brief";
+import type { ValidationSession } from "@/lib/types";
+import { readSseLines } from "@/lib/sse-lines";
+import { messageFromFailedResponse } from "@/lib/read-api-error";
+
+export type StreamDebateOptions = {
+  /** Passed to \`logo-brand-kit\` — structured founder choices for concepts & prompts. */
+  logoBrief?: LogoBrief;
+};
+
+/**
+ * Streams a markdown document from POST /api/debate with the given action.
+ */
+export async function streamDebateMarkdown(
+  action: string,
+  session: Pick<ValidationSession, "setup" | "validationContent">,
+  onDelta: (accumulated: string) => void,
+  options?: StreamDebateOptions,
+): Promise<string> {
+  const response = await fetch("/api/debate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action,
+      setup: session.setup,
+      validationContent: session.validationContent,
+      ...(options?.logoBrief ? { logoBrief: options.logoBrief } : {}),
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await messageFromFailedResponse(response));
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("No response stream");
+
+  let content = "";
+
+  const handleLine = (line: string) => {
+    if (!line.startsWith("data: ")) return;
+    const data = line.slice(6);
+    if (data === "[DONE]") return;
+    try {
+      const parsed = JSON.parse(data) as { content?: string; error?: string };
+      if (parsed.error) throw new Error(parsed.error);
+      if (parsed.content) {
+        content += parsed.content;
+        onDelta(content);
+      }
+    } catch (e) {
+      if (e instanceof SyntaxError) return;
+      throw e;
+    }
+  };
+
+  await readSseLines(reader, handleLine);
+
+  if (!content.trim()) throw new Error("No content received");
+  return content;
+}

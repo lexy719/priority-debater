@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   Check,
   X,
-  Zap,
   Download,
   Swords,
   BarChart3,
@@ -29,20 +28,36 @@ import {
   CheckCircle2,
   Grid3X3,
   ArrowRight,
+  ArrowLeft,
   TrendingUp,
   Clock,
   DollarSign,
-  Sparkles,
   Globe,
+  Lock,
+  Sparkles,
 } from "lucide-react";
-import { loadSession, loadSessionWithStatus, clearSession } from "@/lib/session";
-import { extractDashboardData } from "@/lib/parse";
-import { InteractiveParticles } from "@/components/ui/animated-background";
+import { cn } from "@/lib/utils";
+import { loadSessionWithStatus, clearSession, saveSession } from "@/lib/session";
+import { classifyIdeaCategory } from "@/lib/idea-category";
+import {
+  extractDashboardData,
+  getCategoryScoreAggregate,
+  getValidationReportCompleteness,
+  viabilityHeadlineDivergence,
+} from "@/lib/parse";
+import { SCORE_MAX } from "@/lib/scoring-scale";
+import { AppShell, AppLogoLink } from "@/components/AppShell";
+import { EmptySection } from "@/components/EmptySection";
 import { motion } from "framer-motion";
 import { RadarChart, ScoreBreakdownBars } from "@/components/RadarChart";
 import { LeanCanvas } from "@/components/LeanCanvas";
 import { TamSamSomChart } from "@/components/TamSamSom";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  CompetitiveMatrix,
+  ProjectionTable,
+  UnitEconomicsGrid,
+  BreakEvenCard,
+} from "@/components/FinancialCards";
 import type { ValidationSession } from "@/lib/types";
 
 // ── PDF Export ──
@@ -83,10 +98,10 @@ function downloadAsPDF(setup: ValidationSession["setup"], validationContent: str
   printWindow.document.close();
 }
 
-function downloadAsMarkdown(setup: ValidationSession["setup"], messages: ValidationSession["messages"]) {
+function downloadAsMarkdown(setup: ValidationSession["setup"], validationContent: string) {
   const header = `# Validation Report: ${setup.topic}\n\n**Your case:** ${setup.position}\n${setup.context ? `**Context:** ${setup.context}\n` : ""}\n---\n\n`;
-  const body = messages.map((m) => `${m.role === "user" ? "**You:**" : "**The Adversary:**"}\n${m.content}\n`).join("\n---\n\n");
-  const blob = new Blob([header + body], { type: "text/markdown" });
+  const body = validationContent.trim();
+  const blob = new Blob([header + body], { type: "text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -95,17 +110,74 @@ function downloadAsMarkdown(setup: ValidationSession["setup"], messages: Validat
   URL.revokeObjectURL(url);
 }
 
+/** Browser URL length limits — keep share links reliable. */
+const MAX_SHARE_PARAM_CHARS = 45_000;
+
+function parseSharePayload(encoded: string): ValidationSession | null {
+  try {
+    const json = decodeURIComponent(atob(encoded));
+    const d = JSON.parse(json) as { t?: string; p?: string; c?: string; v?: string };
+    if (!d.v || typeof d.v !== "string") return null;
+    return {
+      setup: {
+        template: "validate",
+        topic: d.t || "Shared idea",
+        position: d.p || "",
+        context: d.c || "",
+        lens: "investor",
+      },
+      validationContent: d.v,
+      messages: [{ id: "shared", role: "opponent", content: d.v }],
+      createdAt: Date.now(),
+    };
+  } catch {
+    return null;
+  }
+}
+
 function generateShareData(session: ValidationSession): string {
   return btoa(encodeURIComponent(JSON.stringify({ t: session.setup.topic, p: session.setup.position, c: session.setup.context, v: session.validationContent })));
+}
+
+function clipText(s: string, max: number) {
+  const t = s.replace(/\s+/g, " ").trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1)}…`;
+}
+
+function buildExecutiveSnapshotLines(args: {
+  strengths: string[];
+  risks: string[];
+  weakest: { label: string; value: number } | null;
+  completeness: { percent: number; present: number; total: number };
+  rubricAgg: { mean: number; n: number } | null;
+}): string[] {
+  const lines: string[] = [];
+  if (args.strengths[0]) lines.push(clipText(args.strengths[0], 180));
+  if (args.risks[0]) lines.push(`Validate this risk: ${clipText(args.risks[0], 150)}`);
+  else if (args.weakest) {
+    lines.push(`Weakest rubric: ${args.weakest.label} (${args.weakest.value}/${SCORE_MAX}).`);
+  }
+  if (lines.length < 3) {
+    if (args.completeness.percent < 100) {
+      lines.push(`Sections ${args.completeness.present}/${args.completeness.total} present — re-run to fill missing blocks.`);
+    } else if (args.rubricAgg && args.rubricAgg.n >= 4) {
+      lines.push(`Rubric average ${args.rubricAgg.mean} across ${args.rubricAgg.n} dimensions (cross-check for the headline score).`);
+    }
+  }
+  if (lines.length === 0 && args.rubricAgg) {
+    lines.push(`Rubric average ${args.rubricAgg.mean} across ${args.rubricAgg.n} dimensions.`);
+  }
+  return lines.slice(0, 3);
 }
 
 // ── Score Ring ──
 function ScoreRing({ score, size = 100 }: { score: number; size?: number }) {
   const radius = (size - 10) / 2;
   const circumference = 2 * Math.PI * radius;
-  const progress = (score / 10) * circumference;
-  const color = score >= 7 ? "#10b981" : score >= 5 ? "#f59e0b" : "#ef4444";
-  const bgColor = score >= 7 ? "rgba(16,185,129,0.1)" : score >= 5 ? "rgba(245,158,11,0.1)" : "rgba(239,68,68,0.1)";
+  const progress = (score / SCORE_MAX) * circumference;
+  const color = score >= 70 ? "#10b981" : score >= 50 ? "#f59e0b" : "#ef4444";
+  const bgColor = score >= 70 ? "rgba(16,185,129,0.1)" : score >= 50 ? "rgba(245,158,11,0.1)" : "rgba(239,68,68,0.1)";
   const label = Number.isInteger(score) ? String(score) : score.toFixed(1).replace(/\.0$/, "");
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -115,19 +187,36 @@ function ScoreRing({ score, size = 100 }: { score: number; size?: number }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-2xl font-black tabular-nums" style={{ color }}>{label}</span>
-        <span className="text-[10px] text-white/25 font-medium">/ 10</span>
+        <span className="text-[10px] text-white/25 font-medium">/ {SCORE_MAX}</span>
       </div>
     </div>
   );
 }
 
 // ── Card with full readable content ──
-function ContentCard({ icon, title, color, children, className = "" }: { icon: React.ReactNode; title: string; color: string; children: React.ReactNode; className?: string }) {
+function ContentCard({
+  icon,
+  title,
+  color,
+  children,
+  className = "",
+}: {
+  icon: React.ReactNode;
+  title: string;
+  color: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={`rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 sm:p-6 ${className}`}>
-      <div className="flex items-center gap-2.5 mb-4">
-        <span className={color}>{icon}</span>
-        <h3 className="text-sm font-bold text-white/90">{title}</h3>
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-xl border border-white/8 bg-linear-to-b from-white/[0.04] to-white/[0.02] px-4 py-3.5 sm:px-5 sm:py-4",
+        className,
+      )}
+    >
+      <div className="mb-3 flex items-center gap-2">
+        <span className={cn("shrink-0", color)}>{icon}</span>
+        <h3 className="text-[13px] font-semibold tracking-tight text-white/90">{title}</h3>
       </div>
       {children}
     </div>
@@ -148,8 +237,8 @@ function ValidationChecklist({ items }: { items: string[] }) {
         <span className="text-sm font-medium text-white/30">{checked.size}/{items.length} completed</span>
         <span className="text-sm font-bold text-indigo-400">{progress}%</span>
       </div>
-      <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden mb-5">
-        <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+      <div className="h-2 bg-white/6 rounded-full overflow-hidden mb-5">
+        <div className="h-full bg-linear-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
       </div>
       <ol className="space-y-3">
         {items.map((item, i) => (
@@ -168,57 +257,174 @@ function ValidationChecklist({ items }: { items: string[] }) {
 }
 
 // ── Main Page ──
-export default function ResultsPage() {
+function ResultsInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [session, setSession] = useState<ValidationSession | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "expired">("loading");
   const [activeTab, setActiveTab] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [shareToast, setShareToast] = useState(false);
-  const [pivotData, setPivotData] = useState<Record<string, { analysis: string; pivots: { title: string; description: string; estimatedScore: number }[] }>>({});
-  const [pivotLoading, setPivotLoading] = useState<Record<string, boolean>>({});
-  const [pivotErrors, setPivotErrors] = useState<Record<string, string>>({});
-  const [selectedPivots, setSelectedPivots] = useState<Record<string, number | "custom">>({});
-  const [customPivotText, setCustomPivotText] = useState<Record<string, string>>({});
+  const [shareToast, setShareToast] = useState<"idle" | "copied" | "tooLarge">("idle");
 
   useEffect(() => {
-    const result = loadSessionWithStatus();
-    if (result.status === "expired") {
-      alert("Your session has expired (24h limit). Please start a new validation.");
-      router.replace("/validate");
+    const fromShare = searchParams.get("s");
+    if (fromShare) {
+      const parsed = parseSharePayload(fromShare);
+      if (parsed) {
+        saveSession(parsed);
+        setSession(parsed);
+        setLoadState("ready");
+        router.replace("/results", { scroll: false });
+        return;
+      }
+      router.replace("/journey");
       return;
     }
-    if (result.status === "none") { router.replace("/validate"); return; }
-    const s = result.session;
-    setSession(s);
-  }, [router]);
+    const result = loadSessionWithStatus();
+    if (result.status === "expired") {
+      setLoadState("expired");
+      return;
+    }
+    if (result.status === "none") {
+      router.replace("/journey");
+      return;
+    }
+    setSession(result.session);
+    setLoadState("ready");
+  }, [router, searchParams]);
 
   const handleCopyShareLink = useCallback(() => {
     if (!session) return;
-    const url = `${window.location.origin}/results?s=${generateShareData(session)}`;
-    navigator.clipboard.writeText(url).then(() => { setShareToast(true); setTimeout(() => setShareToast(false), 2000); });
+    const param = generateShareData(session);
+    if (param.length > MAX_SHARE_PARAM_CHARS) {
+      setShareToast("tooLarge");
+      setTimeout(() => setShareToast("idle"), 4500);
+      return;
+    }
+    const url = `${window.location.origin}/results?s=${param}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setShareToast("copied");
+      setTimeout(() => setShareToast("idle"), 2000);
+    });
   }, [session]);
 
-  if (!session) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#08080e]"><Loader2 className="w-8 h-8 animate-spin text-indigo-500/50" /></div>;
+  useEffect(() => {
+    if (loadState !== "ready") return;
+    const step = searchParams.get("step");
+    if (step !== "decision" && step !== "verdict") return;
+    setActiveTab(0);
+    const t = window.setTimeout(() => {
+      document.getElementById("journey-decision")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+    return () => window.clearTimeout(t);
+  }, [searchParams, loadState]);
+
+  // Clamp tab index to valid range (4 tabs: 0-3)
+  useEffect(() => {
+    setActiveTab((t) => (t > 3 ? 0 : t));
+  }, []);
+
+  if (loadState === "loading") {
+    return (
+      <AppShell
+      maxWidth="8xl"
+      particleCount={32}
+        magneticStrength={0.06}
+        header={
+          <>
+            <AppLogoLink />
+            <div className="h-4 w-4" aria-hidden />
+          </>
+        }
+      >
+        <div className="relative z-1 flex min-h-[min(70vh,520px)] flex-col items-center justify-center px-4">
+          <Loader2 className="h-10 w-10 animate-spin text-indigo-400/50" />
+          <p className="mt-4 text-center text-sm text-muted-foreground">Loading your report…</p>
+        </div>
+      </AppShell>
+    );
   }
 
-  const { setup, validationContent, messages } = session;
+  if (loadState === "expired") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center t-bg px-4">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+          <h2 className="text-lg font-semibold text-foreground">Session expired</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            Validation reports are kept for 24 hours in this browser. Start a new run to stress-test your idea again.
+          </p>
+          <Link
+            href="/journey"
+            className="mt-6 flex w-full items-center justify-center rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-500"
+          >
+            New validation
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <AppShell
+        maxWidth="8xl"
+        header={
+          <>
+            <AppLogoLink />
+            <Link
+              href="/journey"
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Start
+            </Link>
+          </>
+        }
+      >
+        <div className="relative z-1 flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-indigo-400/50" />
+        </div>
+      </AppShell>
+    );
+  }
+
+  const { setup, validationContent } = session;
+  const isGenerate = setup.template === "generate";
   const dashboard = extractDashboardData(validationContent);
+  const completeness = getValidationReportCompleteness(validationContent);
   const score = dashboard.score;
+  const ideaVerticalLabel =
+    session.ideaCategory?.label ?? classifyIdeaCategory(setup.topic, setup.position).label;
 
   const goNoGoLabel =
     dashboard.goNoGoType === "go" ? "GO" : dashboard.goNoGoType === "caution" ? "CAUTION" : dashboard.goNoGoType === "nogo" ? "NO-GO" :
-    score != null ? (score >= 7 ? "GO" : score >= 5 ? "CAUTION" : "NO-GO") : null;
+    score != null ? (score >= 70 ? "GO" : score >= 50 ? "CAUTION" : "NO-GO") : null;
   const goNoGoColor =
     goNoGoLabel === "GO" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" :
     goNoGoLabel === "CAUTION" ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
     goNoGoLabel === "NO-GO" ? "bg-red-500/15 text-red-400 border-red-500/30" :
     "bg-white/5 text-white/30 border-white/10";
 
-  const handleRevalidate = () => { sessionStorage.setItem("revalidate", JSON.stringify(setup)); router.push("/validate"); };
-  const handleValidateNew = () => { clearSession(); router.push("/validate"); };
+  const revalidateValidateHref =
+    setup.template === "generate" ? "/validate?mode=generate" : "/journey";
+  /** Opens journey/validate with the same topic & pitch — explicit re-run, not tied to suggestions. */
+  const handleEditInputsAndRerun = () => {
+    sessionStorage.setItem("revalidate", JSON.stringify(setup));
+    router.push(revalidateValidateHref);
+  };
+  const handleValidateNew = () => {
+    clearSession();
+    router.push("/journey");
+  };
+
+  const fromGuidedJourney = searchParams.get("source") === "journey";
 
   const cs = dashboard.categoryScores;
+  const rubricAgg = getCategoryScoreAggregate(cs);
+  const scoreDivergence =
+    !isGenerate && setup.template === "validate"
+      ? viabilityHeadlineDivergence(score, cs)
+      : null;
+
   const categoryMetrics = [
     { label: "Problem-Solution", value: cs.problemSolutionFit, icon: <Lightbulb className="w-4 h-4" />, color: "text-amber-400" },
     { label: "Market", value: cs.marketOpportunity, icon: <TrendingUp className="w-4 h-4" />, color: "text-blue-400" },
@@ -228,244 +434,494 @@ export default function ResultsPage() {
     { label: "Timing", value: cs.timingTrends, icon: <Clock className="w-4 h-4" />, color: "text-rose-400" },
   ].filter(m => m.value != null);
 
-  // ── Refine tab state ──
-  const weakCategories = [
-    { key: "problemSolutionFit", label: "Problem-Solution Fit", value: cs.problemSolutionFit },
-    { key: "marketOpportunity", label: "Market Opportunity", value: cs.marketOpportunity },
-    { key: "competitiveEdge", label: "Competitive Edge", value: cs.competitiveEdge },
-    { key: "businessModel", label: "Business Model", value: cs.businessModel },
-    { key: "teamExecution", label: "Team & Execution", value: cs.teamExecution },
-    { key: "timingTrends", label: "Timing & Trends", value: cs.timingTrends },
-  ].filter(c => c.value != null && c.value < 7);
-
-  const handleGeneratePivots = async (categoryKey: string, categoryLabel: string, categoryScore: number) => {
-    setPivotLoading(prev => ({ ...prev, [categoryKey]: true }));
-    setPivotErrors(prev => ({ ...prev, [categoryKey]: "" }));
-    try {
-      const response = await fetch("/api/debate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "refine",
-          setup,
-          validationContent,
-          category: categoryLabel,
-          categoryScore,
-        }),
-      });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => null);
-        throw new Error(errData?.error || `Server error (${response.status})`);
-      }
-      const data = await response.json();
-      setPivotData(prev => ({ ...prev, [categoryKey]: data }));
-    } catch (e) {
-      setPivotErrors(prev => ({ ...prev, [categoryKey]: e instanceof Error ? e.message : "Failed to generate pivots." }));
-    } finally {
-      setPivotLoading(prev => ({ ...prev, [categoryKey]: false }));
-    }
-  };
-
-  const handleRevalidateWithPivots = () => {
-    const pivotDescriptions: string[] = [];
-    for (const cat of weakCategories) {
-      const sel = selectedPivots[cat.key];
-      if (sel === "custom" && customPivotText[cat.key]?.trim()) {
-        pivotDescriptions.push(`[${cat.label} pivot]: ${customPivotText[cat.key].trim()}`);
-      } else if (typeof sel === "number" && pivotData[cat.key]?.pivots[sel]) {
-        const p = pivotData[cat.key].pivots[sel];
-        pivotDescriptions.push(`[${cat.label} pivot]: ${p.title} — ${p.description}`);
-      }
-    }
-    const pivotSuffix = pivotDescriptions.length > 0
-      ? `\n\n--- REFINEMENTS APPLIED ---\n${pivotDescriptions.join("\n")}`
-      : "";
-    const revalidateSetup = {
-      ...setup,
-      context: (setup.context || "") + pivotSuffix,
-    };
-    sessionStorage.setItem("revalidate", JSON.stringify(revalidateSetup));
-    router.push("/validate");
-  };
-
-  const hasAnyPivotSelected = Object.keys(selectedPivots).length > 0;
+  // ── Suggestions tab (API action still `refine`) ──
+  // Financial data from new structured sections
+  const hasFinancials = dashboard.financialProjections.length > 0 || dashboard.unitEconomics.cac || dashboard.breakEven.point;
 
   const tabs = [
     { label: "Overview", icon: <BarChart3 className="w-4 h-4" /> },
-    { label: "Deep Dive", icon: <TrendingUp className="w-4 h-4" /> },
+    { label: "Market & Competition", icon: <Swords className="w-4 h-4" /> },
+    { label: "Financials", icon: <DollarSign className="w-4 h-4" /> },
     { label: "Action Plan", icon: <Target className="w-4 h-4" /> },
-    { label: "Canvas & Plan", icon: <Grid3X3 className="w-4 h-4" /> },
-    ...(weakCategories.length > 0 ? [{ label: "Refine", icon: <RefreshCw className="w-4 h-4" /> }] : []),
   ];
 
-  return (
-    <div className="relative min-h-screen min-h-[100dvh] bg-[#08080e]">
-      <InteractiveParticles count={35} magneticRadius={180} magneticStrength={0.07} />
-      {/* Animated gradient orbs */}
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-[420px] h-[420px] rounded-full bg-indigo-600/10 blur-[120px] animate-[pulse_8s_ease-in-out_infinite]" />
-        <div className="absolute -bottom-32 -right-32 w-[380px] h-[380px] rounded-full bg-violet-600/10 blur-[120px] animate-[pulse_10s_ease-in-out_infinite_1s]" />
-      </div>
-      {/* Top bar */}
-      <div className="sticky top-0 z-10 bg-[#08080e]/80 backdrop-blur-xl border-b border-white/[0.06]">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
-          <div className="flex items-center gap-3 min-w-0">
-            <Link href="/" className="flex items-center gap-2 group shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center"><Zap className="w-4 h-4 text-white" /></div>
-              <span className="hidden sm:inline text-sm font-semibold text-white/70 group-hover:text-white transition-colors">Priority Debater</span>
-            </Link>
-            <span className="text-white/10 hidden sm:inline">/</span>
-            <span className="text-sm text-white/30 truncate hidden sm:inline">{setup.topic}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <button onClick={handleCopyShareLink} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all" title="Share">
-              {shareToast ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{shareToast ? "Copied!" : "Share"}</span>
-            </button>
-            <button onClick={() => downloadAsPDF(setup, validationContent)} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all" title="PDF">
-              <FileText className="w-3.5 h-3.5" /><span className="hidden sm:inline">PDF</span>
-            </button>
-            <button onClick={() => downloadAsMarkdown(setup, messages)} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all" title="MD">
-              <Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">MD</span>
-            </button>
-            <button onClick={handleRevalidate} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all" title="Pivot">
-              <RefreshCw className="w-3.5 h-3.5" /><span className="hidden sm:inline">Pivot</span>
-            </button>
-            <ThemeToggle />
-            <button onClick={handleValidateNew} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-all ml-1">+ New</button>
-          </div>
-        </div>
-      </div>
+  const hasDeepDiveContent =
+    !!(
+      dashboard.problemSolution ||
+      dashboard.targetCustomer ||
+      dashboard.tamSamSom.tam ||
+      dashboard.tamSamSom.sam ||
+      dashboard.tamSamSom.som ||
+      dashboard.valueProposition ||
+      dashboard.businessModel ||
+      dashboard.competitiveSummary ||
+      dashboard.marketSummary
+    );
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+  const hasActionPlanContent =
+    !!(
+      dashboard.recommendations.length > 0 ||
+      dashboard.keyAssumptions ||
+      dashboard.timelineToLaunch ||
+      dashboard.financialSummary
+    );
+
+  const weakestMetric =
+    categoryMetrics.length > 0
+      ? categoryMetrics.reduce((a, b) => (a.value! <= b.value! ? a : b))
+      : null;
+
+  const executiveLines = buildExecutiveSnapshotLines({
+    strengths: dashboard.strengths,
+    risks: dashboard.risks,
+    weakest: weakestMetric ? { label: weakestMetric.label, value: weakestMetric.value! } : null,
+    completeness,
+    rubricAgg,
+  });
+
+  const tabSummaries = [
+    `Strengths, risks, scores, and recommendation — ${dashboard.strengths.length}↑ · ${dashboard.risks.length}⚠.`,
+    hasDeepDiveContent
+      ? "Market sizing, ICP, positioning, and competitive context."
+      : "Market sections look thin — add detail in the journey and re-run.",
+    hasFinancials || !!dashboard.financialSummary
+      ? "Forecasts, unit economics, break-even, and lean canvas when parsed."
+      : "Financial tables missing — run a fresh validation for projections.",
+    hasActionPlanContent
+      ? `${dashboard.recommendations.length ? `${dashboard.recommendations.length} steps` : "Checklist"} · assumptions · timeline.`
+      : "Action plan sparse — re-run with clearer goals and constraints.",
+  ];
+
+  const shareLabel =
+    shareToast === "copied" ? "Copied!" : shareToast === "tooLarge" ? "Too large" : "Share link";
+
+  return (
+    <AppShell
+      maxWidth="8xl"
+      particleCount={38}
+      magneticStrength={0.07}
+      header={
+        <>
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+            <AppLogoLink />
+            <Link
+              href="/"
+              className="hidden items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground sm:inline-flex"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Home
+            </Link>
+            <span className="hidden text-muted-foreground sm:inline" aria-hidden>
+              /
+            </span>
+            <span className="hidden min-w-0 max-w-[min(240px,28vw)] truncate text-sm text-muted-foreground lg:max-w-[min(320px,32vw)] sm:inline">
+              {setup.topic}
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1 backdrop-blur-sm">
+            <button
+              type="button"
+              onClick={handleCopyShareLink}
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-all sm:px-3",
+                shareToast === "tooLarge"
+                  ? "text-amber-400"
+                  : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
+              )}
+              title={
+                shareToast === "tooLarge"
+                  ? "Report too long for a share link — use PDF or Markdown export"
+                  : "Copy a read-only link for a cofounder, advisor, or investor"
+              }
+            >
+              {shareToast === "copied" ? (
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+              ) : (
+                <Share2 className="h-3.5 w-3.5" />
+              )}
+              <span className="hidden md:inline">{shareLabel}</span>
+            </button>
+            <span className="hidden h-4 w-px bg-white/10 sm:block" aria-hidden />
+            <button
+              type="button"
+              onClick={() => downloadAsPDF(setup, validationContent)}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground sm:px-3"
+              title="Print-friendly brief — same content as on screen, for PDF or paper"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">PDF brief</span>
+              <span className="hidden md:inline lg:hidden">PDF</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadAsMarkdown(setup, validationContent)}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground sm:px-3"
+              title="Full Markdown report — paste into Notion, GitHub, or your docs"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">Markdown</span>
+              <span className="hidden md:inline lg:hidden">MD</span>
+            </button>
+            <span className="hidden h-4 w-px bg-white/10 sm:block" aria-hidden />
+            <button
+              type="button"
+              onClick={handleEditInputsAndRerun}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground sm:px-3"
+              title="Opens the journey form with your topic and pitch prefilled so you can edit and run a new validation"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">Edit & re-run</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleValidateNew}
+              className="ml-0.5 flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-indigo-500"
+            >
+              New idea
+            </button>
+          </div>
+        </>
+      }
+    >
+      <div className="relative z-1 mx-auto flex w-full min-w-0 max-w-[100rem]">
+        {/* ── LEFT SIDEBAR (xl+) ── */}
+        <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-56 shrink-0 overflow-y-auto border-r border-white/8 bg-white/[0.02] xl:block">
+          <div className="flex flex-col gap-1 px-3 py-5">
+            {/* Journey progress */}
+            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-white/30">Journey</p>
+            {[
+              { label: "Validation", icon: <Check className="h-3.5 w-3.5" />, active: true, done: true, href: "/results" },
+              { label: "AI Interviews", icon: <MessageSquare className="h-3.5 w-3.5" />, active: false, done: !!session.interviewChats && Object.keys(session.interviewChats).length > 0, href: "/debate" },
+              { label: "Competitors", icon: <TrendingUp className="h-3.5 w-3.5" />, active: false, done: false, href: "/competitors" },
+              { label: "Business Toolkit", icon: <Briefcase className="h-3.5 w-3.5" />, active: false, done: false, href: "/toolkit" },
+              { label: "Brand & Logo", icon: <Sparkles className="h-3.5 w-3.5" />, active: false, done: false, href: "/brand" },
+              { label: "Landing Page", icon: <Globe className="h-3.5 w-3.5" />, active: false, done: false, href: "/landing-generator" },
+            ].map((step) => (
+              <Link
+                key={step.href}
+                href={step.href}
+                className={cn(
+                  "group flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-medium transition-all",
+                  step.active
+                    ? "bg-indigo-500/15 text-indigo-200 ring-1 ring-indigo-500/25"
+                    : "text-white/45 hover:bg-white/5 hover:text-white/70",
+                )}
+              >
+                <span className={cn(
+                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors",
+                  step.done
+                    ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-400"
+                    : step.active
+                      ? "border-indigo-500/30 bg-indigo-500/15 text-indigo-300"
+                      : "border-white/10 bg-white/[0.04] text-white/30 group-hover:text-white/50",
+                )}>
+                  {step.done && !step.active ? <Check className="h-3 w-3" /> : step.icon}
+                </span>
+                {step.label}
+                {step.done && !step.active && (
+                  <span className="ml-auto text-[9px] font-semibold uppercase text-emerald-400/70">Done</span>
+                )}
+              </Link>
+            ))}
+
+            {/* Divider */}
+            <div className="my-3 h-px bg-white/8" />
+
+            {/* Quick actions */}
+            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-white/30">Export</p>
+            <button
+              type="button"
+              onClick={() => downloadAsPDF(setup, validationContent)}
+              className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-medium text-white/45 transition-all hover:bg-white/5 hover:text-white/70"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              PDF brief
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadAsMarkdown(setup, validationContent)}
+              className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-medium text-white/45 transition-all hover:bg-white/5 hover:text-white/70"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Markdown
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyShareLink}
+              className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-[12px] font-medium text-white/45 transition-all hover:bg-white/5 hover:text-white/70"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              {shareLabel}
+            </button>
+
+            {/* Divider */}
+            <div className="my-3 h-px bg-white/8" />
+
+            {/* Score summary */}
+            {score != null && (
+              <div className="rounded-lg border border-white/8 bg-white/[0.03] px-3 py-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-white/30">Score</span>
+                  <span className={cn("text-lg font-black tabular-nums", score >= 70 ? "text-emerald-400" : score >= 50 ? "text-amber-400" : "text-red-400")}>{score}</span>
+                </div>
+                {categoryMetrics.slice(0, 6).map((m, i) => (
+                  <div key={i} className="mb-1 last:mb-0">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-white/35">{m.label}</span>
+                      <span className={cn("font-bold tabular-nums", m.color)}>{m.value}</span>
+                    </div>
+                    <div className="mt-0.5 h-0.5 overflow-hidden rounded-full bg-white/8">
+                      <div className="h-full rounded-full" style={{ width: `${((m.value ?? 0) / SCORE_MAX) * 100}%`, background: m.value! >= 70 ? "#10b981" : m.value! >= 50 ? "#f59e0b" : "#ef4444" }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* ── MAIN CONTENT ── */}
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 sm:pb-12 sm:pt-8">
 
         {/* ── HERO ── */}
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, ease: "easeOut" }} className="relative rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.06] overflow-hidden mb-5">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.08)_0%,_transparent_50%)]" />
-          <div className="relative p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+        <motion.div
+          id="journey-decision"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
+          className="relative mb-5 scroll-mt-28 overflow-hidden rounded-2xl border border-white/10 bg-linear-to-br from-white/[0.07] via-white/[0.02] to-transparent shadow-[0_24px_80px_-32px_rgba(99,102,241,0.35)]"
+        >
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_80%_at_100%_0%,rgba(99,102,241,0.12),transparent_55%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_0%_100%,rgba(139,92,246,0.08),transparent_50%)]" />
+          <div className="relative px-5 py-5 sm:px-7 sm:py-6">
+            {/* Row 1: Score ring + title + badges */}
+            <div className="flex items-start gap-5 sm:gap-7">
               {score != null && (
-                <div className="shrink-0 flex flex-col items-center">
-                  <ScoreRing score={score} />
-                  {goNoGoLabel && (
-                    <span className={`mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${goNoGoColor}`}>
-                      {goNoGoLabel === "GO" && <Check className="w-3 h-3" />}
-                      {goNoGoLabel === "CAUTION" && <AlertTriangle className="w-3 h-3" />}
-                      {goNoGoLabel === "NO-GO" && <X className="w-3 h-3" />}
-                      {goNoGoLabel}
+                <div className="flex shrink-0 flex-col items-center gap-2">
+                  <ScoreRing score={score} size={96} />
+                  <div className="flex flex-col items-center gap-1">
+                    {goNoGoLabel && (
+                      <span className={cn("inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold", goNoGoColor)}>
+                        {goNoGoLabel === "GO" && <Check className="h-2.5 w-2.5" />}
+                        {goNoGoLabel === "CAUTION" && <AlertTriangle className="h-2.5 w-2.5" />}
+                        {goNoGoLabel === "NO-GO" && <X className="h-2.5 w-2.5" />}
+                        {goNoGoLabel}
+                      </span>
+                    )}
+                    {session.scoreReconciliation && (
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
+                          session.scoreReconciliation.confidence === "high"
+                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                            : session.scoreReconciliation.confidence === "medium"
+                              ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                              : "border-red-500/30 bg-red-500/10 text-red-400",
+                        )}
+                        title={`Two AI models scored independently — max divergence ${session.scoreReconciliation.maxDelta} pts`}
+                      >
+                        <Shield className="h-2.5 w-2.5" />
+                        {session.scoreReconciliation.confidence === "high"
+                          ? "Cross-validated"
+                          : session.scoreReconciliation.confidence === "medium"
+                            ? "Moderate confidence"
+                            : "Models disagree"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                  <span className="rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-indigo-300/95">
+                    {ideaVerticalLabel}
+                  </span>
+                  {scoreDivergence && scoreDivergence.severity === "strong" && (
+                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-semibold text-amber-300" title={`Headline ${score}/${SCORE_MAX} vs rubric avg ${scoreDivergence.mean}`}>
+                      Score divergence
                     </span>
                   )}
                 </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">{setup.topic}</h1>
-                {dashboard.verdict && <p className="text-white/50 text-sm leading-relaxed mb-4">{dashboard.verdict}</p>}
-                {categoryMetrics.length > 0 && (
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                    {categoryMetrics.map((m, i) => (
-                      <div key={i} className="rounded-lg bg-white/[0.04] border border-white/[0.06] py-2 px-2 text-center">
-                        <div className={`text-lg font-bold ${m.color}`}>{m.value}<span className="text-[10px] text-white/15">/10</span></div>
-                        <div className="text-[10px] text-white/30 font-medium leading-tight">{m.label}</div>
-                      </div>
-                    ))}
-                  </div>
+                <h1 className="mb-1.5 text-xl font-bold tracking-tight text-white sm:text-2xl sm:leading-tight">
+                  {setup.topic}
+                </h1>
+                {setup.position.trim().length > 0 && (
+                  <p className="mb-3 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
+                    {setup.position}
+                  </p>
+                )}
+                {dashboard.verdict && (
+                  <p className="border-l-2 border-indigo-500/35 pl-3 text-[13px] leading-relaxed text-white/55">
+                    {dashboard.verdict}
+                  </p>
                 )}
               </div>
             </div>
+
+            {/* Row 2: Category score bars (compact) */}
+            {categoryMetrics.length > 0 && (
+              <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 lg:grid-cols-6">
+                {categoryMetrics.map((m, i) => (
+                  <div key={i} className="flex items-center gap-2.5">
+                    <span className={cn("shrink-0 text-[11px] font-medium", m.color)}>{m.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-1">
+                        <span className="truncate text-[10px] font-medium text-white/50">{m.label}</span>
+                        <span className={cn("tabular-nums text-xs font-bold", m.color)}>{m.value}</span>
+                      </div>
+                      <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-white/8">
+                        <div
+                          className="h-full rounded-full transition-all duration-700 ease-out"
+                          style={{
+                            width: `${((m.value ?? 0) / SCORE_MAX) * 100}%`,
+                            background: m.value! >= 70 ? "#10b981" : m.value! >= 50 ? "#f59e0b" : "#ef4444",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </motion.div>
 
-        {/* ── TABS ── */}
-        <div className="flex gap-1 overflow-x-auto pb-1 mb-5 scrollbar-hide">
-          {tabs.map((tab, i) => (
-            <motion.button key={tab.label} onClick={() => setActiveTab(i)}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: i * 0.06 }}
-              whileHover={{ scale: 1.03 }}
-              className={`shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === i ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30" : "bg-white/[0.02] text-white/30 hover:text-white/50 border border-white/[0.04] hover:border-white/[0.08]"}`}>
-              {tab.icon}{tab.label}
-            </motion.button>
-          ))}
+        {/* ── TABS (segmented, sticky) ── */}
+        <div
+          id="report-tabs"
+          className="sticky top-14 z-20 -mx-4 mb-5 border-b border-white/10 bg-[var(--bg-primary)]/88 px-2 py-2.5 backdrop-blur-xl sm:-mx-6 sm:px-4 lg:-mx-10"
+        >
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+            {tabs.map((tab, i) => (
+              <button
+                key={tab.label}
+                type="button"
+                onClick={() => setActiveTab(i)}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all",
+                  activeTab === i
+                    ? "bg-indigo-500/20 text-indigo-100 shadow-sm shadow-indigo-500/10 ring-1 ring-indigo-500/35"
+                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
+                )}
+              >
+                <span className={cn("text-sm", activeTab === i ? "text-indigo-300" : "text-white/35")}>{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ── TAB CONTENT ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+        <div className="mb-6">
 
-          {/* ═══ OVERVIEW: The big picture ═══ */}
+          {/* ═══ OVERVIEW ═══ */}
           {activeTab === 0 && (
-            <>
-              <div className="space-y-5">
-                {/* Strengths - FULL content */}
-                <ContentCard icon={<Check className="w-4 h-4" />} title={`Strengths (${dashboard.strengths.length})`} color="text-emerald-400" className="border-emerald-500/10">
-                  {dashboard.strengths.length > 0 ? (
-                    <ul className="space-y-2.5">
-                      {dashboard.strengths.map((s, i) => (
-                        <li key={i} className="flex gap-3 items-start">
-                          <div className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                          <span className="text-sm text-white/60 leading-relaxed">{s}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : <p className="text-white/25 text-sm italic">None identified.</p>}
-                </ContentCard>
+            <div className="space-y-3.5">
+              {/* Go/No-Go — visual verdict bar */}
+              {dashboard.goNoGo && (
+                <div className={cn(
+                  "flex items-center gap-3 rounded-xl border px-4 py-3",
+                  goNoGoLabel === "GO" ? "border-emerald-500/25 bg-emerald-500/[0.06]" :
+                  goNoGoLabel === "CAUTION" ? "border-amber-500/25 bg-amber-500/[0.06]" :
+                  "border-red-500/25 bg-red-500/[0.06]"
+                )}>
+                  <div className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                    goNoGoLabel === "GO" ? "bg-emerald-500/20" : goNoGoLabel === "CAUTION" ? "bg-amber-500/20" : "bg-red-500/20"
+                  )}>
+                    {goNoGoLabel === "GO" ? <Check className="h-4 w-4 text-emerald-400" /> : goNoGoLabel === "CAUTION" ? <AlertTriangle className="h-4 w-4 text-amber-400" /> : <X className="h-4 w-4 text-red-400" />}
+                  </div>
+                  <div className="min-w-0 flex-1 text-[13px] leading-snug text-white/70">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ children }) => <span>{children}</span> }}>{dashboard.goNoGo}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
 
-                {/* Risks - FULL content */}
-                <ContentCard icon={<AlertTriangle className="w-4 h-4" />} title={`Risk Flags (${dashboard.risks.length})`} color="text-red-400" className="border-red-500/10">
-                  {dashboard.risks.length > 0 ? (
-                    <ul className="space-y-2.5">
-                      {dashboard.risks.map((r, i) => (
-                        <li key={i} className="flex gap-3 items-start">
-                          <div className="w-2 h-2 rounded-full bg-red-400 mt-1.5 shrink-0" />
-                          <span className="text-sm text-white/60 leading-relaxed">{r}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : <p className="text-white/25 text-sm italic">None identified.</p>}
-                </ContentCard>
-
-                {/* Go/No-Go - FULL content */}
-                {dashboard.goNoGo && (
-                  <ContentCard icon={<Target className="w-4 h-4" />} title="Go / No-Go Recommendation" color="text-emerald-400">
-                    <div className="markdown-content-dark text-sm leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.goNoGo}</ReactMarkdown>
+              {/* Visual key metrics strip — pull numbers from the report */}
+              {(dashboard.summary || dashboard.valueProposition) && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+                  {dashboard.valueProposition && (
+                    <div className="rounded-xl border border-violet-500/15 bg-violet-500/[0.04] px-4 py-3">
+                      <div className="mb-1.5 flex items-center gap-1.5">
+                        <MessageSquare className="h-3.5 w-3.5 text-violet-400" />
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-violet-300/80">Value Proposition</span>
+                      </div>
+                      <p className="text-[14px] font-medium leading-snug text-white/75">{dashboard.valueProposition.replace(/\*\*/g, "").slice(0, 200)}</p>
                     </div>
-                  </ContentCard>
-                )}
+                  )}
+                  {dashboard.summary && (
+                    <div className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3">
+                      <div className="mb-1.5 flex items-center gap-1.5">
+                        <Lightbulb className="h-3.5 w-3.5 text-amber-400" />
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-300/80">Summary</span>
+                      </div>
+                      <p className="text-[13px] leading-snug text-white/55">{dashboard.summary.slice(0, 200)}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Strengths + Risks — visual pill cards */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+                <div className="rounded-xl border border-emerald-500/12 bg-white/[0.02] px-4 py-3">
+                  <div className="mb-2.5 flex items-center gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-emerald-400" />
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-300/80">Strengths</span>
+                    <span className="ml-auto rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-emerald-400">{dashboard.strengths.length}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {dashboard.strengths.length > 0 ? dashboard.strengths.map((s, i) => (
+                      <span key={i} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/15 bg-emerald-500/[0.06] px-2.5 py-1.5 text-[12px] leading-snug text-white/65">
+                        <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+                        {s}
+                      </span>
+                    )) : <span className="text-white/25 text-[12px] italic">None identified</span>}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-red-500/12 bg-white/[0.02] px-4 py-3">
+                  <div className="mb-2.5 flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-red-300/80">Risks</span>
+                    <span className="ml-auto rounded-full bg-red-500/15 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-red-400">{dashboard.risks.length}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {dashboard.risks.length > 0 ? dashboard.risks.map((r, i) => (
+                      <span key={i} className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/15 bg-red-500/[0.06] px-2.5 py-1.5 text-[12px] leading-snug text-white/65">
+                        <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
+                        {r}
+                      </span>
+                    )) : <span className="text-white/25 text-[12px] italic">None identified</span>}
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-5">
-                {/* Radar chart */}
+              {/* Radar chart + Problem-Solution */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
                 <ContentCard icon={<BarChart3 className="w-4 h-4" />} title="Score Breakdown" color="text-indigo-400">
                   <RadarChart scores={dashboard.categoryScores} />
-                  <div className="mt-4"><ScoreBreakdownBars scores={dashboard.categoryScores} /></div>
                 </ContentCard>
 
-                {/* Summary */}
-                {dashboard.summary && (
-                  <ContentCard icon={<Lightbulb className="w-4 h-4" />} title="Idea Summary" color="text-amber-400">
-                    <p className="text-sm text-white/60 leading-relaxed">{dashboard.summary}</p>
-                  </ContentCard>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* ═══ DEEP DIVE: Market, customer, competition ═══ */}
-          {activeTab === 1 && (
-            <>
-              <div className="space-y-5">
                 {dashboard.problemSolution && (
                   <ContentCard icon={<Lightbulb className="w-4 h-4" />} title="Problem-Solution Fit" color="text-amber-400">
-                    <div className="markdown-content-dark text-sm leading-relaxed">
+                    <div className="markdown-content-dark text-[13px] leading-relaxed text-white/55">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.problemSolution}</ReactMarkdown>
                     </div>
                   </ContentCard>
                 )}
-                {dashboard.targetCustomer && (
-                  <ContentCard icon={<Users className="w-4 h-4" />} title="Target Customer" color="text-sky-400">
-                    <div className="markdown-content-dark text-sm leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.targetCustomer}</ReactMarkdown>
+              </div>
+            </div>
+          )}
+
+          {/* ═══ MARKET & COMPETITION ═══ */}
+          {activeTab === 1 && (
+            <div className="space-y-3.5">
+              {/* Market + TAM side by side */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+                {dashboard.marketSummary && (
+                  <ContentCard icon={<TrendingUp className="w-4 h-4" />} title="Market Opportunity" color="text-blue-400">
+                    <div className="markdown-content-dark text-[13px] leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.marketSummary}</ReactMarkdown>
                     </div>
                   </ContentCard>
                 )}
@@ -475,275 +931,172 @@ export default function ResultsPage() {
                   </ContentCard>
                 )}
               </div>
-              <div className="space-y-5">
-                {dashboard.valueProposition && (
-                  <ContentCard icon={<MessageSquare className="w-4 h-4" />} title="Value Proposition" color="text-violet-400">
-                    <div className="markdown-content-dark text-sm leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.valueProposition}</ReactMarkdown>
+
+              {/* Target Customer — visual card */}
+              {dashboard.targetCustomer && (
+                <div className="rounded-xl border border-sky-500/15 bg-sky-500/[0.03] px-4 py-3">
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-sky-400" />
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-300/80">Target Customer</span>
+                  </div>
+                  <div className="markdown-content-dark text-[13px] leading-relaxed text-white/60">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.targetCustomer}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
+
+              {/* Competitive matrix — full width when present */}
+              {dashboard.competitiveMatrix.length > 0 && (
+                <ContentCard icon={<Swords className="w-4 h-4" />} title="Competitor Comparison" color="text-rose-400">
+                  <CompetitiveMatrix entries={dashboard.competitiveMatrix} />
+                </ContentCard>
+              )}
+
+              {/* Competitive narrative + Business Model side by side */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+                {dashboard.competitiveSummary && (
+                  <ContentCard icon={<Swords className="w-4 h-4" />} title="Competitive Landscape" color="text-rose-400">
+                    <div className="markdown-content-dark text-[13px] leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.competitiveSummary}</ReactMarkdown>
                     </div>
                   </ContentCard>
                 )}
                 {dashboard.businessModel && (
                   <ContentCard icon={<Layout className="w-4 h-4" />} title="Business Model" color="text-emerald-400">
-                    <div className="markdown-content-dark text-sm leading-relaxed">
+                    <div className="markdown-content-dark text-[13px] leading-relaxed">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.businessModel}</ReactMarkdown>
                     </div>
                   </ContentCard>
                 )}
-                {dashboard.competitiveSummary && (
-                  <ContentCard icon={<Swords className="w-4 h-4" />} title="Competitive Landscape" color="text-rose-400">
-                    <div className="markdown-content-dark text-sm leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.competitiveSummary}</ReactMarkdown>
-                    </div>
-                  </ContentCard>
-                )}
-                {dashboard.marketSummary && !dashboard.competitiveSummary && (
-                  <ContentCard icon={<TrendingUp className="w-4 h-4" />} title="Market Opportunity" color="text-blue-400">
-                    <div className="markdown-content-dark text-sm leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.marketSummary}</ReactMarkdown>
-                    </div>
-                  </ContentCard>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* ═══ ACTION PLAN: What to do next ═══ */}
-          {activeTab === 2 && (
-            <>
-              <div className="space-y-5">
-                {/* Validation Checklist — the core action item */}
-                {dashboard.recommendations.length > 0 && (
-                  <ContentCard icon={<CheckCircle2 className="w-4 h-4" />} title="Your Validation Checklist" color="text-indigo-400" className="border-indigo-500/10 bg-gradient-to-br from-indigo-500/[0.04] to-violet-500/[0.02]">
-                    <p className="text-sm text-white/40 mb-4">Complete these steps before writing a single line of code.</p>
-                    <ValidationChecklist items={dashboard.recommendations} />
-                  </ContentCard>
-                )}
-                {dashboard.keyAssumptions && (
-                  <ContentCard icon={<HelpCircle className="w-4 h-4" />} title="Key Assumptions to Validate" color="text-amber-400" className="border-l-2 border-l-amber-500/40">
-                    <div className="markdown-content-dark text-sm leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.keyAssumptions}</ReactMarkdown>
-                    </div>
-                  </ContentCard>
-                )}
-              </div>
-              <div className="space-y-5">
-                {dashboard.timelineToLaunch && (
-                  <ContentCard icon={<Calendar className="w-4 h-4" />} title="Timeline to Launch" color="text-indigo-400" className="border-l-2 border-l-indigo-500/40">
-                    <div className="markdown-content-dark text-sm leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.timelineToLaunch}</ReactMarkdown>
-                    </div>
-                  </ContentCard>
-                )}
-                {dashboard.financialSummary && (
-                  <ContentCard icon={<DollarSign className="w-4 h-4" />} title="Financial Snapshot" color="text-emerald-400" className="border-l-2 border-l-emerald-500/40">
-                    <div className="markdown-content-dark text-sm leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.financialSummary}</ReactMarkdown>
-                    </div>
-                  </ContentCard>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* ═══ CANVAS & PLAN ═══ */}
-          {activeTab === 3 && (
-            <div className="lg:col-span-2 space-y-5">
-              {dashboard.leanCanvas ? (
-                <ContentCard icon={<Grid3X3 className="w-4 h-4" />} title="Lean Canvas" color="text-indigo-400">
-                  <LeanCanvas canvas={dashboard.leanCanvas} />
-                </ContentCard>
-              ) : (
-                <div className="rounded-xl bg-white/[0.02] border-2 border-dashed border-white/[0.06] p-8 text-center">
-                  <Grid3X3 className="w-12 h-12 text-white/10 mx-auto mb-3" />
-                  <p className="text-white/25 text-sm">Lean Canvas data not available for this report.</p>
-                </div>
-              )}
-
-              {/* Business Toolkit link */}
-              <div className="rounded-xl bg-gradient-to-br from-amber-500/[0.06] to-indigo-500/[0.04] border border-amber-500/15 p-5 sm:p-6">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 rounded-lg bg-amber-500/15 border border-amber-500/20">
-                    <Briefcase className="w-5 h-5 text-amber-400" />
-                  </div>
-                  <h3 className="text-sm font-bold text-white">Business Toolkit</h3>
-                </div>
-                <p className="text-sm text-white/40 mb-4">Generate pitch deck, business plan, financial model, and GTM strategy — all from your validation data.</p>
-                <Link href="/toolkit"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition-all">
-                  <Sparkles className="w-4 h-4" /> Open Toolkit <ArrowRight className="w-4 h-4" />
-                </Link>
               </div>
             </div>
           )}
 
-          {/* ═══ REFINE: Sharpen weak spots ═══ */}
-          {activeTab === 4 && weakCategories.length > 0 && (
-            <div className="lg:col-span-2 space-y-5">
-              {/* Header */}
-              <div className="rounded-xl bg-gradient-to-br from-amber-500/[0.06] to-red-500/[0.04] border border-amber-500/15 p-5 sm:p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-lg bg-amber-500/15 border border-amber-500/20">
-                    <Lightbulb className="w-5 h-5 text-amber-400" />
-                  </div>
-                  <h2 className="text-lg font-bold text-white">Sharpen Your Weak Spots</h2>
-                </div>
-                <p className="text-sm text-white/40 leading-relaxed">
-                  {weakCategories.length} {weakCategories.length === 1 ? "category scored" : "categories scored"} below 7/10. Generate AI-powered pivots for each weak area, pick the ones that fit, and re-validate your refined idea.
-                </p>
-              </div>
+          {/* ═══ FINANCIALS ═══ */}
+          {activeTab === 2 && (
+            <div className="space-y-3.5">
+              {!hasFinancials && !dashboard.financialSummary && (
+                <EmptySection title="Financial data was not parsed from this report. Try running a new validation — the AI now generates 3-year projections, unit economics, and break-even analysis." />
+              )}
 
-              {/* Weak category cards */}
-              {weakCategories.map((cat) => {
-                const scoreColor = cat.value != null && cat.value < 5 ? "text-red-400" : "text-amber-400";
-                const scoreBg = cat.value != null && cat.value < 5 ? "bg-red-500/10 border-red-500/20" : "bg-amber-500/10 border-amber-500/20";
-                const data = pivotData[cat.key];
-                const isLoading = pivotLoading[cat.key];
-                const errorMsg = pivotErrors[cat.key];
-                const selected = selectedPivots[cat.key];
+              {/* Projections — full width table */}
+              {dashboard.financialProjections.length > 0 && (
+                <ContentCard icon={<TrendingUp className="w-4 h-4" />} title="3-Year Financial Projections" color="text-emerald-400" className="border-emerald-500/10">
+                  <ProjectionTable rows={dashboard.financialProjections} />
+                </ContentCard>
+              )}
 
-                return (
-                  <ContentCard
-                    key={cat.key}
-                    icon={<AlertTriangle className="w-4 h-4" />}
-                    title={cat.label}
-                    color={scoreColor}
-                    className={`border-l-2 ${cat.value != null && cat.value < 5 ? "border-l-red-500/40" : "border-l-amber-500/40"}`}
-                  >
-                    {/* Score badge */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${scoreBg} ${scoreColor}`}>
-                        {cat.value}/10
-                      </span>
-                      <span className="text-xs text-white/25">Needs improvement</span>
-                    </div>
-
-                    {/* Generate button or results */}
-                    {!data && !isLoading && (
-                      <button
-                        onClick={() => handleGeneratePivots(cat.key, cat.label, cat.value!)}
-                        disabled={isLoading}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/[0.06] border border-white/[0.08] text-sm font-medium text-white/60 hover:text-white/80 hover:bg-white/[0.08] transition-all"
-                      >
-                        <Zap className="w-3.5 h-3.5" /> Generate Pivots
-                      </button>
-                    )}
-
-                    {isLoading && (
-                      <div className="flex items-center gap-2 py-3 text-white/30 text-sm">
-                        <Loader2 className="w-4 h-4 animate-spin" /> Analyzing weakness and generating pivots...
-                      </div>
-                    )}
-
-                    {errorMsg && (
-                      <div className="flex items-center gap-2 py-2 text-red-400 text-sm">
-                        <AlertTriangle className="w-4 h-4 shrink-0" />
-                        <span>{errorMsg}</span>
-                        <button onClick={() => handleGeneratePivots(cat.key, cat.label, cat.value!)} className="text-xs underline hover:no-underline ml-1">Retry</button>
-                      </div>
-                    )}
-
-                    {data && (
-                      <div className="space-y-4">
-                        {/* Analysis */}
-                        <div className="rounded-lg bg-white/[0.02] border border-white/[0.04] p-3">
-                          <p className="text-xs font-medium text-white/30 mb-1">Root Cause</p>
-                          <p className="text-sm text-white/50 leading-relaxed">{data.analysis}</p>
-                        </div>
-
-                        {/* Pivots */}
-                        <div className="space-y-3">
-                          {data.pivots.map((pivot, idx) => {
-                            const isSelected = selected === idx;
-                            return (
-                              <div
-                                key={idx}
-                                onClick={() => setSelectedPivots(prev => {
-                                  if (prev[cat.key] === idx) { const next = { ...prev }; delete next[cat.key]; return next; }
-                                  return { ...prev, [cat.key]: idx };
-                                })}
-                                className={`rounded-lg border p-4 cursor-pointer transition-all ${
-                                  isSelected
-                                    ? "bg-indigo-500/10 border-indigo-500/30"
-                                    : "bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12]"
-                                }`}
-                              >
-                                <div className="flex items-start justify-between gap-3 mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                                      isSelected ? "border-indigo-400 bg-indigo-500" : "border-white/20"
-                                    }`}>
-                                      {isSelected && <Check className="w-3 h-3 text-white" />}
-                                    </div>
-                                    <h4 className="text-sm font-semibold text-white/80">{pivot.title}</h4>
-                                  </div>
-                                  <span className="shrink-0 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                                    {pivot.estimatedScore}/10
-                                  </span>
-                                </div>
-                                <p className="text-sm text-white/45 leading-relaxed ml-7">{pivot.description}</p>
-                              </div>
-                            );
-                          })}
-
-                          {/* Custom pivot option */}
-                          <div
-                            onClick={() => setSelectedPivots(prev => {
-                              if (prev[cat.key] === "custom") { const next = { ...prev }; delete next[cat.key]; return next; }
-                              return { ...prev, [cat.key]: "custom" };
-                            })}
-                            className={`rounded-lg border p-4 cursor-pointer transition-all ${
-                              selected === "custom"
-                                ? "bg-indigo-500/10 border-indigo-500/30"
-                                : "bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12]"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                                selected === "custom" ? "border-indigo-400 bg-indigo-500" : "border-white/20"
-                              }`}>
-                                {selected === "custom" && <Check className="w-3 h-3 text-white" />}
-                              </div>
-                              <h4 className="text-sm font-semibold text-white/60">Write your own pivot</h4>
-                            </div>
-                            {selected === "custom" && (
-                              <textarea
-                                value={customPivotText[cat.key] || ""}
-                                onChange={(e) => setCustomPivotText(prev => ({ ...prev, [cat.key]: e.target.value }))}
-                                onClick={(e) => e.stopPropagation()}
-                                placeholder="Describe your pivot idea..."
-                                className="w-full mt-2 ml-7 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white/70 placeholder-white/20 focus:outline-none focus:border-indigo-500/40 resize-none"
-                                rows={2}
-                              />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+              {/* Unit Economics + Break-Even side by side */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+                {dashboard.unitEconomics.cac && (
+                  <ContentCard icon={<DollarSign className="w-4 h-4" />} title="Unit Economics" color="text-indigo-400" className="border-indigo-500/10">
+                    <UnitEconomicsGrid data={dashboard.unitEconomics} />
                   </ContentCard>
-                );
-              })}
+                )}
+                {dashboard.breakEven.point && (
+                  <BreakEvenCard data={dashboard.breakEven} />
+                )}
+              </div>
 
-              {/* Re-validate button */}
-              <div className="rounded-xl bg-gradient-to-br from-indigo-500/[0.06] to-violet-500/[0.04] border border-indigo-500/15 p-5 sm:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div>
-                    <h3 className="text-sm font-bold text-white mb-1">Ready to re-validate?</h3>
-                    <p className="text-xs text-white/30">
-                      {hasAnyPivotSelected
-                        ? `${Object.keys(selectedPivots).length} ${Object.keys(selectedPivots).length === 1 ? "pivot" : "pivots"} selected. Your idea will be re-validated with these refinements applied.`
-                        : "Select at least one pivot above, then re-validate to see your updated scores."}
-                    </p>
+              {/* Financial Summary fallback (for older reports) */}
+              {dashboard.financialSummary && !dashboard.financialProjections.length && (
+                <ContentCard icon={<DollarSign className="w-4 h-4" />} title="Financial Snapshot" color="text-emerald-400" className="border-l-2 border-l-emerald-500/40">
+                  <div className="markdown-content-dark text-[13px] leading-relaxed">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.financialSummary}</ReactMarkdown>
                   </div>
-                  <button
-                    onClick={handleRevalidateWithPivots}
-                    disabled={!hasAnyPivotSelected}
-                    className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0"
-                  >
-                    <RefreshCw className="w-4 h-4" /> Re-validate with Changes
-                  </button>
+                </ContentCard>
+              )}
+
+              {/* Lean Canvas — full width */}
+              {dashboard.leanCanvas && (
+                <ContentCard icon={<Grid3X3 className="w-4 h-4" />} title="Lean Canvas" color="text-indigo-400">
+                  <LeanCanvas canvas={dashboard.leanCanvas} />
+                </ContentCard>
+              )}
+            </div>
+          )}
+
+          {/* ═══ ACTION PLAN ═══ */}
+          {activeTab === 3 && (
+            <div className="space-y-3.5">
+              {/* Checklist + Assumptions side by side */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+                {dashboard.recommendations.length > 0 && (
+                  <ContentCard icon={<CheckCircle2 className="w-4 h-4" />} title="Validation Checklist" color="text-indigo-400" className="border-indigo-500/10 bg-linear-to-br from-indigo-500/4 to-violet-500/2">
+                    <p className="text-[13px] text-white/40 mb-3">Complete these steps before writing a single line of code.</p>
+                    <ValidationChecklist items={dashboard.recommendations} />
+                  </ContentCard>
+                )}
+                <div className="space-y-3.5">
+                  {dashboard.keyAssumptions && (() => {
+                    const items = dashboard.keyAssumptions!.split("\n").filter(l => /^\s*\d+[\.\)]\s/.test(l) || /^\s*[-*]\s/.test(l)).map(l => l.replace(/^\s*\d+[\.\)]\s*/, "").replace(/^\s*[-*]\s*/, "").trim()).filter(Boolean);
+                    return (
+                      <div className="rounded-xl border border-amber-500/12 bg-white/[0.02] px-4 py-3">
+                        <div className="mb-2.5 flex items-center gap-1.5">
+                          <HelpCircle className="h-3.5 w-3.5 text-amber-400" />
+                          <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-300/80">Assumptions to validate</span>
+                        </div>
+                        {items.length > 0 ? (
+                          <div className="space-y-1.5">
+                            {items.map((item, i) => (
+                              <div key={i} className="flex items-start gap-2">
+                                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-[10px] font-bold text-amber-400">{i + 1}</span>
+                                <span className="text-[12px] leading-snug text-white/55">{item}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="markdown-content-dark text-[13px] leading-relaxed text-white/55">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{dashboard.keyAssumptions!}</ReactMarkdown>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  {dashboard.timelineToLaunch && (() => {
+                    // Parse timeline into visual steps
+                    const steps = dashboard.timelineToLaunch!.split("\n").filter(l => l.trim().startsWith("-") || l.trim().startsWith("*")).map(l => {
+                      const clean = l.replace(/^[\s\-*]+/, "").trim();
+                      const boldMatch = clean.match(/^\*\*(.+?)\*\*[:\s]*(.*)/);
+                      return boldMatch ? { label: boldMatch[1], desc: boldMatch[2] } : { label: "", desc: clean };
+                    }).filter(s => s.desc || s.label);
+                    return (
+                      <div className="rounded-xl border border-indigo-500/12 bg-white/[0.02] px-4 py-3">
+                        <div className="mb-3 flex items-center gap-1.5">
+                          <Calendar className="h-3.5 w-3.5 text-indigo-400" />
+                          <span className="text-[11px] font-semibold uppercase tracking-wider text-indigo-300/80">Timeline</span>
+                        </div>
+                        <div className="relative space-y-0">
+                          {steps.map((step, i) => (
+                            <div key={i} className="relative flex gap-3 pb-3 last:pb-0">
+                              {/* Vertical line */}
+                              {i < steps.length - 1 && <div className="absolute left-[7px] top-4 h-full w-px bg-indigo-500/20" />}
+                              {/* Dot */}
+                              <div className={cn("relative mt-1 h-[15px] w-[15px] shrink-0 rounded-full border-2", i === steps.length - 1 ? "border-indigo-400 bg-indigo-400/30" : "border-indigo-500/40 bg-indigo-500/10")} />
+                              <div className="min-w-0">
+                                {step.label && <p className="text-[12px] font-bold text-indigo-300/90">{step.label}</p>}
+                                <p className="text-[12px] leading-snug text-white/50">{step.desc}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
+
+              {/* Business Toolkit CTA — compact */}
+              <Link href="/toolkit" className="flex items-center gap-4 rounded-xl border border-amber-500/15 bg-linear-to-r from-amber-500/6 to-indigo-500/4 p-4 transition-all hover:border-amber-500/30 hover:bg-amber-500/8">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/15">
+                  <Briefcase className="h-5 w-5 text-amber-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-bold text-white">Business Toolkit</h3>
+                  <p className="text-[12px] text-white/40">Pitch deck, business plan, financial model, GTM strategy</p>
+                </div>
+                <ArrowRight className="h-4 w-4 shrink-0 text-amber-400/50" />
+              </Link>
             </div>
           )}
         </div>
@@ -757,69 +1110,53 @@ export default function ResultsPage() {
         )}
 
         {/* ── NEXT STEPS ── */}
-        <div className="mb-4">
-          <h2 className="text-lg font-bold text-white mb-1">Take the next step</h2>
-          <p className="text-white/30 text-sm">Turn your validation into action with these tools.</p>
+        <div className="mb-4 border-t border-white/8 pt-8">
+          <h2 className="mb-4 text-base font-bold tracking-tight text-white">Next steps</h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              { href: "/debate", icon: <MessageSquare className="h-4 w-4" />, label: "AI interviews", accent: "text-indigo-400", hover: "hover:border-indigo-500/30 hover:bg-indigo-500/5" },
+              { href: "/toolkit", icon: <Briefcase className="h-4 w-4" />, label: "Toolkit", accent: "text-amber-400", hover: "hover:border-amber-500/30 hover:bg-amber-500/5" },
+              { href: "/landing-generator", icon: <Globe className="h-4 w-4" />, label: "Landing page", accent: "text-teal-400", hover: "hover:border-teal-500/30 hover:bg-teal-500/5" },
+              { href: "/competitors", icon: <TrendingUp className="h-4 w-4" />, label: "Competitors", accent: "text-rose-400", hover: "hover:border-rose-500/30 hover:bg-rose-500/5" },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn("flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5 text-xs font-medium text-white/70 transition-all", item.hover)}
+              >
+                <span className={item.accent}>{item.icon}</span>
+                {item.label}
+              </Link>
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Debate CTA */}
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4 }} whileHover={{ scale: 1.03, y: -3 }}>
-          <Link href="/debate" className="group relative rounded-2xl border border-white/[0.06] hover:border-indigo-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/5 bg-white/[0.02] hover:bg-indigo-500/[0.04] block">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-all duration-500" />
-            <div className="relative flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Swords className="w-5 h-5 text-indigo-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <h3 className="text-sm font-bold text-white group-hover:text-indigo-200 transition-colors">Stress-Test with AI Debate</h3>
-                  <ArrowRight className="w-4 h-4 text-white/15 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all shrink-0" />
-                </div>
-                <p className="text-white/30 text-xs leading-relaxed">5 AI personas challenge your idea from every angle — investor, customer, competitor, mentor, operator.</p>
-              </div>
-            </div>
-          </Link>
-          </motion.div>
 
-          {/* Business Toolkit CTA — unified pitch deck + business plan + financial model + strategy */}
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.1 }} whileHover={{ scale: 1.03, y: -3 }}>
-          <Link href="/toolkit" className="group relative rounded-2xl border border-white/[0.06] hover:border-amber-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/5 bg-white/[0.02] hover:bg-amber-500/[0.04] block">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/10 transition-all duration-500" />
-            <div className="relative flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Briefcase className="w-5 h-5 text-amber-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <h3 className="text-sm font-bold text-white group-hover:text-amber-200 transition-colors">Business Toolkit</h3>
-                  <ArrowRight className="w-4 h-4 text-white/15 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all shrink-0" />
-                </div>
-                <p className="text-white/30 text-xs leading-relaxed">Pitch deck, business plan, financial model, and GTM strategy — all in one place, powered by your validation data.</p>
-              </div>
-            </div>
-          </Link>
-          </motion.div>
-
-          {/* Landing Page CTA */}
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.2 }} whileHover={{ scale: 1.03, y: -3 }} className="sm:col-span-2">
-          <Link href="/landing-generator" className="group relative rounded-2xl border border-white/[0.06] hover:border-teal-500/30 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-teal-500/5 bg-white/[0.02] hover:bg-teal-500/[0.04] block">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full blur-3xl group-hover:bg-teal-500/10 transition-all duration-500" />
-            <div className="relative flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Globe className="w-5 h-5 text-teal-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <h3 className="text-sm font-bold text-white group-hover:text-teal-200 transition-colors">Landing Page Generator</h3>
-                  <ArrowRight className="w-4 h-4 text-white/15 group-hover:text-teal-400 group-hover:translate-x-0.5 transition-all shrink-0" />
-                </div>
-                <p className="text-white/30 text-xs leading-relaxed">Production-ready marketing site with animated backgrounds, conversion copy, and responsive design. One downloadable HTML file.</p>
-              </div>
-            </div>
-          </Link>
-          </motion.div>
+        {/* ── FOOTER NOTICE ── */}
+        <div className="flex items-start gap-2 pb-4 pt-2 text-[10px] leading-relaxed text-white/25">
+          <Lock className="mt-0.5 h-3 w-3 shrink-0 text-white/20" />
+          <p>
+            AI-generated analysis stored in your browser session — not financial or legal advice.
+            {completeness.percent < 100 && (
+              <span className="ml-1 text-amber-400/50">Report {completeness.percent}% complete — missing: {completeness.missingLabels.join(", ")}.</span>
+            )}
+          </p>
         </div>
       </main>
-    </div>
+      </div>
+    </AppShell>
+  );
+}
+
+export default function ResultsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center t-bg">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-500/50" />
+        </div>
+      }
+    >
+      <ResultsInner />
+    </Suspense>
   );
 }

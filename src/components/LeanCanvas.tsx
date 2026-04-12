@@ -3,15 +3,15 @@
 import type { LeanCanvas as LeanCanvasType } from "@/lib/parse";
 
 const CELLS: { key: keyof LeanCanvasType; label: string; accent: string }[] = [
-  { key: "problem", label: "Problem", accent: "border-red-500/20 bg-red-500/[0.06]" },
-  { key: "solution", label: "Solution", accent: "border-emerald-500/20 bg-emerald-500/[0.06]" },
-  { key: "uvp", label: "Unique Value Prop", accent: "border-violet-500/20 bg-violet-500/[0.06]" },
-  { key: "unfairAdvantage", label: "Unfair Advantage", accent: "border-amber-500/20 bg-amber-500/[0.06]" },
-  { key: "customerSegments", label: "Customer Segments", accent: "border-sky-500/20 bg-sky-500/[0.06]" },
-  { key: "keyMetrics", label: "Key Metrics", accent: "border-indigo-500/20 bg-indigo-500/[0.06]" },
-  { key: "channels", label: "Channels", accent: "border-cyan-500/20 bg-cyan-500/[0.06]" },
-  { key: "costStructure", label: "Cost Structure", accent: "border-orange-500/20 bg-orange-500/[0.06]" },
-  { key: "revenueStreams", label: "Revenue Streams", accent: "border-emerald-500/20 bg-emerald-500/[0.06]" },
+  { key: "problem", label: "Problem", accent: "border-red-500/20 bg-red-500/6" },
+  { key: "solution", label: "Solution", accent: "border-emerald-500/20 bg-emerald-500/6" },
+  { key: "uvp", label: "Unique Value Prop", accent: "border-violet-500/20 bg-violet-500/6" },
+  { key: "unfairAdvantage", label: "Unfair Advantage", accent: "border-amber-500/20 bg-amber-500/6" },
+  { key: "customerSegments", label: "Customer Segments", accent: "border-sky-500/20 bg-sky-500/6" },
+  { key: "keyMetrics", label: "Key Metrics", accent: "border-indigo-500/20 bg-indigo-500/6" },
+  { key: "channels", label: "Channels", accent: "border-cyan-500/20 bg-cyan-500/6" },
+  { key: "costStructure", label: "Cost Structure", accent: "border-orange-500/20 bg-orange-500/6" },
+  { key: "revenueStreams", label: "Revenue Streams", accent: "border-emerald-500/20 bg-emerald-500/6" },
 ];
 
 export function LeanCanvas({ canvas }: { canvas: LeanCanvasType }) {

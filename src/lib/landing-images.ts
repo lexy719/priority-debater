@@ -3,6 +3,8 @@
  * Set UNSPLASH_ACCESS_KEY in env (https://unsplash.com/oauth/applications).
  */
 
+import { classifyIdeaCategory, type IdeaCategory } from "@/lib/idea-category";
+
 export type LandingImageRef = {
   /** Direct CDN URL (regular size) */
   url: string;
@@ -110,81 +112,13 @@ const STOPWORDS = new Set([
 ]);
 
 /**
- * Category detection: match topic + pitch against known verticals
- * to inject better Unsplash search terms.
- */
-const CATEGORY_KEYWORDS: Record<string, { patterns: RegExp; searchBoost: string }> = {
-  health: {
-    patterns: /\b(health|medical|wellness|fitness|doctor|patient|therapy|mental.?health|nutrition|diet|gym|workout|telehealth|pharma|clinic)\b/i,
-    searchBoost: "health wellness medical",
-  },
-  education: {
-    patterns: /\b(education|learning|tutor|school|student|course|teaching|edtech|classroom|university|training|lesson|curriculum)\b/i,
-    searchBoost: "education learning classroom",
-  },
-  finance: {
-    patterns: /\b(finance|fintech|banking|payment|invest|crypto|trading|insurance|accounting|budget|money|wallet|loan|credit)\b/i,
-    searchBoost: "finance technology banking",
-  },
-  food: {
-    patterns: /\b(food|restaurant|recipe|cooking|meal|delivery|kitchen|chef|grocery|dining|catering|menu|eat)\b/i,
-    searchBoost: "food cooking restaurant",
-  },
-  ecommerce: {
-    patterns: /\b(ecommerce|e-commerce|shop|store|retail|marketplace|sell|merchant|inventory|dropship|cart|checkout)\b/i,
-    searchBoost: "ecommerce shopping online store",
-  },
-  travel: {
-    patterns: /\b(travel|hotel|booking|flight|tourism|vacation|adventure|destination|trip|hostel|airbnb)\b/i,
-    searchBoost: "travel destination adventure",
-  },
-  realestate: {
-    patterns: /\b(real.?estate|property|housing|rent|apartment|mortgage|listing|broker|home.?buying)\b/i,
-    searchBoost: "real estate property home",
-  },
-  sustainability: {
-    patterns: /\b(sustain|green|eco|climate|solar|renewable|carbon|environment|recycl|clean.?energy)\b/i,
-    searchBoost: "sustainability green energy",
-  },
-  ai: {
-    patterns: /\b(artificial.?intelligence|machine.?learning|deep.?learning|neural|nlp|chatbot|automation|ai-powered|gpt|llm)\b/i,
-    searchBoost: "artificial intelligence technology",
-  },
-  saas: {
-    patterns: /\b(saas|dashboard|analytics|crm|erp|workflow|project.?management|collaboration|productivity|notion|slack)\b/i,
-    searchBoost: "dashboard technology software",
-  },
-  creative: {
-    patterns: /\b(design|creative|art|music|video|photo|content.?creation|media|podcast|streaming|studio|portfolio)\b/i,
-    searchBoost: "creative design studio",
-  },
-  social: {
-    patterns: /\b(social|community|network|messaging|chat|forum|dating|connect|influencer|content.?creator)\b/i,
-    searchBoost: "social network community",
-  },
-};
-
-/**
- * Detect the business category from topic + position to boost image relevance.
- */
-function detectCategory(topic: string, position?: string): string | null {
-  const text = `${topic} ${position ?? ""}`.toLowerCase();
-  for (const [, { patterns, searchBoost }] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (patterns.test(text)) return searchBoost;
-  }
-  return null;
-}
-
-/**
  * Build an Unsplash search query from the idea's topic + pitch.
- * Uses category detection + keyword extraction for relevant results.
+ * Uses vertical classification + keyword extraction for relevant results.
  */
-export function buildIdeaImageSearchQuery(topic: string, position?: string): string {
+export function buildIdeaImageSearchQuery(topic: string, position?: string, category?: IdeaCategory): string {
+  const cat = category ?? classifyIdeaCategory(topic, position);
   const t = topic.replace(/\s+/g, " ").trim().slice(0, 80);
   const base = t.length >= 3 ? t : "startup technology";
-
-  // Try category detection first for a focused search
-  const categoryBoost = detectCategory(topic, position);
 
   const raw = (position ?? "").replace(/\s+/g, " ").trim();
 
@@ -196,9 +130,8 @@ export function buildIdeaImageSearchQuery(topic: string, position?: string): str
     .filter((w) => w.length >= 4 && !STOPWORDS.has(w));
   const unique = [...new Set(words)].slice(0, 8);
 
-  // Build query: topic + category context + pitch keywords
-  const parts: string[] = [base];
-  if (categoryBoost) parts.push(categoryBoost);
+  // Build query: topic + vertical visual cues + pitch keywords (Unsplash works best with concrete scenes)
+  const parts: string[] = [base, cat.searchBoost];
   if (unique.length >= 2) parts.push(unique.slice(0, 5).join(" "));
 
   const q = parts.join(" ").slice(0, QUERY_MAX_LEN).trim();
@@ -217,6 +150,8 @@ export type LandingPageImagesResult = {
   images: LandingImageRef[];
   /** True when no API key, request failed, or search returned zero usable photos */
   usedFallback: boolean;
+  /** Heuristic vertical used for search + UI */
+  category: IdeaCategory;
 };
 
 /** Search Unsplash; falls back to stock stills if no key, error, or empty results. */
@@ -224,14 +159,15 @@ export async function fetchLandingPageImages(
   topic: string,
   options?: FetchLandingImagesOptions
 ): Promise<LandingPageImagesResult> {
+  const category = classifyIdeaCategory(topic, options?.position);
   const key = process.env.UNSPLASH_ACCESS_KEY?.trim();
   const perPage = Math.min(30, Math.max(1, options?.perPage ?? 6));
   const sliceFallback = (): LandingImageRef[] =>
     FALLBACK_LANDING_IMAGES.slice(0, Math.min(perPage, FALLBACK_LANDING_IMAGES.length));
 
-  if (!key) return { images: sliceFallback(), usedFallback: true };
+  if (!key) return { images: sliceFallback(), usedFallback: true, category };
 
-  const query = buildIdeaImageSearchQuery(topic, options?.position);
+  const query = buildIdeaImageSearchQuery(topic, options?.position, category);
   const url = new URL("https://api.unsplash.com/search/photos");
   url.searchParams.set("query", query);
   url.searchParams.set("per_page", String(perPage));
@@ -245,7 +181,7 @@ export async function fetchLandingPageImages(
       headers: { Authorization: `Client-ID ${key}` },
       cache: "no-store",
     });
-    if (!res.ok) return { images: sliceFallback(), usedFallback: true };
+    if (!res.ok) return { images: sliceFallback(), usedFallback: true, category };
     const data = (await res.json()) as {
       results?: Array<{
         urls?: { regular?: string; small?: string };
@@ -284,8 +220,10 @@ export async function fetchLandingPageImages(
       }
     }
 
-    return out.length > 0 ? { images: out, usedFallback: false } : { images: sliceFallback(), usedFallback: true };
+    return out.length > 0
+      ? { images: out, usedFallback: false, category }
+      : { images: sliceFallback(), usedFallback: true, category };
   } catch {
-    return { images: sliceFallback(), usedFallback: true };
+    return { images: sliceFallback(), usedFallback: true, category };
   }
 }

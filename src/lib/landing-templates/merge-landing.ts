@@ -24,12 +24,12 @@ export function getTemplateSource(id: LandingTemplateId): string | null {
   }
 }
 
-/** Hero column: real photo or gradient placeholder */
+/** Hero column: real photo or gradient placeholder — uses best match (first = Unsplash relevance order) */
 export function buildHeroVisualBlock(images: LandingImageRef[]): string {
-  const img = images[0];
-  if (!img) {
+  if (!images.length) {
     return `<div class="hero-visual" aria-hidden="true"></div>`;
   }
+  const img = images[0];
   return `<div class="hero-visual">
     <img src="${escapeAttr(img.url)}" alt="${escapeAttr(img.suggestedAlt)}" width="640" height="400" loading="lazy">
     <p class="photo-credit">Photo by <a href="${escapeAttr(img.photographerUrl)}" rel="noopener noreferrer" target="_blank">${escapeAttr(img.photographer)}</a> on <a href="${escapeAttr(img.photoPageUrl)}" rel="noopener noreferrer" target="_blank">Unsplash</a></p>

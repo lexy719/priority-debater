@@ -1,5 +1,12 @@
 import OpenAI from "openai";
-import { shouldBlock, sanitizeForDisplay } from "@/lib/contentModeration";
+import {
+  CONTENT_POLICY_ERROR,
+  isContentPolicyViolation,
+  sanitizeForDisplay,
+  validateDebateUserMessage,
+  validateStartupIdeaFields,
+} from "@/lib/contentModeration";
+import { classifyIdeaCategory } from "@/lib/idea-category";
 import { fetchLandingPageImages } from "@/lib/landing-images";
 import { getLayoutVariantInstructions, pickLayoutVariant } from "@/lib/landing-layout";
 import { landingPageSystemPrompt, landingPageUserPrompt } from "@/lib/landing-page-prompt";
@@ -13,10 +20,14 @@ import {
   isCuratedLandingTemplate,
   mergeLandingTemplate,
 } from "@/lib/landing-templates";
+import { formatLogoBriefForKitPrompt, sanitizeLogoBrief } from "@/lib/logo-brief";
+import { REFINEMENTS_CONTEXT_MARKER, setupContextHasRefinements } from "@/lib/scoring-scale";
 
 const MAX_TOPIC = 500;
 const MAX_POSITION = 2000;
 const MAX_CONTEXT = 1000;
+/** Longer payload when Results → Refine appends pivot text (must match validate page). */
+const MAX_CONTEXT_WITH_REFINEMENTS = 12000;
 const MAX_MESSAGES = 50;
 const MAX_MESSAGE_LENGTH = 2000;
 
@@ -385,7 +396,7 @@ export async function POST(request: Request) {
 
     // TEST_MODE: mock response for UI testing (development only)
     if (process.env.TEST_MODE === "true" && process.env.NODE_ENV === "development") {
-      const mockReport = `## COMPREHENSIVE IDEA ANALYSIS\n\n### Idea Summary\nAn AI-powered personal finance app that uses voice agents to negotiate lower rates on recurring bills. The core value proposition is saving users money on autopilot.\n\n### Viability Score: 7/10\n**GO with caution.** Strong market demand and proven business model, but execution risk around AI voice reliability.\n\n### Category Scores\n- Problem-Solution Fit: 8/10\n- Market Opportunity: 7/10\n- Competitive Edge: 6/10\n- Business Model: 8/10\n- Team & Execution: 7/10\n- Timing & Trends: 9/10\n\n### Problem-Solution Fit\n- **The Problem:** Average US household overpays $400-800/year on negotiable bills. 85% avoid calling providers.\n- **Current Alternatives:** Manual negotiation (painful), Trim/Billshark (human agents, slow, expensive).\n- **Your Solution:** AI voice agents that handle negotiation calls in minutes, not days.\n- **Evidence of Fit:** Trim processed $1B+ in savings. The demand is proven.\n\n### Target Customer & ICP\n- **Primary segment:** Tech-savvy millennials (25-40), income $50-120k, 3+ recurring bills.\n- **Jobs to be done:** "Save me money without me having to do anything."\n- **Buying triggers:** Seeing a specific dollar amount they could save.\n- **Channels to reach them:** TikTok/Instagram financial content, personal finance subreddits.\n\n### Value Proposition\n- **Headline:** "BillBot saves you hundreds on bills — without a single phone call."\n- **Key benefits:** (1) Average $400/year savings, (2) Zero effort, (3) Only pay when you save.\n- **Differentiation:** AI-first = faster, cheaper, scalable.\n- **Proof points needed:** Success rate vs human agents, average savings per user.\n\n### Business Model\n- **Revenue model:** 25-30% of verified savings (success-fee only)\n- **Pricing strategy:** Value-based — users only pay when they save\n- **Key metrics:** MRR, negotiation success rate, average savings per user, churn\n- **Unit economics target:** LTV ~$300, CAC <$30, LTV:CAC >10x\n\n### Market Opportunity\n- **TAM/SAM/SOM:** TAM $25B, SAM $8B, SOM $200M in year 3\n- **Market timing:** AI voice tech matured in 2024-2025, rising cost of living\n- **Growth drivers:** AI costs decreasing, consumer fintech adoption at all-time high\n- **Headwinds:** Provider pushback on AI callers, regulatory uncertainty\n\n### Competitive Landscape\n| Player | Approach | Weakness |\n|--------|----------|----------|\n| Trim | Human + automation | Slow (days), limited categories |\n| Billshark | Human agents | Expensive (40% commission) |\n| Rocket Money | Bill tracking + cancellation | Doesn't negotiate, just cancels |\n| Your App | Full AI voice agents | Unproven tech |\n\n### Strengths\n1. Proven market demand ($1B+ saved by competitors)\n2. Superior unit economics vs human-agent model\n3. Strong founding team (AI + product design)\n4. Success-fee model eliminates user risk\n5. AI costs decreasing while capabilities improve\n\n### Risk Flags\n1. AI reliability: Voice agents may fail on complex negotiations\n2. Provider pushback: Companies may block or detect AI callers\n3. Regulatory risk: FTC rules on automated calling\n4. Trust barrier: Users must share account details\n5. Churn: After bills are negotiated, users may not return for 12 months\n\n### Key Assumptions to Validate\n- AI voice agents can achieve 60%+ success rate\n- Providers won't systematically block AI callers\n- Users will trust the app with billing account access\n- CAC stays below $30 through organic growth\n\n### Timeline to Launch\n- **Pre-build (weeks 1-4):** Customer interviews, landing page, waitlist\n- **Build (weeks 5-12):** MVP with internet bill negotiation\n- **Launch (weeks 13-16):** Closed beta with 100 users\n- **Post-launch (months 4-6):** Add insurance, phone categories\n\n### Financial Snapshot\n- **Revenue model:** Success fee (25-30% of savings)\n- **Unit economics:** CAC $20-30, LTV $300, gross margin 85%\n- **Path to profitability:** Break-even at 5k users (~month 14)\n- **Funding need:** Bootstrappable to PMF with $80k\n\n### Lean Canvas\n- **Problem:** People overpay $400-800/yr on bills; 85% hate calling providers; existing solutions use expensive human agents\n- **Solution:** AI voice agents negotiate bills automatically; instant results; success-fee pricing\n- **Key Metrics:** Negotiation success rate, avg savings/user, CAC, MRR, churn rate\n- **Unique Value Proposition:** Save hundreds on bills without making a single phone call\n- **Unfair Advantage:** Proprietary negotiation AI trained on thousands of real calls\n- **Channels:** Fintech app stores, TikTok/Instagram, personal finance communities, referral program\n- **Customer Segments:** US millennials (25-40) with 3+ recurring bills, income $50-120k\n- **Cost Structure:** AI API costs, cloud infrastructure, customer acquisition, compliance/legal\n- **Revenue Streams:** Success fee (25-30% of verified savings), premium tier for proactive monitoring\n\n### Go/No-Go Recommendation\n**GO** — The market is proven, the economics work, and AI is ready enough for an MVP. Validate with 100 real negotiations before scaling.\n\n### Top 5 Validation Steps Before Building\n1. Run 50 manual bill negotiations to understand provider responses and success patterns\n2. Build a landing page and measure conversion from "see savings" to "sign up"\n3. Interview 20 target customers about trust barriers and willingness to share bill info\n4. Test AI voice agent on 10 real calls with internet providers\n5. Calculate actual unit economics from the manual negotiation data\n\n### One-Line Verdict\nA well-timed AI play in a proven market — execute fast, nail the voice agent, and you could build the Trim-killer.`;
+      const mockReport = `## COMPREHENSIVE IDEA ANALYSIS\n\n### Idea Summary\nAn AI-powered personal finance app that uses voice agents to negotiate lower rates on recurring bills. The core value proposition is saving users money on autopilot.\n\n### Viability Score: 68/100\n**GO with caution.** Strong market demand and proven business model, but execution risk around AI voice reliability.\n\n### Category Scores\n- Problem-Solution Fit: 75/100\n- Market Opportunity: 68/100\n- Competitive Edge: 58/100\n- Business Model: 72/100\n- Team & Execution: 65/100\n- Timing & Trends: 78/100\n\n### Problem-Solution Fit\n- **The Problem:** Average US household overpays $400-800/year on negotiable bills. 85% avoid calling providers.\n- **Current Alternatives:** Manual negotiation (painful), Trim/Billshark (human agents, slow, expensive).\n- **Your Solution:** AI voice agents that handle negotiation calls in minutes, not days.\n- **Evidence of Fit:** Trim processed $1B+ in savings. The demand is proven.\n\n### Target Customer & ICP\n- **Primary segment:** Tech-savvy millennials (25-40), income $50-120k, 3+ recurring bills.\n- **Jobs to be done:** "Save me money without me having to do anything."\n- **Buying triggers:** Seeing a specific dollar amount they could save.\n- **Channels to reach them:** TikTok/Instagram financial content, personal finance subreddits.\n\n### Value Proposition\n- **Headline:** "BillBot saves you hundreds on bills — without a single phone call."\n- **Key benefits:** (1) Average $400/year savings, (2) Zero effort, (3) Only pay when you save.\n- **Differentiation:** AI-first = faster, cheaper, scalable.\n- **Proof points needed:** Success rate vs human agents, average savings per user.\n\n### Business Model\n- **Revenue model:** 25-30% of verified savings (success-fee only)\n- **Pricing strategy:** Value-based — users only pay when they save\n- **Key metrics:** MRR, negotiation success rate, average savings per user, churn\n- **Unit economics target:** LTV ~$300, CAC <$30, LTV:CAC >10x\n\n### Market Opportunity\n- **TAM/SAM/SOM:** TAM $25B, SAM $8B, SOM $200M in year 3\n- **Market timing:** AI voice tech matured in 2024-2025, rising cost of living\n- **Growth drivers:** AI costs decreasing, consumer fintech adoption at all-time high\n- **Headwinds:** Provider pushback on AI callers, regulatory uncertainty\n\n### Competitive Landscape\n| Player | Approach | Weakness |\n|--------|----------|----------|\n| Trim | Human + automation | Slow (days), limited categories |\n| Billshark | Human agents | Expensive (40% commission) |\n| Rocket Money | Bill tracking + cancellation | Doesn't negotiate, just cancels |\n| Your App | Full AI voice agents | Unproven tech |\n\n### Strengths\n1. Proven market demand ($1B+ saved by competitors)\n2. Superior unit economics vs human-agent model\n3. Strong founding team (AI + product design)\n4. Success-fee model eliminates user risk\n5. AI costs decreasing while capabilities improve\n\n### Risk Flags\n1. AI reliability: Voice agents may fail on complex negotiations\n2. Provider pushback: Companies may block or detect AI callers\n3. Regulatory risk: FTC rules on automated calling\n4. Trust barrier: Users must share account details\n5. Churn: After bills are negotiated, users may not return for 12 months\n\n### Key Assumptions to Validate\n- AI voice agents can achieve 60%+ success rate\n- Providers won't systematically block AI callers\n- Users will trust the app with billing account access\n- CAC stays below $30 through organic growth\n\n### Timeline to Launch\n- **Pre-build (weeks 1-4):** Customer interviews, landing page, waitlist\n- **Build (weeks 5-12):** MVP with internet bill negotiation\n- **Launch (weeks 13-16):** Closed beta with 100 users\n- **Post-launch (months 4-6):** Add insurance, phone categories\n\n### Financial Projections\n\n| Metric | Year 1 | Year 2 | Year 3 |\n|--------|--------|--------|--------|\n| Revenue | $180k | $1.2M | $4.8M |\n| Customers | 3,000 | 15,000 | 48,000 |\n| MRR (end of year) | $15k | $100k | $400k |\n| Gross Margin | 82% | 85% | 88% |\n| Monthly Burn | $12k | $45k | $95k |\n| Headcount | 3 | 8 | 18 |\n\n*Assumptions:* 25% take rate on avg $50/yr savings per user, 8% monthly churn, 60% YoY growth after year 1, CAC decreasing from $28 to $18 via referrals.\n\n### Unit Economics\n- **CAC (Customer Acquisition Cost):** $25 — organic content + paid social ($15 organic, $35 paid, blended)\n- **LTV (Lifetime Value):** $300 — based on $25/yr revenue × 12-year effective lifetime at 8% churn\n- **LTV:CAC Ratio:** 12:1 — well above 3:1 healthy benchmark\n- **Payback Period:** 3 months — fast recovery due to success-fee model\n- **Gross Margin:** 85% — AI API costs ~$0.50/negotiation, low infrastructure overhead\n- **Churn Rate (monthly):** 8% — seasonal re-engagement expected after 12-month bill cycles\n- **ARPU (Avg Revenue Per User):** $5/month — success fee on average $20/month savings\n\n### Break-Even Analysis\n- **Break-even point:** 5,000 customers / $25k MRR\n- **Estimated timeline:** 14 months from launch\n- **Key milestone:** Must hit 60% negotiation success rate and <$30 blended CAC\n- **Funding need:** Bootstrappable to PMF with $80k runway. Seed round of $500k would accelerate to 15k users in 18 months.\n\n### Lean Canvas\n- **Problem:** People overpay $400-800/yr on bills; 85% hate calling providers; existing solutions use expensive human agents\n- **Solution:** AI voice agents negotiate bills automatically; instant results; success-fee pricing\n- **Key Metrics:** Negotiation success rate, avg savings/user, CAC, MRR, churn rate\n- **Unique Value Proposition:** Save hundreds on bills without making a single phone call\n- **Unfair Advantage:** Proprietary negotiation AI trained on thousands of real calls\n- **Channels:** Fintech app stores, TikTok/Instagram, personal finance communities, referral program\n- **Customer Segments:** US millennials (25-40) with 3+ recurring bills, income $50-120k\n- **Cost Structure:** AI API costs, cloud infrastructure, customer acquisition, compliance/legal\n- **Revenue Streams:** Success fee (25-30% of verified savings), premium tier for proactive monitoring\n\n### Go/No-Go Recommendation\n**GO** — The market is proven, the economics work, and AI is ready enough for an MVP. Validate with 100 real negotiations before scaling.\n\n### Top 5 Validation Steps Before Building\n1. Run 50 manual bill negotiations to understand provider responses and success patterns\n2. Build a landing page and measure conversion from "see savings" to "sign up"\n3. Interview 20 target customers about trust barriers and willingness to share bill info\n4. Test AI voice agent on 10 real calls with internet providers\n5. Calculate actual unit economics from the manual negotiation data\n\n### One-Line Verdict\nA well-timed AI play in a proven market — execute fast, nail the voice agent, and you could build the Trim-killer.`;
       const encoder = new TextEncoder();
       const words = mockReport.split(/(\s+)/);
       const readable = new ReadableStream({
@@ -408,7 +419,20 @@ export async function POST(request: Request) {
     });
 
     const body = (await request.json()) as {
-      action: "start" | "continue" | "quick" | "business-plan" | "pitch-deck" | "landing-page" | "business-strategy" | "financial-model" | "debate-open" | "refine";
+      action:
+        | "start"
+        | "continue"
+        | "quick"
+        | "business-plan"
+        | "pitch-deck"
+        | "landing-page"
+        | "business-strategy"
+        | "financial-model"
+        | "debate-open"
+        | "refine"
+        | "logo-brand-kit"
+        | "marketing-campaigns"
+        | "competitor-analysis";
       setup: DebateSetup;
       messages?: Message[];
       quickAction?: string;
@@ -418,6 +442,8 @@ export async function POST(request: Request) {
       categoryScore?: number;
       /** "saas-nova" (default) = curated template + AI copy; "custom" = full HTML from kit */
       landingTemplateId?: string;
+      /** Structured logo preferences for \`logo-brand-kit\` + client prompt parity */
+      logoBrief?: unknown;
     };
 
     const {
@@ -430,14 +456,22 @@ export async function POST(request: Request) {
       category,
       categoryScore,
       landingTemplateId,
+      logoBrief: rawLogoBrief,
     } = body;
+
+    const logoBriefSanitized = sanitizeLogoBrief(rawLogoBrief);
+
+    const rawContextStr = String(rawSetup?.context ?? "");
+    const contextMax = rawContextStr.includes(REFINEMENTS_CONTEXT_MARKER)
+      ? MAX_CONTEXT_WITH_REFINEMENTS
+      : MAX_CONTEXT;
 
     const setup = rawSetup
       ? {
           ...rawSetup,
           topic: validateInput(rawSetup.topic, MAX_TOPIC),
           position: validateInput(rawSetup.position, MAX_POSITION),
-          context: validateInput(rawSetup.context, MAX_CONTEXT),
+          context: validateInput(rawSetup.context, contextMax),
         }
       : undefined;
 
@@ -448,65 +482,61 @@ export async function POST(request: Request) {
       );
     }
 
-    // Content moderation: block operational requests for harm, allow debate/analysis
+    // Content policy + minimum quality (server is authoritative)
     const allText = [setup.topic, setup.position, setup.context].filter(Boolean).join(" ");
-    if (shouldBlock(allText)) {
-      return new Response(
-        JSON.stringify({
-          error: "I can help you debate ideas, but I can't provide instructions for harmful or illegal activities.",
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+    if (isContentPolicyViolation(allText)) {
+      return new Response(JSON.stringify({ error: CONTENT_POLICY_ERROR }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "start") {
+      const quality = validateStartupIdeaFields({
+        topic: setup.topic,
+        position: setup.position,
+        context: setup.context,
+        template: setup.template,
+      });
+      if (quality) {
+        return new Response(JSON.stringify({ error: quality }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
     }
 
     if (action === "continue" && rawMessages && rawMessages.length > 0) {
       const userMessages = rawMessages.filter((m) => m.role === "user");
       for (const msg of userMessages) {
-        if (shouldBlock(msg.content)) {
-          return new Response(
-            JSON.stringify({
-              error: "I can help you debate ideas, but I can't provide instructions for harmful or illegal activities.",
-            }),
-            { status: 400, headers: { "Content-Type": "application/json" } }
-          );
-        }
         if (msg.content.length > MAX_MESSAGE_LENGTH) {
           return new Response(
             JSON.stringify({ error: "Message too long. Keep it under 2000 characters." }),
             { status: 400, headers: { "Content-Type": "application/json" } }
           );
         }
+        const lineErr = validateDebateUserMessage(msg.content);
+        if (lineErr) {
+          return new Response(JSON.stringify({ error: lineErr }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
       }
     }
 
-    if ((action === "business-plan" || action === "pitch-deck" || action === "landing-page" || action === "business-strategy" || action === "financial-model") && validationContent && shouldBlock(validationContent)) {
-      return new Response(
-        JSON.stringify({
-          error: "I can help with business plans for legitimate ideas, but not for harmful or illegal activities.",
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+    if (validationContent && isContentPolicyViolation(validationContent)) {
+      return new Response(JSON.stringify({ error: CONTENT_POLICY_ERROR }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    if (action === "start") {
-      const needsTopic = setup.template !== "generate";
-      if (needsTopic && setup.topic.length < 3) {
-        return new Response(
-          JSON.stringify({ error: "Please describe your idea (at least 3 characters)." }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
-        );
-      }
-      if (setup.position.length < 10) {
-        return new Response(
-          JSON.stringify({
-            error:
-              setup.template === "generate"
-                ? "Tell us your interests and preferences (at least 10 characters)."
-                : "Explain why you think it will work (at least 10 characters).",
-          }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
-        );
-      }
+    if (action === "refine" && category != null && isContentPolicyViolation(String(category))) {
+      return new Response(JSON.stringify({ error: CONTENT_POLICY_ERROR }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const messages = rawMessages?.slice(-MAX_MESSAGES) ?? [];
@@ -615,48 +645,327 @@ Be investor-ready. Use realistic numbers. Flag assumptions clearly.`;
       }
     }
 
-    // Handle idea refinement — generate pivots for weak categories
-    if (action === "refine" && setup?.topic && category && categoryScore != null) {
-      const refinePrompt = `You are an expert startup advisor. A founder's idea has been validated and scored weak in a specific category. Your job is to analyze WHY it scored low and generate exactly 3 concrete, actionable pivots that would improve the score.
+    // Logo & brand kit (text deliverables — prompts + specs founders can hand to a designer or an image model)
+    if (action === "logo-brand-kit" && setup?.topic) {
+      const briefBlock = logoBriefSanitized ? formatLogoBriefForKitPrompt(logoBriefSanitized) : "";
+
+      const prompt = `You are a senior brand designer. Produce a practical **logo and brand kit** for this startup. Output markdown only. Do not claim you generated image files — give **prompts, specs, and concepts** the founder can use with a designer or an image tool.
 
 **Idea:** "${setup.topic}"
 **Founder's reasoning:** ${setup.position}
 ${setup.context ? `**Context:** ${setup.context}` : ""}
 
-**Weak category:** ${category}
-**Current score:** ${categoryScore}/10
+**Validation report:**
+${validationContent || "No prior validation — infer carefully and label assumptions."}
 
-${validationContent ? `**Validation report (for context on why it scored low):**\n${validationContent.slice(0, 3000)}` : ""}
+${briefBlock ? `${briefBlock}\n\n` : ""}${briefBlock ? "If founder preferences conflict with validation, **surface the tension** in one line and propose a principled resolution.\n\n" : ""}## Brand strategy snapshot
+- **Audience:** [who must instantly “get it”]
+- **Personality:** [3–5 adjectives — align with founder personality choice when provided]
+- **Category & frame:** [how you want to be perceived vs alternatives]
+- **Differentiation cue:** [one mnemonic visual idea competitors are unlikely to copy]
 
-Generate exactly 3 pivots. Each pivot must be a specific, actionable change the founder can make to improve the ${category} score. Not vague advice — concrete changes to the idea, positioning, strategy, or approach.
+## Logo directions (**3–4 distinct concepts**)
+Concepts must differ in **structure and metaphor** — not merely palette swaps. At least one should skew **more conservative** and one **more daring** while still respecting preferences above.
 
-Respond in this EXACT JSON format (no markdown, no code fences, just raw JSON):
+For each concept give:
+- **Name** (e.g. “Geometric monogram + wordmark”)
+- **Fit line** — one sentence tying the shape to the product’s validated promise
+- **Visual idea** — concrete geometry, metaphor, negative space (reject vague “clean & modern” alone)
+- **Lockup rules** — minimum clear space, smallest recommended size, mono / reversed variants if relevant
+- **Color direction** — hex suggestions + rationale (psychology + accessibility)
+- **Typography pairing** — specific character (e.g. “grotesk with squared dots”) + **named Google Fonts** where applicable
+- **Image-generation prompt** — **one dense paragraph** for DALL·E / Midjourney / Ideogram: subject, composition, style (flat vector / print-ready), lighting (“flat studio fill”), explicit **negatives** echoing founder avoid-list, **no mockups**
+- **Anti-cliché** — what overused trope in this category you steered around
+
+## Wordmark & monogram
+- **Letter casing** — lowercase / Title / ALL CAPS — with rationale for literacy at small sizes
+- **Monogram / ligature** option when lettermark or combination was requested
+
+## Trademark & distinctiveness (non-legal)
+- **Search hints** — symbol keywords to check on USPTO / EUIPO / Google Images (not legal advice)
+- **Distinctive moves** — what makes each mark less “stock icon”
+
+## Color system
+| Token | Hex | Usage |
+|-------|-----|--------|
+| Primary | | |
+| Secondary | | |
+| Accent | | |
+| Neutral / text | | |
+
+## Accessibility
+- WCAG contrast targets for primary UI buttons and body on light + dark backgrounds (relate to dark-mode-first preference if set)
+
+## Social & favicon
+- 32×32 simplification sketch (describe shapes, don’t show files)
+- Avatar-safe center-weight and padding
+
+## Motion / video hooks (optional, one line each)
+- Subtle animation idea for social (e.g. path draw, blink) if it fits personality
+
+## File checklist for a designer
+Bulleted deliverables: master SVG, mono, reversed, wordmark-only, favicon recipe, brand one-pager
+
+Stay specific to THIS idea — forbid lazy “purple gradient SaaS orb” unless the founder’s style choices explicitly invite vibrant gradients.`;
+      try {
+        const stream = await openai.chat.completions.create({
+          model: "gpt-4.1",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.75,
+          max_completion_tokens: 4500,
+          stream: true,
+        });
+        const encoder = new TextEncoder();
+        const readable = new ReadableStream({
+          async start(controller) {
+            try {
+              for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content || "";
+                if (content) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+              }
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            } catch (streamError) {
+              console.error("Logo brand kit stream error:", streamError);
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`));
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            }
+          },
+        });
+        return new Response(readable, {
+          headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+        });
+      } catch (e) {
+        console.error("Logo brand kit error:", e);
+        return new Response(
+          JSON.stringify({ error: "Failed to generate brand kit. Please try again." }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    if (action === "marketing-campaigns" && setup?.topic) {
+      const prompt = `You are a ruthless growth marketer + creative director. Build **ready-to-run marketing campaigns** from this validated idea. Markdown only. Be channel-specific and measurable.
+
+**Idea:** "${setup.topic}"
+**Founder's reasoning:** ${setup.position}
+${setup.context ? `**Context:** ${setup.context}` : ""}
+
+**Validation report:**
+${validationContent || "No prior validation — infer and mark assumptions."}
+
+## Campaign thesis
+One paragraph: narrative hook, urgency, proof you’ll lean on.
+
+## ICP & messaging map
+| Segment | Pain | Promise | Proof to show | CTA |
+|---------|------|---------|---------------|-----|
+
+## Campaign 1 — [Name] (e.g. “Founder LinkedIn sprint”)
+- **Objective & KPI**
+- **Channels** (exact: e.g. LinkedIn, Reddit communities, cold email, Meta ads)
+- **Budget band** (bootstrap / light paid) and why
+- **Timeline** (week-by-week for 6 weeks)
+- **3 ad / post variations** — headline + primary text + visual direction
+- **Landing / lead magnet** tied to validation
+- **Retargeting** logic (if paid)
+
+## Campaign 2 — [Name]
+(same structure)
+
+## Campaign 3 — [Name]
+(same structure)
+
+## Organic content engine
+- **12 post ideas** (title + 1-line angle + format: thread, video, carousel)
+- **SEO / long-tail** — 6 keyword clusters with article titles (if relevant; else say N/A)
+
+## Email sequences
+- **Waitlist or nurture:** 5-email outline (subject + goal each)
+
+## Experiment backlog
+Table: Hypothesis | Metric | Timebox | Kill criteria
+
+Ground every campaign in the validation report where possible; call out gaps that need research.`;
+      try {
+        const stream = await openai.chat.completions.create({
+          model: "gpt-4.1",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.72,
+          max_completion_tokens: 5500,
+          stream: true,
+        });
+        const encoder = new TextEncoder();
+        const readable = new ReadableStream({
+          async start(controller) {
+            try {
+              for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content || "";
+                if (content) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+              }
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            } catch (streamError) {
+              console.error("Marketing campaigns stream error:", streamError);
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`));
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            }
+          },
+        });
+        return new Response(readable, {
+          headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+        });
+      } catch (e) {
+        console.error("Marketing campaigns error:", e);
+        return new Response(
+          JSON.stringify({ error: "Failed to generate campaigns. Please try again." }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    if (action === "competitor-analysis" && setup?.topic) {
+      const prompt = `You are an investor-grade strategy consultant. Produce a **deep competitor analysis** for this startup. Markdown. Name real companies where plausible; if unknown, use **archetypes** (e.g. “incumbent spreadsheet workflow”) and say so.
+
+**Idea:** "${setup.topic}"
+**Founder's reasoning:** ${setup.position}
+${setup.context ? `**Context:** ${setup.context}` : ""}
+
+**Validation report:**
+${validationContent || "No prior validation — infer with clear assumptions."}
+
+## Executive read
+5 bullets: landscape, your wedge, biggest threat, biggest opportunity, what to validate next.
+
+## Market map
+- **Direct competitors** (same buyer + same job)
+- **Indirect competitors** (substitutes, “good enough” tools)
+- **Incumbents & platforms** that could bundle this
+
+## Competitor teardown (minimum 5 players)
+For each:
+| Field | Detail |
+|-------|--------|
+| Company | |
+| Model & ICP | |
+| Pricing signal | |
+| Strengths | |
+| Weaknesses / gaps | |
+| Your differentiation | |
+| Switching risk for their customers | |
+
+## Feature & positioning matrix
+Table comparing key dimensions (rows = players, columns = capabilities / claims you can verify).
+
+## Strategic groupings
+- Who clusters together?
+- **White space** map: where is nobody serving the ICP well?
+
+## Win/loss scenarios
+- When you **lose** a deal to each archetype
+- When you **win**
+
+## Moat & timing
+- Defensibility vs each cluster
+- **Innovator’s dilemma** angles for incumbents
+
+## Actionable intelligence checklist
+10 tasks: signing up for trials, pricing pages to scrape, analysts to read, communities to monitor
+
+Avoid empty SWOT boxes — every insight should tie to a decision or experiment.`;
+      try {
+        const stream = await openai.chat.completions.create({
+          model: "gpt-4.1",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.55,
+          max_completion_tokens: 5500,
+          stream: true,
+        });
+        const encoder = new TextEncoder();
+        const readable = new ReadableStream({
+          async start(controller) {
+            try {
+              for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content || "";
+                if (content) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+              }
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            } catch (streamError) {
+              console.error("Competitor analysis stream error:", streamError);
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`));
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            }
+          },
+        });
+        return new Response(readable, {
+          headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+        });
+      } catch (e) {
+        console.error("Competitor analysis error:", e);
+        return new Response(
+          JSON.stringify({ error: "Failed to generate competitor analysis. Please try again." }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Handle idea refinement — generate pivots for weak categories
+    if (action === "refine" && setup?.topic && category && categoryScore != null) {
+      const rawCat = Number(categoryScore);
+      const currentCat = Math.round(
+        Math.max(0, Math.min(100, Number.isFinite(rawCat) && rawCat <= 10 ? rawCat * 10 : rawCat))
+      );
+      const refinePrompt = `You are an expert startup advisor. A founder's idea was validated; ONE rubric category scored below target. Your job: explain how you interpret THIS idea in that category today, why it landed at the current score, then propose exactly 3 DISTINCT pivots with honestly different depth (small refinement vs wedge change vs bolder repositioning).
+
+**Idea:** "${setup.topic}"
+**Founder's reasoning:** ${setup.position}
+${setup.context ? `**Context:** ${setup.context}` : ""}
+
+**Category (rubric only):** ${category}
+**Current score in THIS category (ground truth you must respect):** ${currentCat}/100
+
+${validationContent ? `**Validation report (use for specifics — quote tensions, risks, missing proof):**\n${validationContent.slice(0, 5200)}` : ""}
+
+For EACH pivot you must:
+- Tie changes to concrete elements from the idea or report (not generic startup platitudes).
+- Give a projected score for **this same category only** after the pivot: an integer 0–100 named projectedCategoryScore.
+- projectedCategoryScore MUST be strictly greater than ${currentCat} (minimum ${Math.min(100, currentCat + 1)}).
+- Use three DIFFERENT projectedCategoryScore values when plausible (e.g. lighter lift vs medium vs ambitious). Do not copy the same number three times unless the rubric truly leaves no room — if so, explain why in scoreRationale.
+- scoreRationale: ONE sentence linking the numeric projection to what becomes stronger (measurable or observable), referencing the idea.
+- mechanism: ONE or TWO sentences on how this pivot fixes the gap you see (causal chain), still specific to this founder.
+
+Return ONLY valid JSON (no markdown, no backticks) matching this shape. Replace ALL string/number placeholders with real content derived from the case — do NOT reuse example numbers from any template.
 {
-  "analysis": "2-3 sentences explaining WHY this category scored low — the root cause",
+  "analysis": "2-3 sentences: root cause of the low score in THIS category.",
+  "howWeReadThisCategory": "2-4 sentences: how the idea currently reads on this axis — what is believable vs what is missing, given the pitch and report.",
   "pivots": [
     {
-      "title": "Short pivot name (3-6 words)",
-      "description": "2-3 sentences describing exactly what to change and why it would help. Be specific to this idea.",
-      "estimatedScore": 7
-    },
-    {
-      "title": "Short pivot name (3-6 words)",
-      "description": "2-3 sentences describing exactly what to change and why it would help. Be specific to this idea.",
-      "estimatedScore": 8
-    },
-    {
-      "title": "Short pivot name (3-6 words)",
-      "description": "2-3 sentences describing exactly what to change and why it would help. Be specific to this idea.",
-      "estimatedScore": 7
+      "title": "string",
+      "description": "string, 2-4 sentences, concrete pivot",
+      "projectedCategoryScore": 0,
+      "scoreRationale": "string",
+      "mechanism": "string"
     }
   ]
 }
 
-RULES:
-- estimatedScore must be realistic (typically 6-9, never 10)
-- Each pivot must be DIFFERENT — different strategies, not variations of the same thing
-- Be specific to THIS idea, not generic startup advice
-- JSON only, no other text`;
+Hard rules:
+- Exactly 3 objects in "pivots".
+- projectedCategoryScore is integer, ${currentCat + 1}–100 only.
+- JSON only.`;
 
       try {
         const completion = await openai.chat.completions.create({
@@ -666,24 +975,114 @@ RULES:
             { role: "user", content: refinePrompt },
           ],
           temperature: 0.7,
-          max_completion_tokens: 600,
+          max_completion_tokens: 1800,
         });
 
         const raw = completion.choices[0]?.message?.content?.trim() || "";
         // Strip potential markdown code fences
         const cleaned = raw.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "").trim();
-        try {
-          const parsed = JSON.parse(cleaned);
-          return new Response(JSON.stringify(parsed), {
+        const tryParse = (text: string): unknown => {
+          try {
+            return JSON.parse(text);
+          } catch {
+            const start = text.indexOf("{");
+            const end = text.lastIndexOf("}");
+            if (start >= 0 && end > start) {
+              try {
+                return JSON.parse(text.slice(start, end + 1));
+              } catch {
+                return null;
+              }
+            }
+            return null;
+          }
+        };
+        const parsed = tryParse(cleaned);
+        interface RefinePivotOut {
+          title: string;
+          description: string;
+          projectedCategoryScore: number;
+          scoreRationale: string;
+          mechanism: string;
+        }
+        const normalizeRefinePayload = (
+          raw: unknown,
+          current: number
+        ): { analysis: string; howWeReadThisCategory: string; pivots: RefinePivotOut[] } | null => {
+          if (!raw || typeof raw !== "object" || raw === null) return null;
+          const o = raw as Record<string, unknown>;
+          const pivotsIn = o.pivots;
+          if (!Array.isArray(pivotsIn) || pivotsIn.length < 3) return null;
+          const analysis =
+            typeof o.analysis === "string" ? o.analysis.trim() : "Analysis unavailable.";
+          const howWeRead =
+            typeof o.howWeReadThisCategory === "string"
+              ? o.howWeReadThisCategory.trim()
+              : "";
+          const floor = Math.min(100, current + 1);
+          const out: RefinePivotOut[] = pivotsIn.slice(0, 3).map((p, i) => {
+            const row = p && typeof p === "object" ? (p as Record<string, unknown>) : {};
+            const rawProj = row.projectedCategoryScore ?? row.estimatedScore;
+            let proj =
+              typeof rawProj === "number"
+                ? Math.round(rawProj)
+                : parseInt(String(rawProj ?? ""), 10);
+            if (!Number.isFinite(proj)) proj = Math.min(100, current + 3 + i * 2);
+            if (proj > 0 && proj <= 10 && current > 10) proj = proj * 10;
+            proj = Math.max(0, Math.min(100, proj));
+            if (proj <= current) proj = Math.min(100, floor + i * 2);
+            if (proj <= current) proj = floor;
+            const title =
+              typeof row.title === "string" && row.title.trim()
+                ? row.title.trim()
+                : `Pivot ${i + 1}`;
+            const description =
+              typeof row.description === "string" && row.description.trim()
+                ? row.description.trim()
+                : "See report for context.";
+            const scoreRationale =
+              typeof row.scoreRationale === "string" && row.scoreRationale.trim()
+                ? row.scoreRationale.trim().slice(0, 320)
+                : `If you ship this change, ${category} should exceed your current ${current}/100 by addressing the gaps above.`;
+            const mechanism =
+              typeof row.mechanism === "string" && row.mechanism.trim()
+                ? row.mechanism.trim().slice(0, 400)
+                : "";
+            return {
+              title,
+              description,
+              projectedCategoryScore: proj,
+              scoreRationale,
+              mechanism,
+            };
+          });
+          const scores = out.map((p) => p.projectedCategoryScore);
+          if (scores.every((s) => s === scores[0]) && scores.length > 1) {
+            out.forEach((p, i) => {
+              p.projectedCategoryScore = Math.min(100, floor + i * 4);
+              if (p.projectedCategoryScore <= current) {
+                p.projectedCategoryScore = Math.min(100, current + 2 + i * 5);
+              }
+            });
+          }
+          return {
+            analysis,
+            howWeReadThisCategory: howWeRead,
+            pivots: out,
+          };
+        };
+
+        const normalized = normalizeRefinePayload(parsed, currentCat);
+        if (normalized) {
+          return new Response(JSON.stringify(normalized), {
             headers: { "Content-Type": "application/json" },
           });
-        } catch {
-          console.error("Failed to parse refine JSON:", cleaned);
-          return new Response(
-            JSON.stringify({ error: "Failed to parse AI response. Please try again." }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-          );
         }
+        console.error("Failed to parse refine JSON:", cleaned.slice(0, 500));
+        return new Response(
+          JSON.stringify({ error: "Failed to parse AI response. Please try again." }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
       } catch (e) {
         console.error("Refine generation error:", e);
         return new Response(
@@ -1151,7 +1550,7 @@ RULES:
         const curatedId = isCuratedLandingTemplate(landingTemplateId)
           ? landingTemplateId
           : DEFAULT_LANDING_TEMPLATE;
-        const { images: landingImages } = await fetchLandingPageImages(setup.topic, {
+        const { images: landingImages, category: landingCategory } = await fetchLandingPageImages(setup.topic, {
           position: setup.position,
         });
         try {
@@ -1159,7 +1558,7 @@ RULES:
             model: "gpt-4.1",
             messages: [
               { role: "system", content: landingTemplateSystemPrompt() },
-              { role: "user", content: landingTemplateUserPrompt(setup, vc) },
+              { role: "user", content: landingTemplateUserPrompt(setup, vc, { verticalLabel: landingCategory.label }) },
             ],
             response_format: { type: "json_object" },
             temperature: 0.65,
@@ -1196,7 +1595,7 @@ RULES:
 
       const layoutVariant = pickLayoutVariant(setup.topic);
       const layoutInstructions = getLayoutVariantInstructions(layoutVariant);
-      const { images: landingImages } = await fetchLandingPageImages(setup.topic, {
+      const { images: landingImages, category: landingCategory } = await fetchLandingPageImages(setup.topic, {
         position: setup.position,
       });
       try {
@@ -1210,6 +1609,7 @@ RULES:
                 layoutVariant,
                 layoutInstructions,
                 images: landingImages,
+                verticalLabel: landingCategory.label,
               }),
             },
           ],
@@ -1391,20 +1791,20 @@ RULES:
     // Handle debate opener — short punchy challenge based on validation data
     if (action === "debate-open" && setup?.topic) {
       const personaName = persona === "investor" ? "The Investor" : persona === "mentor" ? "The Mentor" : persona === "customer" ? "The Customer" : persona === "operator" ? "The Operator" : "The Adversary";
-      const debateOpenPrompt = `You are ${personaName}. The founder wants to talk about their idea. Give a SHORT, punchy opening.
+      const debateOpenPrompt = `You are ${personaName}. This is a **dedicated validation interview** (not a generic chat): your job is to help the founder stress-test and fail-proof their idea from YOUR lens only.
 
 **Idea:** "${setup.topic}"
 **Founder's reasoning:** ${setup.position}
 ${setup.context ? `**Context:** ${setup.context}` : ""}
-${validationContent ? `\n**Prior analysis (for context, don't repeat it):**\n${validationContent.slice(0, 2000)}` : ""}
+${validationContent ? `\n**Prior analysis (for context only — don't repeat it):**\n${validationContent.slice(0, 2000)}` : ""}
 
 RULES FOR THIS OPENING:
-- 2-3 sentences MAX. This is a conversation starter, not a report.
-- Stay in character as ${personaName}. Lead with what YOUR persona cares about most.
-- Be direct, conversational, opinionated.
-- End with ONE question from your persona's perspective.
-- NO bullet points. NO headers. NO markdown formatting. Just talk.
-- Do NOT summarize or repeat the analysis. They already read it.`;
+- 2-3 sentences MAX. Conversation starter for this interview.
+- Stay in character as ${personaName}. Lead with what YOUR persona cares about most (buyer truth, capital, execution, pattern-matching, or inversion — whichever fits ${personaName}).
+- Be direct, conversational, opinionated. Aim for insight they can act on, not a lecture.
+- End with ONE sharp question from your persona's perspective.
+- NO bullet points. NO headers. NO markdown. Plain sentences only.
+- Do NOT summarize the full report. They already have it.`;
 
       try {
         const stream = await openai.chat.completions.create({
@@ -1444,8 +1844,46 @@ RULES FOR THIS OPENING:
       }
     }
 
-    // Handle quick actions
+    // Handle quick actions — each prompt is allowed only for the matching validation interview persona
     if (action === "quick" && quickAction) {
+      const VALID_INTERVIEW_PERSONAS = ["customer", "investor", "operator", "mentor", "adversary"] as const;
+      if (
+        !persona ||
+        !VALID_INTERVIEW_PERSONAS.includes(persona as (typeof VALID_INTERVIEW_PERSONAS)[number])
+      ) {
+        return new Response(JSON.stringify({ error: "Interview persona is required for quick prompts." }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      const ALLOWED_QUICK_BY_PERSONA: Record<string, readonly string[]> = {
+        customer: ["discuss", "buyer-wtp", "blind-spots"],
+        investor: ["rate", "framework", "blind-spots"],
+        operator: ["futureproof", "operator-ship", "blind-spots"],
+        mentor: ["steelman", "framework", "summary"],
+        adversary: ["devils-advocate", "blind-spots", "rate"],
+      };
+      const allowed = ALLOWED_QUICK_BY_PERSONA[persona];
+      if (!allowed?.includes(quickAction)) {
+        return new Response(
+          JSON.stringify({ error: "This quick prompt is not available for this interview persona." }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      const PERSONA_QUICK_PREFIX: Record<string, string> = {
+        customer:
+          "You are The Customer in this validation interview. Respond only through buyer psychology: budget, alternatives, switching costs, trust, urgency, and whether you would actually pay.",
+        investor:
+          "You are The Investor in this validation interview. Respond only through a capital allocator lens: returns, risk, defensibility, unit economics, diligence, and what would make you pass.",
+        operator:
+          "You are The Operator in this validation interview. Respond only through execution reality: shipping, scope, hiring, distribution, ops load, and what breaks first.",
+        mentor:
+          "You are The Mentor in this validation interview. Respond as an experienced founder: patterns, trade-offs, coaching, and what you would do in their shoes.",
+        adversary:
+          "You are The Adversary in this validation interview. Respond with inversion and stress-testing: kill shots, hidden assumptions, and what would destroy this thesis.",
+      };
+
       const quickPrompts: Record<string, string> = {
         steelman: `The user wants you to STEELMAN their position. This is where you become their greatest ally for a moment.
 
@@ -1488,10 +1926,10 @@ Be practical and actionable. They should be able to use this immediately after r
 
 **Refined Position:** [How they should restate their argument now, incorporating what they've learned]
 
-**Argument Strength: [X]/10**
+**Argument Strength: [X]/100**
 [2-3 sentences explaining the score — what earned points and what lost them]
 
-**One Thing That Would Change This to a 9/10:** [Specific, actionable]`,
+**One Thing That Would Change This to ~90/100:** [Specific, actionable]`,
 
         "devils-advocate": `SWITCH MODES: You are now arguing the COMPLETE OPPOSITE of the user's position.
 
@@ -1506,7 +1944,7 @@ Be relentless but intellectually honest. The goal is to pressure-test, not to de
 
         rate: `Give a BRUTALLY HONEST assessment of their argument's current strength:
 
-**Argument Strength: [X]/10**
+**Argument Strength: [X]/100**
 
 **What's Working ([N] points earned):**
 - [Specific strength and why it's effective]
@@ -1520,7 +1958,7 @@ Be relentless but intellectually honest. The goal is to pressure-test, not to de
 - [Most important unanswered question]
 - [Second most important gap]
 
-**To Get to 9/10, You Need:**
+**To Get to ~90/100, You Need:**
 1. [Specific, actionable improvement]
 2. [Another specific improvement]
 3. [One more]
@@ -1530,13 +1968,13 @@ Be relentless but intellectually honest. The goal is to pressure-test, not to de
 
 Be precise with numbers. Don't be generous — they came here to get better, not to feel good.`,
 
-        "validation-report": `Generate a FULL VALIDATION REPORT in the style of IdeaProof — structured, investor-ready, with clear scores and actionable insights.
+        "validation-report": `Generate a FULL VALIDATION REPORT — structured, investor-ready, with clear scores and actionable insights.
 
 **VALIDATION REPORT**
 
 **Idea:** [One-line summary]
 
-**Viability Score: [X]/10**
+**Viability Score: [X]/100**
 [One sentence: Go / Caution / No-Go with confidence level]
 
 **Strengths:**
@@ -1637,8 +2075,30 @@ Be specific to their idea. Reference real trends and historical parallels.`,
 **The Question You're Avoiding (And You Might Not Even Know It):**
 [The uncomfortable question at the heart of this that they haven't confronted]
 
-Be incisive. The value here is showing them what they literally cannot see from where they're standing.`
+Be incisive. The value here is showing them what they literally cannot see from where they're standing.`,
+
+        "buyer-wtp": `The user wants a BUYER REALITY check on willingness to pay and urgency.
+
+1. Would you pay for this — yes/no/maybe — and at what rough price band vs. alternatives?
+2. What job-to-be-done are they really solving vs. what they claim in the pitch?
+3. What do you (as this buyer) use today — and what would it take to switch?
+4. Name one dealbreaker that would make you never buy.
+
+Stay in character as the buyer persona only. No investor jargon or "how to build" advice.`,
+
+        "operator-ship": `The user wants an EXECUTION REALITY check: how this actually gets built and distributed.
+
+1. MVP: what is the smallest shippable slice — and what are they over-building?
+2. Distribution: how do customers roughly #10–#100 actually get acquired?
+3. What breaks first — ops, hiring, support, infra, or compliance?
+4. One execution risk that would blow the timeline.
+
+Stay in character as an operator who ships. Avoid pure finance theory.`,
       };
+
+      const lens = PERSONA_QUICK_PREFIX[persona] ?? "";
+      const basePrompt = quickPrompts[quickAction] || "Continue the interview in character.";
+      const quickUserContent = lens ? `${lens}\n\n---\n\n${basePrompt}` : basePrompt;
 
       const conversationHistory: { role: "system" | "user" | "assistant"; content: string }[] = [
         { role: "system", content: systemPrompt },
@@ -1660,7 +2120,7 @@ Be incisive. The value here is showing them what they literally cannot see from 
 
       conversationHistory.push({
         role: "user",
-        content: quickPrompts[quickAction] || "Continue the debate."
+        content: quickUserContent,
       });
 
       const stream = await openai.chat.completions.create({
@@ -1695,9 +2155,6 @@ Be incisive. The value here is showing them what they literally cannot see from 
     }
 
     if (action === "start") {
-      const templateContext = getTemplateContext(setup.template);
-      const lensName = getLensName(setup.lens);
-
       let openingPrompt: string;
 
       if (setup.template === "generate") {
@@ -1755,20 +2212,71 @@ Be direct, specific, and actionable. Give them one concrete thing they could do 
           industryContext = `\n**INDUSTRY-SPECIFIC FOCUS: Hardware/IoT**\nAnalyze hardware-specific challenges: BOM cost and margins (target >50% gross margin), manufacturing complexity, minimum order quantities, supply chain risk, certification requirements, firmware update strategy, return/warranty costs, channel strategy (D2C vs retail).\n`;
         }
 
-        openingPrompt = `You are an expert startup advisor and investor who has evaluated 10,000+ ideas. Generate a COMPREHENSIVE BUSINESS IDEA ANALYSIS. Be brutally honest — most first-time ideas score 4-6/10, not 7-8. Only truly exceptional ideas with clear evidence deserve 7+.
+        const ideaCat = classifyIdeaCategory(setup.topic, setup.position);
+        const verticalLine = `\n**Idea vertical:** ${ideaCat.label} — use benchmarks, competitor archetypes, and risk patterns typical of this space (not generic startup platitudes).\n`;
 
-**SCORING CALIBRATION — THIS IS CRITICAL:**
-- **1-3/10 (NO-GO):** Fundamental flaws. No clear problem, saturated market with no differentiation, or unworkable business model.
-- **4-5/10 (CAUTION):** Decent intuition but major gaps. Most first-time startup ideas land here. Needs significant validation.
-- **6/10 (CAUTION+):** Good idea with real potential but meaningful risks. Needs specific validation before building.
-- **7/10 (GO with conditions):** Strong idea with clear market pull. Only give this if there's real evidence of demand, clear differentiation, AND viable economics.
-- **8-9/10 (STRONG GO):** Exceptional. Reserved for ideas with proven demand signals, defensible moat, strong timing, AND realistic path to scale. Very rare for unvalidated ideas.
-- **10/10:** Essentially never. Even the best ideas have risks.
+        openingPrompt = `You are an expert startup advisor and investor who has evaluated 10,000+ ideas. Generate a COMPREHENSIVE BUSINESS IDEA ANALYSIS.
 
-**Do NOT inflate scores to be encouraging.** An honest 4/10 with clear improvement steps is more valuable than a flattering 7/10. Founders need truth, not comfort.
+**RUBRIC LENS (how to measure):** Use the same dimensions serious diligences uses — **problem–solution fit**, **market opportunity**, **competitive edge**, **business model viability**, **team & execution readiness**, **timing & trends**. Method: (1) list unknowns and evidence gaps explicitly, (2) score each axis **independently**, (3) never let the headline disagree with the weakest axes without a written bridge. Think **lean validation + investor memo**: claims need observable falsifiers; "great idea" talk without proof must not raise numbers.
 
-For each category score, provide specific reasoning. Don't give >7 unless you can cite concrete evidence.
-${industryContext}
+**TRUTH OVER COMFORT (NON-NEGOTIABLE):**
+- Scores are **diagnostic**, not encouragement. **Never inflate** to soften bad news or to "balance" harsh category scores.
+- Thin, vague, or evidence-free pitches → **lower** scores. Inventing traction the founder did not provide is forbidden — label guesses **Assumption:**.
+- **Gaslighting to avoid:** headline viability far above weak categories with no **Score bridge:**; praising while scoring low everywhere without explaining the gap.
+${setupContextHasRefinements(setup.context)
+  ? `
+**RE-VALIDATION — USER-SELECTED REFINEMENTS (mandatory — apply before category scoring):**
+The **Context** includes "${REFINEMENTS_CONTEXT_MARKER}". Everything **after** that line is a **binding** update to the pitch for this run.
+
+- For each context line matching \`[Category Name] refinement — current …/100 → projected B/100\`, assign that rubric category score **exactly B** (integer from the line). Write category prose that reflects the refinement; that text is sufficient **evidence** for B (do **not** pull B down with generic evidence caps).
+- Categories **without** that pattern: score using bands and evidence rules from topic + reasoning + full context (including refinement paragraphs for cross-axis consistency).
+- For \`[Category Label pivot]:\` **without** \`→ projected B/100\`: add **at least +5** to what that category would have scored without that pivot, if the pivot is coherent; otherwise explain the shortfall in-section.
+- After all six scores are fixed, **M** = their mean and headline **V = round(M)** (±10 only with **Score bridge:** as usual). Stated **projected B** values came from the founder's chosen scenario — the overall score **must** shift when B changes the mean.
+`
+  : ""}
+
+**SCORING PROCEDURE — FOLLOW THIS ORDER:**
+1. **Score all six category lines** as **integers from 0 to 100** (${setupContextHasRefinements(setup.context) ? "using **RE-VALIDATION** anchors where they apply, then " : ""}using the bands below for any category not anchored). Each category narrative must justify the number (no orphan scores).
+2. **Compute the arithmetic mean** M of those six integers.
+3. **Headline viability** in "### Viability Score: [V]/100" must normally be **V = round(M)**. You may use **round(M) ± up to 10 points** only if the line under the score includes a one-sentence **Score bridge:** explaining why (e.g. execution risk dominates but core problem is validated).
+4. **Forbidden without Score bridge:** V more than **20 points** above the **lowest** category score, OR more than **15 points** above M. If you cannot justify, set **V = round(M)**.
+
+**BANDS (0–100 per category — calibrate harshly for text-only pitches):**
+- **0–30:** Broken premise, no real buyer, or unworkable / unethical; or pure wishlist.
+- **31–50:** Intuition only; major gaps on ICP, economics, competition, or proof — typical for generic or very short founder text.
+- **51–65:** Coherent story with identifiable buyer and next validation steps; still mostly assumptions.
+- **66–74:** Specific competitors/alternatives, plausible commercial logic, and at least one **concrete** evidence hook from the pitch (or a tight deductive case with named risks).
+- **75–89:** Uncommon for unvalidated drafts — requires **unusually clear** wedge, economics, and differentiation; say what justifies the number.
+- **90–100:** Essentially **never** for a cold pitch with no traction — reserve for extraordinary clarity + evidence in the text.
+
+**EVIDENCE DISCIPLINE:**
+- **Above 60** on any category requires a **specific** justification in that section (named competitor, buyer behavior, metric, regulation, channel, or comparable). Otherwise **cap at 60**.
+- **Team & Execution:** vague solo-founder text with no plan → **cap at 50** unless context states skills, hires, or milestones.
+- **Competitive Edge:** undifferentiated tool/AI wrapper → **cap at 50** until moat or wedge is concrete.
+
+**BRUTAL FILTER — USEFUL BEATS POLITE:**
+- **Neutrality that refuses judgment is a failure.** You are not a cheerleader. If the pitch is thin, say so. If it reads as a **feature inside an existing product** (Slack, Teams, Salesforce, etc.) rather than a **standalone company**, **say that explicitly** and explain what would have to change for it to be company-scale.
+- You **must** sometimes conclude with language as strong as: **"Do not build this as a startup yet"**, **"This is a feature, not a company — unless you own distribution in niche X"**, or **"Proceed only if you can prove Y — otherwise incumbents will ship this in 6–12 months."** When scores sit in the **30–55** range, soft, hedged verdicts are **forbidden** — tie the number to a **sharp failure mode**.
+- **Forbidden:** generic "validate the market" / "talk to customers" without naming **who, which channel, what falsifying signal**; praising while scoring low; or a GO/CAUTION verdict that ignores the **lowest** category scores.
+
+**WEDGE, MOAT, INCUMBENT KILL SCENARIO:**
+- In **Competitive Landscape** and in **Lean Canvas → Unfair Advantage**, you **must** answer: **Why can this win?** **Why won't the obvious incumbent clone or bundle it?** If the text gives no wedge, write **"No durable wedge stated — treat as high clone risk"** and reflect that in **Competitive Edge** and the headline.
+- Name **at least one** realistic **incumbent or platform** that could own this space if they chose to.
+
+**FINANCIAL TABLES — ILLUSTRATIVE, NOT "VALIDATED":**
+- The **Financial Projections**, **Unit Economics**, and **Break-Even** sections use **scenario math** from the founder's stated assumptions. They are **not** grounded third-party data. **Label them clearly** as illustrative; add **one sensitivity** (e.g. "If monthly churn is 15% instead of 8%, break-even moves from X to Y" or "If CAC is 1.5× the base case, payback exceeds Z months").
+- **Forbidden:** presenting tables as if they were empirical or "validated" without stating they are **model outputs**.
+
+**REFERENCE:** Most unvalidated ideas from text land **35–62** on the headline. **70+** is strong on paper only with rare clarity. **85+** headline from text alone should be almost impossible.
+
+**REPRODUCIBILITY (CRITICAL):**
+- Scores must be **deterministic**: the same idea text with the same reasoning must always produce the same scores (±2 points max).
+- Do NOT randomize or vary scores for variety. Ground every number in the specific text provided.
+- If the pitch says nothing about team → Team & Execution gets the same score every time (capped per rules above).
+- Financial estimates must follow the same methodology each time: derive from stated pricing, target market size, and standard benchmarks for the vertical.
+
+For each category score, the narrative must visibly support the number — no orphan scores.
+${industryContext}${verticalLine}
 **Idea to validate:** "${setup.topic}"
 
 **Founder's reasoning:**
@@ -1781,18 +2289,20 @@ Generate a complete analysis with these EXACT section headers (the parser depend
 ## COMPREHENSIVE IDEA ANALYSIS
 
 ### Idea Summary
-[One-line summary. Then 1-2 sentences on the core value proposition.]
+- **One-line hook** — what this is in plain language.
+- **The hard truth (3–5 sentences, non-negotiable):** State plainly whether this reads as **feature / narrow product / company-scale**; name **the single biggest reason it could fail** or **"this will fail unless ___"**; name **who could ship it faster** (incumbent, big tech, or open-source) if relevant. **No hedging** — readers must feel the judgment.
+- **Wedge in one sentence:** What is the **unfair advantage or clear wedge** — or say **"No durable wedge stated — commodity risk."**
 
-### Viability Score: [X]/10
-[GO / CAUTION / NO-GO. Be specific about why. Include confidence level. Remember: most unvalidated ideas are 4-6.]
+### Viability Score: [X]/100
+[GO / CAUTION / NO-GO. **Must** align with the lowest category scores: if any category is below 45, you cannot call this GO without a **Score bridge:** that explains why the headline still merits GO. **NO-GO** is allowed and sometimes required when the idea is uninvestable as stated.]
 
 ### Category Scores
-- Problem-Solution Fit: [X]/10
-- Market Opportunity: [X]/10
-- Competitive Edge: [X]/10
-- Business Model: [X]/10
-- Team & Execution: [X]/10
-- Timing & Trends: [X]/10
+- Problem-Solution Fit: [X]/100
+- Market Opportunity: [X]/100
+- Competitive Edge: [X]/100
+- Business Model: [X]/100
+- Team & Execution: [X]/100
+- Timing & Trends: [X]/100
 
 ### Problem-Solution Fit
 - **The Problem:** [Who feels it, how acute, how often, willingness to pay]
@@ -1827,9 +2337,10 @@ Generate a complete analysis with these EXACT section headers (the parser depend
 ### Competitive Landscape
 - **Direct competitors:** [3-5 real companies with 1-line positioning each]
 - **Indirect competitors:** [Do nothing, substitutes, incumbents]
-- **Positioning gap:** [Where you fit. The wedge.]
-- **Defensibility:** [Moat potential. Network effects, data, brand, switching costs]
-- **Competitive response:** [How might incumbents react? Timeline]
+- **Positioning gap / wedge:** [Where you fit — **or** "No clear wedge — risk of being a feature"]
+- **Why incumbents haven't won yet (or will crush this):** [Explicit scenario — bundling, pricing, distribution]
+- **Defensibility:** [Moat potential **or** "No moat stated — default assumption: low defensibility"]
+- **Competitive response:** [How might incumbents react? Timeline — include **clone or bundle** risk]
 
 ### Strengths
 1. [Specific strength with why it matters]
@@ -1852,14 +2363,40 @@ Generate a complete analysis with these EXACT section headers (the parser depend
 - **Launch (weeks 13-16):** [Beta, first paying customers, iteration]
 - **Post-launch (months 4-6):** [Scale signals, metrics targets, next milestones]
 
-### Financial Snapshot
-- **Revenue model:** [How you make money — specific price points]
-- **Unit economics:** [CAC $X, LTV $Y, LTV:CAC Xr, gross margin X%]
-- **Path to profitability:** [Break-even at X customers/revenue. Key milestone]
-- **Funding need:** [Bootstrappable? Seed amount? Use of funds]
+### Financial Projections
+
+**Disclaimer (required):** These figures are **illustrative scenario outputs** from stated assumptions — **not** validated forecasts, funding advice, or empirical market data.
+
+**Sensitivity (required):** One short paragraph: e.g. if **churn** or **CAC** is **worse than base case by ~50%**, what happens to break-even timing or runway?
+
+| Metric | Year 1 | Year 2 | Year 3 |
+|--------|--------|--------|--------|
+| Revenue | $[X] | $[X] | $[X] |
+| Customers | [X] | [X] | [X] |
+| MRR (end of year) | $[X] | $[X] | $[X] |
+| Gross Margin | [X]% | [X]% | [X]% |
+| Monthly Burn | $[X] | $[X] | $[X] |
+| Headcount | [X] | [X] | [X] |
+
+*Assumptions:* [Explicit: pricing, conversion, churn, growth — label each as **Assumption:**]
+
+### Unit Economics
+- **CAC (Customer Acquisition Cost):** $[X] — [channel breakdown if relevant]
+- **LTV (Lifetime Value):** $[X] — [based on avg revenue × avg lifetime]
+- **LTV:CAC Ratio:** [X]:1 — [benchmark: healthy is >3:1]
+- **Payback Period:** [X] months — [time to recoup CAC]
+- **Gross Margin:** [X]% — [after COGS/delivery costs]
+- **Churn Rate (monthly):** [X]% — [expected for this model]
+- **ARPU (Avg Revenue Per User):** $[X]/month
+
+### Break-Even Analysis
+- **Break-even point:** [X] customers / $[X] MRR
+- **Estimated timeline:** [X] months from launch
+- **Key milestone:** [What must be true to reach break-even]
+- **Funding need:** [Bootstrappable? Seed amount? Use of funds. Runway in months at current burn]
 
 ### Go/No-Go Recommendation
-[Clear recommendation: GO (with conditions) / CAUTION (validate X first) / NO-GO (reason). 2-3 sentences with specific next action.]
+[Must read like a **memo**, not a weather report. **NO-GO** or **CAUTION** are first-class outcomes. Include: (1) **feature vs company** judgment if applicable, (2) **what must be true** to deserve funding or full-time build, (3) **one brutal "don't build if"** line. 3-5 sentences.]
 
 ### Top 5 Validation Steps Before Building
 1. [Specific, actionable — include estimated time and cost]
@@ -1883,8 +2420,19 @@ Generate a complete analysis with these EXACT section headers (the parser depend
 [The single most important insight — be memorable and specific]
 
 ---
-**Then add 1-2 short paragraphs** of your sharpest adversarial challenge — the question they need to answer, the flaw you'd push on. End with: "Want to debate this? Defend your position below."`;
+**Then add 1-2 short paragraphs** of your sharpest adversarial challenge — the question they need to answer, the flaw you'd push on. End with: "Want to debate this? Defend your position below."
+
+**MANDATORY:** Include every \`###\` section listed above from \`### Idea Summary\` through \`### One-Line Verdict\` — especially \`### Financial Projections\`, \`### Unit Economics\`, \`### Break-Even Analysis\`, \`### Lean Canvas\`, and \`### Top 5 Validation Steps Before Building\`. Do not omit sections. The financial tables MUST contain actual numbers (estimates are fine — label assumptions).`;
       }
+
+      // Deterministic seed for validation reports — same input → same scores.
+      // Hash the core inputs so identical ideas always produce identical analysis.
+      const inputFingerprint = `${setup.topic}|${setup.position}|${setup.context}`.trim();
+      let seedHash = 0;
+      for (let i = 0; i < inputFingerprint.length; i++) {
+        seedHash = ((seedHash << 5) - seedHash + inputFingerprint.charCodeAt(i)) | 0;
+      }
+      const deterministicSeed = Math.abs(seedHash);
 
       const stream = await openai.chat.completions.create({
         model: "gpt-4.1",
@@ -1892,22 +2440,93 @@ Generate a complete analysis with these EXACT section headers (the parser depend
           { role: "system", content: systemPrompt },
           { role: "user", content: openingPrompt },
         ],
-        temperature: 0.8,
-        max_completion_tokens: 4000,
+        // Near-zero temperature + seed for validation reports → consistent, reproducible scores.
+        temperature: setup.template === "validate" ? 0.12 : 0.78,
+        ...(setup.template === "validate" ? { seed: deterministicSeed } : {}),
+        max_completion_tokens: 6000,
         stream: true,
       });
 
       const encoder = new TextEncoder();
       const readable = new ReadableStream({
         async start(controller) {
-          for await (const chunk of stream) {
-            const content = chunk.choices[0]?.delta?.content || "";
-            if (content) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+          let fullText = "";
+          try {
+            for await (const chunk of stream) {
+              const content = chunk.choices[0]?.delta?.content || "";
+              if (content) {
+                fullText += content;
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+              }
+            }
+
+            if (setup.template === "validate" && fullText.length > 200) {
+              const { getMissingValidationMarkers } = await import("@/lib/parse");
+              const missing = getMissingValidationMarkers(fullText);
+              if (missing.length > 0) {
+                const repair = await openai.chat.completions.create({
+                  model: "gpt-4.1",
+                  messages: [
+                    {
+                      role: "system",
+                      content:
+                        "You complete partial startup validation reports. Output ONLY the missing sections. Each section must begin with the EXACT ### header line given (character-for-character). Add markdown body under each header (lists/tables OK). Do not repeat any section already present. Ground content in the idea in the report tail; if inferring, say 'Assumption:'. Scores use 0–100. If the report already lists six category scores out of 100, any viability score you add or amend must align within ±10 points of their arithmetic mean unless you include a one-line **Score bridge:** explaining why — never inflate headline viability above weak categories without that bridge.",
+                    },
+                    {
+                      role: "user",
+                      content: `Missing headers (paste each exactly once as a line, then content below it):\n${missing.join("\n")}\n\n---REPORT (tail; continue from this context)---\n${fullText.slice(-16000)}`,
+                    },
+                  ],
+                  temperature: 0.12,
+                  seed: deterministicSeed,
+                  max_completion_tokens: 4500,
+                });
+                const addition = repair.choices[0]?.message?.content?.trim();
+                if (addition) {
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify({ content: "\n\n" + addition })}\n\n`)
+                  );
+                }
+              }
+            }
+
+            // ── Dual-model blind scoring (validation reports only) ──
+            if (setup.template === "validate" && fullText.length > 500) {
+              try {
+                const { getBlindScores, extractPrimaryScores, reconcileScores } =
+                  await import("@/lib/blind-scorer");
+
+                const [blindResult, primaryScores] = await Promise.all([
+                  getBlindScores(setup.topic, setup.position, setup.context),
+                  Promise.resolve(extractPrimaryScores(fullText)),
+                ]);
+
+                if (blindResult && primaryScores) {
+                  const reconciliation = reconcileScores(primaryScores, blindResult);
+                  // Send reconciliation as a special SSE event the client can parse
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({ scoreReconciliation: reconciliation })}\n\n`,
+                    ),
+                  );
+                }
+              } catch (blindErr) {
+                // Blind scoring failed — non-fatal, primary scores stand
+                console.warn("Blind scoring pass failed:", blindErr);
+              }
+            }
+
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          } catch (e) {
+            console.error("start stream error:", e);
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          } finally {
+            try {
+              controller.close();
+            } catch {
+              /* ignore */
             }
           }
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
         },
       });
 
@@ -1930,6 +2549,17 @@ Generate a complete analysis with these EXACT section headers (the parser depend
 
     const templateContext = getTemplateContext(setup.template);
     const lensName = getLensName(setup.lens);
+    const ideaCat = classifyIdeaCategory(setup.topic, setup.position);
+    const validationTail =
+      setup.template === "validate" && validationContent
+        ? Math.min(4500, Math.max(1500, validationContent.length))
+        : 1500;
+    const validateDebateExtra =
+      setup.template === "validate"
+        ? `
+**Validation session:** The first assistant message is the full structured report. In replies you are in **debate mode** — do **not** reprint or summarize the whole report. Respond to the user's latest message: pressure-test their reasoning, reference **specific** lines (e.g. category scores, risks, assumptions) when useful, and escalate depth as the thread continues.
+`
+        : "";
 
     const conversationHistory: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: systemPrompt },
@@ -1940,9 +2570,11 @@ Generate a complete analysis with these EXACT section headers (the parser depend
 **Topic:** "${setup.topic}"
 **Type:** ${templateContext}
 **Your Lens:** ${lensName}
+**Idea vertical:** ${ideaCat.label} — use examples and shorthand buyers understand in this space.
 **Their original reasoning:** ${setup.position}
 ${setup.context ? `**Context:** ${setup.context}` : ""}
-${validationContent ? `\n**Prior validation analysis (for context, don't repeat it):**\n${validationContent.slice(0, 1500)}\n` : ""}
+${validateDebateExtra}
+${validationContent ? `\n**Prior validation analysis (for context — do not repeat verbatim; cite specifics when challenging them):**\n${validationContent.slice(0, validationTail)}\n` : ""}
 
 **DEBATE CONTINUITY RULES — CRITICAL:**
 1. **Track argument evolution:** Reference what they said earlier. Note when they've strengthened a point vs when they're repeating themselves.
@@ -1996,7 +2628,11 @@ ${validationContent ? `\n**Prior validation analysis (for context, don't repeat 
     });
   } catch (error) {
     console.error("API error:", error);
-    return new Response(JSON.stringify({ error: "Failed to generate response" }), {
+    const message =
+      error instanceof Error && error.message.trim()
+        ? error.message
+        : "Failed to generate response";
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });

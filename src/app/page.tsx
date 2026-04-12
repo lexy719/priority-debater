@@ -28,12 +28,10 @@ import {
   Download,
   Share2,
   AlertTriangle,
-  Lock,
   CircleHelp,
   Rocket,
   Flame,
   Lightbulb,
-  AlertCircle,
 } from "lucide-react";
 import {
   Accordion,
@@ -43,6 +41,7 @@ import {
 } from "@/components/ui/accordion";
 // Badge removed — using simple span now
 import { StarfieldBackground } from "@/components/ui/animated-background";
+import { SCORE_MAX } from "@/lib/scoring-scale";
 
 // ── Animated counter ────────────────────────────────────────────────────
 function Counter({ value, suffix = "", duration = 2 }: { value: number; suffix?: string; duration?: number }) {
@@ -110,67 +109,6 @@ const DEMO_IDEA = {
   ],
 } as const;
 
-/** Placeholder ring — never shows a fake numeric score (real scores come from your validation report). */
-function ViabilityScoreRing({ active }: { active: boolean }) {
-  const r = 54;
-  const stroke = 7;
-  const c = 2 * Math.PI * r;
-
-  return (
-    <div className="relative flex shrink-0 flex-col items-center" aria-hidden>
-      <div className="relative h-[148px] w-[148px] sm:h-[168px] sm:w-[168px]">
-        <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120" aria-hidden>
-          <circle
-            cx="60"
-            cy="60"
-            r={r}
-            fill="none"
-            stroke="rgba(255,255,255,0.07)"
-            strokeWidth={stroke}
-          />
-          <circle
-            cx="60"
-            cy="60"
-            r={r}
-            fill="none"
-            stroke="rgba(148,163,184,0.28)"
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            strokeDasharray={`${c * 0.06} ${c * 0.05}`}
-            opacity={active ? 0.95 : 0.35}
-          />
-        </svg>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
-          <motion.span
-            className="text-[1.35rem] font-semibold leading-tight tracking-tight text-white/88 sm:text-2xl"
-            initial={{ opacity: 0, y: 4 }}
-            animate={active ? { opacity: 1, y: 0 } : {}}
-            transition={{ delay: 0.2, duration: 0.4 }}
-          >
-            —
-          </motion.span>
-          <motion.span
-            className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-white/32"
-            initial={{ opacity: 0 }}
-            animate={active ? { opacity: 1 } : {}}
-            transition={{ delay: 0.35, duration: 0.35 }}
-          >
-            / 10 · your report
-          </motion.span>
-        </div>
-      </div>
-      <motion.p
-        className="mt-2 max-w-[220px] text-center text-[10px] leading-snug text-white/40"
-        initial={{ opacity: 0, y: 6 }}
-        animate={active ? { opacity: 1, y: 0 } : {}}
-        transition={{ delay: 0.5, duration: 0.4 }}
-      >
-        No number here — only your real validation produces a score
-      </motion.p>
-    </div>
-  );
-}
-
 const DEMO_PERSONAS = [
   { id: "A", label: "Adversary" },
   { id: "I", label: "Investor" },
@@ -179,13 +117,26 @@ const DEMO_PERSONAS = [
   { id: "M", label: "Mentor" },
 ] as const;
 
-function DemoPreview({ play }: { play: boolean }) {
+/** Illustrative rubric bars — not real scores (shows structure of the 0–100 report). */
+const DEMO_RUBRIC_ROWS = [
+  { label: "Problem–solution", score: 58 },
+  { label: "Market", score: 64 },
+  { label: "Competition", score: 47 },
+  { label: "Business model", score: 61 },
+  { label: "Execution", score: 52 },
+  { label: "Timing", score: 69 },
+] as const;
+
+/**
+ * Hero preview: demo idea + six-dimension 0–100 rubric strip (like lean + investor diligence), no fake headline score.
+ */
+function HeroValidationPreview({ play }: { play: boolean }) {
   const [active, setActive] = useState(false);
   useEffect(() => {
     let cancelled = false;
     const outer = requestAnimationFrame(() => {
       if (cancelled) return;
-      if (!play) {
+       if (!play) {
         setActive(false);
         return;
       }
@@ -201,165 +152,133 @@ function DemoPreview({ play }: { play: boolean }) {
   }, [play]);
 
   return (
-    <div className="relative mx-auto max-w-5xl px-4 sm:px-0">
+    <div className="relative w-full min-w-0">
       <div
-        className="relative overflow-hidden rounded-2xl border border-white/7"
+        className="relative overflow-hidden rounded-2xl border border-white/10"
         style={{
-          background: "linear-gradient(165deg, #12121a 0%, #0a0a0e 45%, #0e0e14 100%)",
-          boxShadow: "0 32px 64px -16px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05)",
+          background:
+            "linear-gradient(160deg, rgba(18,18,26,0.96) 0%, rgba(6,6,10,0.99) 45%, #0a0a0f 100%)",
+          boxShadow:
+            "0 28px 56px -24px rgba(0,0,0,0.55), 0 0 0 1px rgba(99,102,241,0.14), inset 0 1px 0 rgba(255,255,255,0.05)",
         }}
       >
         <div
-          className="flex items-center gap-3 border-b px-4 py-2.5 sm:px-5"
-          style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}
-        >
-          <div className="flex gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-          </div>
-          <div className="flex min-w-0 flex-1 justify-center">
-            <div
-              className="flex max-w-full items-center gap-2 rounded-md border px-2.5 py-1"
-              style={{ borderColor: "rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.35)" }}
-            >
-              <Lock className="h-3 w-3 shrink-0 text-emerald-500/90" aria-hidden />
-              <span className="truncate font-mono text-[10px] sm:text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>
-                prioritydebater.com<span style={{ color: "rgba(255,255,255,0.28)" }}>/validate</span>
-              </span>
-            </div>
-          </div>
-        </div>
+          className="pointer-events-none absolute inset-0 opacity-[0.7]"
+          style={{
+            background:
+              "radial-gradient(ellipse 85% 50% at 100% 0%, rgba(99,102,241,0.11), transparent 52%), radial-gradient(ellipse 55% 45% at 0% 100%, rgba(34,211,153,0.06), transparent 48%)",
+          }}
+          aria-hidden
+        />
 
-        <div className="relative px-5 py-8 sm:px-8 sm:py-10">
-          <div
-            className="pointer-events-none absolute inset-0 opacity-[0.55]"
-            style={{
-              background:
-                "radial-gradient(ellipse 90% 60% at 70% 0%, rgba(99,102,241,0.14), transparent 55%), radial-gradient(ellipse 70% 50% at 0% 100%, rgba(52,211,153,0.08), transparent 50%)",
-            }}
-            aria-hidden
-          />
+        <div className="relative space-y-5 px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">Validation layout</p>
+              <h3 className="mt-1 text-base font-semibold tracking-tight text-white/92 sm:text-[17px]" style={{ letterSpacing: "-0.025em" }}>
+                Six scores + headline, tied to evidence
+              </h3>
+            </div>
+            <span className="w-fit rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-amber-200/80">
+              Illustrative only
+            </span>
+          </div>
 
           <motion.div
-            className="relative mb-6 flex flex-wrap items-center justify-between gap-3"
+            className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 sm:p-5"
             initial={{ opacity: 0, y: 8 }}
             animate={active ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.45, ease: [0.25, 0.4, 0.25, 1] }}
+            transition={{ duration: 0.4 }}
           >
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-white/45">
-              <span className="h-1.5 w-1.5 rounded-full bg-violet-400/90" />
-              Sample stress-test
-            </span>
-            <span className="text-[10px] text-white/28">Fictional idea &amp; example score — not your report</span>
+            <div className="mb-2 flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400">
+                <Lightbulb className="h-3.5 w-3.5" aria-hidden />
+              </div>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">Sample idea</span>
+            </div>
+            <p className="text-[13px] font-semibold leading-snug text-white/88">{DEMO_IDEA.title}</p>
+            <ul className="mt-2 space-y-1 border-t border-white/[0.06] pt-2">
+              {DEMO_IDEA.lines.map((line, i) => (
+                <li key={i} className="text-[11px] leading-relaxed text-white/42">
+                  {line}
+                </li>
+              ))}
+            </ul>
           </motion.div>
 
-          {/*
-            Stacked layout: the hero right column is only ~half the viewport. A 3-column row
-            (idea + ring + personas) crushed the idea text into one letter per line. Full-width
-            idea first, then ring + insights, then personas.
-          */}
-          <motion.div
-            className="relative flex flex-col gap-8"
-            initial={{ opacity: 0, y: 14 }}
-            animate={active ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.55, ease: [0.25, 0.4, 0.25, 1] }}
-          >
-            {/* Idea card — always full width of mock so copy never collapses */}
-            <div className="w-full min-w-0">
-              <div
-                className="rounded-2xl border border-white/8 p-5 sm:p-6"
-                style={{
-                  background: "linear-gradient(165deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
-                }}
-              >
-                <div className="mb-3 flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400/90">
-                    <Lightbulb className="h-4 w-4" strokeWidth={2} aria-hidden />
-                  </div>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">Your idea</span>
-                </div>
-                <h3
-                  className="mb-3 text-[15px] font-semibold leading-snug tracking-tight sm:text-base"
-                  style={{ letterSpacing: "-0.02em", color: "rgba(255,255,255,0.92)" }}
-                >
-                  {DEMO_IDEA.title}
-                </h3>
-                <div className="space-y-2 border-t border-white/6 pt-3">
-                  {DEMO_IDEA.lines.map((line, i) => (
-                    <motion.p
-                      key={i}
-                      className="text-[12px] leading-relaxed text-white/45 break-normal wrap-anywhere"
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={active ? { opacity: 1, x: 0 } : {}}
-                      transition={{ delay: 0.12 + i * 0.08, duration: 0.4 }}
-                    >
-                      {line}
-                    </motion.p>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Ring + validation snapshot — side by side when wide enough */}
-            <div className="flex w-full min-w-0 flex-col items-stretch gap-6 sm:flex-row sm:items-start sm:gap-8">
-              <div className="flex shrink-0 justify-center sm:justify-start">
-                <ViabilityScoreRing active={active} />
-              </div>
-              <div className="min-w-0 flex-1 space-y-2.5">
-                {[
-                  {
-                    icon: <Check className="h-3.5 w-3.5 text-emerald-400/90" />,
-                    text: "Structured viability score (0–10) built from your pitch",
-                  },
-                  {
-                    icon: <AlertCircle className="h-3.5 w-3.5 text-amber-400/85" />,
-                    text: "Pushback from 5 personas — investor, customer, operator, mentor, adversary",
-                  },
-                  {
-                    icon: <TrendingUp className="h-3.5 w-3.5 text-indigo-400/90" />,
-                    text: "Risks, market context, and next steps you can act on",
-                  },
-                ].map((row, i) => (
-                  <motion.div
-                    key={i}
-                    className="flex gap-2.5 rounded-xl border border-white/6 bg-white/3 px-3 py-2.5"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={active ? { opacity: 1, y: 0 } : {}}
-                    transition={{ delay: 0.55 + i * 0.07, duration: 0.4 }}
-                  >
-                    <span className="mt-0.5 shrink-0 opacity-90">{row.icon}</span>
-                    <p className="min-w-0 text-[11px] leading-snug text-white/50 break-normal">{row.text}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-
-            {/* Personas */}
-            <div className="w-full min-w-0 border-t border-white/6 pt-6">
-              <p className="mb-3 text-center text-[10px] font-medium uppercase tracking-wider text-white/30 sm:text-left">
-                Five lenses · one report
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/38">
+                Rubric ({SCORE_MAX} pts each)
               </p>
-              <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
-                {DEMO_PERSONAS.map((p, i) => (
-                  <motion.span
-                    key={p.id}
-                    initial={{ opacity: 0, scale: 0.96 }}
-                    animate={active ? { opacity: 1, scale: 1 } : {}}
-                    transition={{ delay: 0.2 + i * 0.05, duration: 0.35 }}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/4 px-2.5 py-1.5 text-[11px] font-medium text-white/55"
-                    title={p.label}
-                  >
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-indigo-500/35 to-violet-500/25 text-[10px] font-semibold text-white/90">
-                      {p.id}
-                    </span>
-                    {p.label}
-                  </motion.span>
-                ))}
-              </div>
+              <p className="text-[10px] text-white/30">Lean + diligence-style dimensions</p>
             </div>
-          </motion.div>
+            <div className="space-y-2.5 rounded-xl border border-white/[0.06] bg-black/20 p-3 sm:p-4">
+              {DEMO_RUBRIC_ROWS.map((row, i) => (
+                <motion.div
+                  key={row.label}
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={active ? { opacity: 1, x: 0 } : {}}
+                  transition={{ delay: 0.06 * i, duration: 0.35 }}
+                  className="flex items-center gap-3 sm:gap-4"
+                >
+                  <span className="w-[min(7.5rem,32%)] shrink-0 text-[10px] font-medium leading-tight text-white/50 sm:text-[11px]">
+                    {row.label}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+                      <motion.div
+                        className="h-full rounded-full bg-gradient-to-r from-indigo-500/90 to-violet-500/75"
+                        initial={{ width: "0%" }}
+                        animate={active ? { width: `${row.score}%` } : { width: "0%" }}
+                        transition={{ delay: 0.12 + i * 0.05, duration: 0.55, ease: [0.25, 0.4, 0.25, 1] }}
+                      />
+                    </div>
+                  </div>
+                  <span className="w-9 shrink-0 text-right text-[10px] font-bold tabular-nums text-white/45 sm:text-[11px]">
+                    {row.score}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
+            <p className="mt-2 text-[10px] leading-relaxed text-white/32">
+              Numbers above are placeholders. Your report scores each axis from evidence in your pitch; headline viability stays aligned with the category average so the read doesn’t “gaslight” you.
+            </p>
+          </div>
+
+          <div>
+            <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-white/30">Perspectives in one report</p>
+            <div className="flex flex-wrap gap-1.5">
+              {DEMO_PERSONAS.map((p, i) => (
+                <motion.span
+                  key={p.id}
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={active ? { opacity: 1, scale: 1 } : {}}
+                  transition={{ delay: 0.2 + i * 0.04, duration: 0.3 }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-1 text-[10px] font-medium text-white/55"
+                >
+                  <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/35 to-violet-500/25 text-[8px] font-semibold text-white/90">
+                    {p.id}
+                  </span>
+                  {p.label}
+                </motion.span>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2 text-[10px] text-white/38">
+              <span className="rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1">Evidence gates on high scores</span>
+              <span className="rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1">Radar + checklist</span>
+            </div>
+            <Link
+              href="/validate"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-2 text-center text-[11px] font-semibold text-[#0A0A0B] transition-colors hover:bg-white/90"
+            >
+              Run your idea
+              <ArrowRight className="h-3.5 w-3.5 opacity-80" aria-hidden />
+            </Link>
+          </div>
         </div>
       </div>
     </div>
@@ -390,14 +309,14 @@ export default function Home() {
       {/* Single subtle top glow — barely there, just adds atmospheric depth */}
       <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden>
         <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px]"
+          className="absolute top-0 left-1/2 h-[600px] w-[min(1600px,100vw)] -translate-x-1/2"
           style={{ background: "radial-gradient(ellipse at center, rgba(100,110,240,0.06) 0%, transparent 70%)" }}
         />
       </div>
 
       {/* ═══ NAV ═══ */}
       <nav className="fixed top-0 w-full z-50" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(10,10,11,0.8)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
-        <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="mx-auto flex h-14 w-full max-w-[min(1520px,96vw)] items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2.5 font-semibold text-[14px]" style={{ letterSpacing: "-0.02em" }}>
             <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
               <Zap className="w-3.5 h-3.5 text-white" />
@@ -405,13 +324,14 @@ export default function Home() {
             Priority Debater
           </Link>
           <div className="flex items-center gap-1">
-            {["Validate", "Toolkit", "Debate"].map((item) => (
-              <Link key={item} href={`/${item.toLowerCase()}`} className="hidden sm:inline-flex px-3.5 py-1.5 text-[13px] transition-colors hover:text-white/80" style={{ color: "rgba(255,255,255,0.45)" }}>
-                {item}
-              </Link>
-            ))}
-            <Link href="/validate" className="ml-3 px-5 py-2 rounded-lg text-white text-[13px] font-medium hover:bg-white/15 transition-all" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              Test My Idea &rarr;
+            <Link href="/journey" className="hidden sm:inline-flex px-3.5 py-1.5 text-[13px] transition-colors hover:text-white/80" style={{ color: "rgba(255,255,255,0.45)" }}>
+              Guided journey
+            </Link>
+            <Link href="/validate" className="hidden sm:inline-flex px-3.5 py-1.5 text-[13px] transition-colors hover:text-white/80" style={{ color: "rgba(255,255,255,0.45)" }}>
+              Full report
+            </Link>
+            <Link href="/journey" className="ml-3 px-5 py-2 rounded-lg text-white text-[13px] font-medium hover:bg-white/15 transition-all" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              Start guided audit &rarr;
             </Link>
           </div>
         </div>
@@ -419,8 +339,8 @@ export default function Home() {
 
       {/* ═══ HERO — Split layout: text left, demo right ═══ */}
       <section className="relative z-10 pt-28 sm:pt-36 pb-20 sm:pb-28" ref={demoRef}>
-        <div className="max-w-[1200px] mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        <div className="mx-auto w-full max-w-[min(1520px,96vw)] px-4 sm:px-6">
+          <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] lg:gap-14 xl:gap-16 2xl:gap-20">
             {/* Left — copy */}
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/4 px-3.5 py-1 text-[12px] mb-6" style={{ color: "rgba(255,255,255,0.5)" }}>
@@ -437,12 +357,12 @@ export default function Home() {
               </h1>
 
               <p className="text-[16px] sm:text-[17px] leading-[1.65] mb-8 max-w-md" style={{ color: "rgba(255,255,255,0.45)" }}>
-                5 AI personas rip your startup idea apart — investor, customer, operator, mentor, adversary. Get a viability score and action plan in 2 minutes.
+                Five AI personas stress-test your startup idea — investor, customer, operator, mentor, adversary. Get a 0–{SCORE_MAX} viability rubric and an action plan in about two minutes.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3 mb-8">
-                <Link href="/validate" className="group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-[#0A0A0B] font-medium text-[14px] transition-all hover:bg-white/90">
-                  Stress-Test My Idea
+                <Link href="/journey" className="group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-[#0A0A0B] font-medium text-[14px] transition-all hover:bg-white/90">
+                  Guided validation
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
                 <Link href="/validate?mode=generate" className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-[14px] font-medium transition-all" style={{ color: "rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -467,7 +387,7 @@ export default function Home() {
               animate={demoInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
               transition={{ duration: 0.8, delay: 0.2 }}
             >
-              <DemoPreview play={demoInView} />
+              <HeroValidationPreview play={demoInView} />
             </motion.div>
           </div>
         </div>
@@ -475,7 +395,7 @@ export default function Home() {
 
       {/* ═══ STATS BAR — inline, not a separate section ═══ */}
       <section className="relative z-10 py-12 border-y" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-        <div className="max-w-[1200px] mx-auto px-6">
+        <div className="mx-auto w-full max-w-[min(1520px,96vw)] px-4 sm:px-6">
           <Stagger className="grid grid-cols-2 sm:grid-cols-4 gap-8">
             {[
               { v: 15, s: "+", label: "Blind spots checked" },
@@ -496,7 +416,7 @@ export default function Home() {
 
       {/* ═══ HOW IT WORKS — 3 steps, clean ═══ */}
       <section className="relative z-10 py-24 sm:py-32">
-        <div className="mx-auto max-w-[1200px] px-6">
+        <div className="mx-auto w-full max-w-[min(1520px,96vw)] px-4 sm:px-6">
           <Reveal className="mb-12 text-center">
             <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.15em]" style={{ color: "rgba(255,255,255,0.3)" }}>How it works</p>
             <h2 className="text-2xl sm:text-3xl font-semibold" style={{ letterSpacing: "-0.03em" }}>
@@ -528,7 +448,7 @@ export default function Home() {
 
       {/* ═══ BENTO FEATURES — asymmetric grid ═══ */}
       <section className="relative z-10 py-20 sm:py-28">
-        <div className="max-w-[1200px] mx-auto px-6">
+        <div className="mx-auto w-full max-w-[min(1520px,96vw)] px-4 sm:px-6">
           <Reveal className="text-center mb-12">
             <p className="text-[11px] uppercase tracking-[0.15em] font-medium mb-3" style={{ color: "rgba(255,255,255,0.3)" }}>What you get</p>
             <h2 className="text-2xl sm:text-3xl font-semibold" style={{ letterSpacing: "-0.03em" }}>
@@ -541,7 +461,7 @@ export default function Home() {
             {[
               {
                 title: "Viability Score & Radar Chart",
-                desc: "A brutal 0-10 Go/No-Go verdict across 6 dimensions. Market opportunity, problem-solution fit, business model, timing — nothing hides.",
+                desc: `A calibrated 0–${SCORE_MAX} Go/No-Go read across 6 diligence dimensions. Market, problem–solution, model, competition, execution, timing — nothing hides.`,
                 icons: [<Sparkles key="s" className="w-4 h-4" />, <Target key="t" className="w-4 h-4" />],
               },
               {
@@ -602,92 +522,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══ DEBATE MODE — Full-width highlight ═══ */}
-      <section className="relative z-10 py-20 sm:py-28">
-        <div className="max-w-[1200px] mx-auto px-6">
-          <Reveal>
-            <div className="relative rounded-2xl overflow-hidden border border-white/6 bg-white/3">
-
-              <div className="relative p-8 sm:p-12 flex flex-col lg:flex-row items-center gap-10" style={{ background: "transparent" }}>
-                <div className="flex-1">
-                  <motion.div
-                    initial={{ rotate: 0 }}
-                    whileInView={{ rotate: [0, -8, 8, -4, 0] }}
-                    transition={{ duration: 0.8, delay: 0.2 }}
-                    viewport={{ once: true }}
-                    className="inline-flex p-3 rounded-xl bg-white/6 border border-white/6 mb-5"
-                  >
-                    <Swords className="w-8 h-8" style={{ color: "rgba(255,255,255,0.5)" }} />
-                  </motion.div>
-                  <h3 className="text-xl sm:text-2xl font-semibold mb-3" style={{ letterSpacing: "-0.02em", color: "rgba(255,255,255,0.95)" }}>Your idea sounds great. Now defend it.</h3>
-                  <p className="text-sm mb-6 leading-relaxed max-w-md" style={{ color: "rgba(255,255,255,0.4)" }}>
-                    5 AI personas inspired by Munger, Graham, and Kahneman challenge every assumption. If your idea survives this, it can survive the market.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {[
-                      "Adversary rips holes in your logic",
-                      "Investor asks about your unit economics",
-                      "Customer tells you they wouldn't buy",
-                      "Operator flags what won't scale",
-                      "Mentor helps you fix what's broken",
-                      "Real-time argument scoring",
-                    ].map((f) => (
-                      <motion.div
-                        key={f}
-                        initial={{ opacity: 0, x: -10 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.3 }}
-                        className="flex items-center gap-2 text-[12px]"
-                        style={{ color: "rgba(255,255,255,0.45)" }}
-                      >
-                        <div className="w-4 h-4 rounded-full bg-white/6 flex items-center justify-center shrink-0">
-                          <Check className="w-2.5 h-2.5" style={{ color: "rgba(255,255,255,0.4)" }} />
-                        </div>
-                        {f}
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Mock debate */}
-                <div className="w-full lg:w-72 shrink-0">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
-                    className="rounded-2xl bg-white/4 border border-white/6 p-4 space-y-3"
-                  >
-                    <div className="flex gap-2 items-start">
-                      <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0 text-[10px]">&#x1F5E1;&#xFE0F;</div>
-                      <div className="bg-white/6 rounded-xl rounded-tl-none px-3 py-2 text-[11px] text-white/60 leading-relaxed">
-                        Your TAM assumes every business needs this. What&apos;s your actual serviceable market?
-                      </div>
-                    </div>
-                    <div className="flex gap-2 items-start flex-row-reverse">
-                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 text-[10px]">&#x1F464;</div>
-                      <div className="bg-indigo-500/10 rounded-xl rounded-tr-none px-3 py-2 text-[11px] text-white/60 leading-relaxed">
-                        SAM is $3.2B — remote-first companies with 50+ employees...
-                      </div>
-                    </div>
-                    <div className="flex gap-2 items-start">
-                      <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0 text-[10px]">&#x1F5E1;&#xFE0F;</div>
-                      <div className="bg-white/6 rounded-xl rounded-tl-none px-3 py-2">
-                        <span className="inline-block w-3 h-3 rounded-full border-2 border-white/20 border-t-indigo-400 animate-spin" />
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
       {/* ═══ COMPARISON TABLE ═══ */}
       <section className="relative z-10 py-20 sm:py-28">
-        <div className="max-w-3xl mx-auto px-6">
+        <div className="mx-auto w-full max-w-[min(56rem,96vw)] px-4 sm:px-6">
           <Reveal className="text-center mb-12">
             <p className="text-[11px] uppercase tracking-[0.15em] font-medium mb-3" style={{ color: "rgba(255,255,255,0.3)" }}>Why not just use a generic AI?</p>
             <h2 className="text-2xl sm:text-3xl font-semibold" style={{ letterSpacing: "-0.03em", color: "rgba(255,255,255,0.95)" }}>Because yes-men don&apos;t build great companies</h2>
@@ -709,7 +546,7 @@ export default function Home() {
                     ["Market analysis (TAM/SAM/SOM)", true, "Vague"],
                     ["Competitive landscape", true, "If you ask"],
                     ["Lean Canvas", true, false],
-                    ["Radar chart (6 categories)", true, false],
+                    [`Radar chart (6 × 0–${SCORE_MAX})`, true, false],
                     ["Live debate mode", true, false],
                     ["Actionable validation checklist", true, false],
                     ["PDF & Markdown export", true, "Paid"],
@@ -786,8 +623,8 @@ export default function Home() {
       {/* ═══ FINAL CTA ═══ */}
       <section className="relative z-10 pb-24 sm:pb-32">
         <Reveal>
-          <div className="max-w-[1200px] mx-auto px-6">
-            <div className="relative text-center py-20 px-6 rounded-2xl overflow-hidden border border-white/6 bg-white/2">
+          <div className="mx-auto w-full max-w-[min(1520px,96vw)] px-4 sm:px-6">
+            <div className="relative overflow-hidden rounded-2xl border border-white/6 bg-white/2 px-4 py-16 text-center sm:px-6 sm:py-20">
               {/* Subtle top glow */}
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] pointer-events-none" style={{ background: "radial-gradient(ellipse, rgba(140,150,255,0.06) 0%, transparent 70%)" }} />
 
@@ -802,9 +639,9 @@ export default function Home() {
                   2 minutes. 5 AI personas. Zero sugar-coating. Free forever.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <Link href="/validate"
+                  <Link href="/journey"
                     className="group inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white text-[#0A0A0B] font-medium text-[14px] transition-all hover:bg-white/90">
-                    Stress-Test My Idea Now
+                    Start guided journey
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </Link>
                   <Link href="/validate?mode=generate"
@@ -821,15 +658,14 @@ export default function Home() {
 
       {/* ═══ FOOTER ═══ */}
       <footer className="relative z-10 py-8 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-        <div className="max-w-[1200px] mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="mx-auto flex w-full max-w-[min(1520px,96vw)] flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
           <div className="flex items-center gap-2 text-[12px]" style={{ color: "rgba(255,255,255,0.25)" }}>
             <Zap className="w-3.5 h-3.5" />
             <span>Priority Debater</span>
           </div>
           <div className="flex gap-5 text-[12px]" style={{ color: "rgba(255,255,255,0.25)" }}>
-            <Link href="/validate" className="hover:text-white/50 transition-colors">Validate</Link>
-            <Link href="/toolkit" className="hover:text-white/50 transition-colors">Toolkit</Link>
-            <Link href="/debate" className="hover:text-white/50 transition-colors">Debate</Link>
+            <Link href="/journey" className="hover:text-white/50 transition-colors">Guided journey</Link>
+            <Link href="/validate" className="hover:text-white/50 transition-colors">Full report</Link>
           </div>
           <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.15)" }}>&copy; {new Date().getFullYear()}</p>
         </div>

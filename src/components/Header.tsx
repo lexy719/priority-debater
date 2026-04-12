@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Zap, Menu, X } from "lucide-react";
-import { ThemeToggle } from "./ThemeToggle";
 
 export function Header() {
   const pathname = usePathname();
@@ -40,7 +39,6 @@ export function Header() {
               {link.label}
             </Link>
           ))}
-          <ThemeToggle />
           <Link
             href="/validate"
             className="ml-1 px-4 py-1.5 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors"
@@ -51,7 +49,6 @@ export function Header() {
 
         {/* Mobile controls */}
         <div className="sm:hidden flex items-center gap-1">
-          <ThemeToggle />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="p-2 rounded-lg hover:bg-slate-100 transition-colors"

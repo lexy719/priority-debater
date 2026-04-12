@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Validation Results",
-  description: "Your startup idea validation report. See viability score, market analysis, and recommendations.",
+  title: "Results",
+  description:
+    "Viability score, category breakdown, risks, and next steps. Export, share, debate, or open the toolkit from one screen.",
 };
 
 export default function ResultsLayout({

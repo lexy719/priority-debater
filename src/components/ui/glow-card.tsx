@@ -13,7 +13,6 @@ interface GlowCardProps {
   className?: string;
   glowColor?: string;
   onClick?: () => void;
-  as?: "div" | "button" | "a";
   href?: string;
 }
 
@@ -22,7 +21,6 @@ export function GlowCard({
   className,
   glowColor = "rgba(99,102,241,0.4)",
   onClick,
-  as: Tag = "div",
   href,
 }: GlowCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -42,8 +40,8 @@ export function GlowCard({
       ref={cardRef}
       onMouseMove={handleMouseMove}
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-card)] transition-all duration-300",
-        "hover:border-[var(--border-focus)] hover:shadow-[0_0_30px_var(--glow-accent)]",
+        "group relative overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300",
+        "hover:border-ring hover:shadow-glow-md",
         onClick || href ? "cursor-pointer" : "",
         className
       )}
@@ -107,14 +105,14 @@ export function StatCard({ label, value, sublabel, icon, trend, className }: Sta
     <GlowCard className={cn("p-5", className)}>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
+          <p className="text-muted text-xs font-medium uppercase tracking-wider">
             {label}
           </p>
-          <p className="mt-2 text-2xl font-bold text-[var(--text-primary)]">
+          <p className="text-foreground mt-2 text-2xl font-bold">
             {value}
           </p>
           {sublabel && (
-            <p className="mt-1 flex items-center gap-1 text-xs text-[var(--text-secondary)]">
+            <p className="text-secondary mt-1 flex items-center gap-1 text-xs">
               {trend === "up" && <span className="text-emerald-400">↑</span>}
               {trend === "down" && <span className="text-red-400">↓</span>}
               {sublabel}
@@ -122,7 +120,7 @@ export function StatCard({ label, value, sublabel, icon, trend, className }: Sta
           )}
         </div>
         {icon && (
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent-primary)]/10 text-[var(--text-accent)]">
+          <div className="bg-primary/10 text-accent flex h-10 w-10 items-center justify-center rounded-xl">
             {icon}
           </div>
         )}

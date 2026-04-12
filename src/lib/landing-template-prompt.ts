@@ -16,6 +16,8 @@ export const SAAS_NOVA_SLOT_KEYS = [
   "HERO_SUB",
   "CTA_PRIMARY",
   "CTA_SECONDARY",
+  "SOCIAL_PROOF_EYEBROW",
+  "SOCIAL_PROOF_MAIN",
   "PROBLEM_EYEBROW",
   "PROBLEM_TITLE",
   "PROBLEM_BODY",
@@ -63,12 +65,19 @@ Rules:
 - **Nav labels:** use short words: Problem, Features, How it works, FAQ, Get started (or close).
 - **PROBLEM_QUOTE:** one believable pull-quote (no fake celebrity names).
 - **FOOTER_LINE:** copyright-style one line with the brand name and year ${new Date().getFullYear()}.
+- **SOCIAL_PROOF_EYEBROW:** 2–5 words (e.g. "Trusted by teams", "Early feedback", "What beta users say").
+- **SOCIAL_PROOF_MAIN:** **one sentence** of credible social proof — qualitative wins are fine. **Do not** invent company names, logos, awards, or specific numbers unless the business context clearly provides them.
 
 Return a single JSON object whose keys are **exactly** the slot keys provided in the user message. Every key must be present. Values must be strings.`;
 }
 
-export function landingTemplateUserPrompt(setup: DebateSetup, validationContent: string): string {
+export function landingTemplateUserPrompt(
+  setup: DebateSetup,
+  validationContent: string,
+  opts?: { verticalLabel?: string }
+): string {
   const brief = buildMarketingBriefForLanding(validationContent);
+  const vertical = opts?.verticalLabel?.trim() || "General business & technology";
   return `Fill these JSON keys (exact names, all required):
 
 ${SAAS_NOVA_SLOT_KEYS.map((k) => `- "${k}"`).join("\n")}
@@ -77,6 +86,7 @@ ${SAAS_NOVA_SLOT_KEYS.map((k) => `- "${k}"`).join("\n")}
 - Product / idea name: "${setup.topic}"
 - Pitch: ${setup.position}
 - Context: ${setup.context?.trim() || "(none)"}
+- **Vertical / audience:** ${vertical} — tailor vocabulary, social proof, and FAQ concerns to this space (e.g. trust & compliance for fintech; workflow for B2B; lifestyle benefits for consumer). Do not invent certifications or regulatory claims not implied by the pitch.
 
 **Positioning (for copy only — do not mention internal validation scores):**
 ${brief}
@@ -106,6 +116,9 @@ export function defaultSaasNovaSlots(setup: DebateSetup): Record<string, string>
     HERO_SUB: heroSub,
     CTA_PRIMARY: "Start free",
     CTA_SECONDARY: "See how it works",
+    SOCIAL_PROOF_EYEBROW: "Early feedback",
+    SOCIAL_PROOF_MAIN:
+      "Teams trying the beta report clearer priorities and less thrash — without another heavy tool to manage.",
     PROBLEM_EYEBROW: "The problem",
     PROBLEM_TITLE: "The status quo is costing you time",
     PROBLEM_BODY: "Teams juggle too many tools and still miss the signal. We built something simpler.",

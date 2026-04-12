@@ -29,7 +29,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { loadSessionWithStatus } from "@/lib/session";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { readSseLines } from "@/lib/sse-lines";
 import { GradientMesh } from "@/components/ui/animated-background";
 import { GlowCard } from "@/components/ui/glow-card";
 import { FadeIn } from "@/components/ui/animated-text";
@@ -203,11 +203,11 @@ function SlideCard({ slide, totalSlides, isActive }: { slide: Slide; totalSlides
   const textColor = gradientParts[2];
 
   return (
-    <div className={`rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-hidden transition-all duration-300 ${isActive ? "ring-1 ring-indigo-500/30" : ""}`}>
-      <div className={`bg-gradient-to-r ${gradientColors} px-6 sm:px-8 py-4 border-b border-white/[0.06]`}>
+    <div className={`rounded-2xl bg-white/3 border border-white/6 overflow-hidden transition-all duration-300 ${isActive ? "ring-1 ring-indigo-500/30" : ""}`}>
+      <div className={`bg-linear-to-r ${gradientColors} px-6 sm:px-8 py-4 border-b border-white/6`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className={`w-10 h-10 rounded-xl bg-white/[0.08] border border-white/[0.1] flex items-center justify-center text-sm font-bold ${textColor}`}>
+            <span className={`w-10 h-10 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center text-sm font-bold ${textColor}`}>
               {slide.number}
             </span>
             <h2 className="text-lg sm:text-xl font-bold text-white">{slide.title}</h2>
@@ -221,14 +221,14 @@ function SlideCard({ slide, totalSlides, isActive }: { slide: Slide; totalSlides
         </div>
       </div>
       {slide.speakerNotes && (
-        <div className="border-t border-white/[0.06]">
+        <div className="border-t border-white/6">
           <button onClick={() => setNotesOpen(!notesOpen)} className="w-full flex items-center justify-between px-6 sm:px-8 py-3 text-sm text-white/30 hover:text-white/50 transition-colors">
             <span className="flex items-center gap-2 font-medium"><FileText className="w-3.5 h-3.5" /> Speaker Notes</span>
             {notesOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
           {notesOpen && (
             <div className="px-6 sm:px-8 pb-5 pt-0">
-              <div className="rounded-xl bg-white/[0.02] border border-white/[0.04] p-4">
+              <div className="rounded-xl bg-white/2 border border-white/4 p-4">
                 <p className="text-sm text-white/40 leading-relaxed italic">{slide.speakerNotes}</p>
               </div>
             </div>
@@ -331,32 +331,24 @@ function ToolkitPageInner() {
       const reader = response.body?.getReader();
       if (!reader) throw new Error("No response stream");
 
-      const decoder = new TextDecoder();
       let content = "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split("\n")) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") break;
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.content) {
-                content += parsed.content;
-                setStreamingContents((prev) => ({ ...prev, [toolId]: content }));
-              }
-              if (parsed.error) throw new Error(parsed.error);
-            } catch (e) {
-              if (e instanceof Error && e.message !== "Stream interrupted") {
-                /* skip parse errors */
-              } else throw e;
-            }
+      await readSseLines(reader, (line) => {
+        if (!line.startsWith("data: ")) return;
+        const data = line.slice(6);
+        if (data === "[DONE]") return;
+        try {
+          const parsed = JSON.parse(data) as { content?: string; error?: string };
+          if (parsed.error) throw new Error(parsed.error);
+          if (parsed.content) {
+            content += parsed.content;
+            setStreamingContents((prev) => ({ ...prev, [toolId]: content }));
           }
+        } catch (e) {
+          if (e instanceof SyntaxError) return;
+          throw e;
         }
-      }
+      });
 
       if (!content) throw new Error("No content received");
       setContents((prev) => ({ ...prev, [toolId]: content }));
@@ -471,7 +463,7 @@ function ToolkitPageInner() {
     return (
       <FadeIn delay={0}>
         <div className="max-w-xl mx-auto">
-          <GlowCard glowColor={glowColorMap[activeTool]} className={`relative rounded-2xl bg-gradient-to-br ${currentTool.gradient} border border-white/[0.08] p-8 sm:p-10 overflow-hidden text-center`}>
+          <GlowCard glowColor={glowColorMap[activeTool]} className={`relative rounded-2xl bg-linear-to-br ${currentTool.gradient} border border-white/8 p-8 sm:p-10 overflow-hidden text-center`}>
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(99,102,241,0.06)_0%,_transparent_50%)]" />
             <div className="relative">
               <div className={`w-16 h-16 rounded-2xl ${currentTool.accentBg} border flex items-center justify-center mx-auto mb-5`}>
@@ -481,7 +473,7 @@ function ToolkitPageInner() {
               <p className="text-white/40 text-sm leading-relaxed mb-4 max-w-md mx-auto">{currentTool.description}</p>
               <div className="flex flex-wrap justify-center gap-2 mb-6">
                 {currentTool.tags.map((tag) => (
-                  <span key={tag} className="px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.08] text-white/50 text-xs font-medium">
+                  <span key={tag} className="px-3 py-1 rounded-full bg-white/6 border border-white/8 text-white/50 text-xs font-medium">
                     {tag}
                   </span>
                 ))}
@@ -510,7 +502,7 @@ function ToolkitPageInner() {
     return (
       <FadeIn delay={0}>
         <div className="max-w-3xl mx-auto">
-          <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-12 text-center">
+          <div className="rounded-2xl bg-white/3 border border-white/6 p-12 text-center">
             <Loader2 className={`w-10 h-10 animate-spin mx-auto mb-4 ${currentTool.color} opacity-50`} />
             <p className="text-white/30 text-sm">
               Generating your {currentTool.label.toLowerCase()}
@@ -542,11 +534,11 @@ function ToolkitPageInner() {
                   className={`w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
                     activeSlide === idx
                       ? "bg-amber-500/15 text-amber-300 border border-amber-500/25"
-                      : "text-white/30 hover:text-white/50 hover:bg-white/[0.04] border border-transparent"
+                      : "text-white/30 hover:text-white/50 hover:bg-white/4 border border-transparent"
                   }`}
                 >
                   <span className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${
-                    activeSlide === idx ? "bg-amber-500/20 text-amber-300" : "bg-white/[0.06] text-white/25"
+                    activeSlide === idx ? "bg-amber-500/20 text-amber-300" : "bg-white/6 text-white/25"
                   }`}>{slide.number}</span>
                   <span className="truncate text-xs">{slide.title}</span>
                 </button>
@@ -570,12 +562,12 @@ function ToolkitPageInner() {
           {!isGenerating && contents["pitch-deck"] && slides.length > 1 && (
             <div className="max-w-3xl mx-auto flex items-center justify-between pt-4 pb-8">
               <button onClick={() => scrollToSlide(Math.max(0, activeSlide - 1))} disabled={activeSlide === 0}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-white/40 hover:text-white/60 disabled:opacity-20 transition-all">
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/4 border border-white/6 text-sm text-white/40 hover:text-white/60 disabled:opacity-20 transition-all">
                 <ArrowLeft className="w-4 h-4" /> Previous
               </button>
               <span className="text-sm text-white/20 font-medium">{activeSlide + 1} / {slides.length}</span>
               <button onClick={() => scrollToSlide(Math.min(slides.length - 1, activeSlide + 1))} disabled={activeSlide === slides.length - 1}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-white/40 hover:text-white/60 disabled:opacity-20 transition-all">
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/4 border border-white/6 text-sm text-white/40 hover:text-white/60 disabled:opacity-20 transition-all">
                 Next <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -599,7 +591,7 @@ function ToolkitPageInner() {
             <button
               onClick={() => setActiveStrategySection("all")}
               className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                activeStrategySection === "all" ? "bg-white/[0.08] text-white" : "text-white/30 hover:text-white/50 hover:bg-white/[0.04]"
+                activeStrategySection === "all" ? "bg-white/8 text-white" : "text-white/30 hover:text-white/50 hover:bg-white/4"
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" /> Full Strategy
@@ -613,7 +605,7 @@ function ToolkitPageInner() {
                   key={section.id}
                   onClick={() => setActiveStrategySection(section.id)}
                   className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                    activeStrategySection === section.id ? "bg-white/[0.08] text-white" : "text-white/30 hover:text-white/50 hover:bg-white/[0.04]"
+                    activeStrategySection === section.id ? "bg-white/8 text-white" : "text-white/30 hover:text-white/50 hover:bg-white/4"
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${activeStrategySection === section.id ? section.color : ""}`} />
@@ -626,9 +618,9 @@ function ToolkitPageInner() {
 
         {/* Mobile strategy nav */}
         <div className="lg:hidden fixed bottom-4 left-4 right-4 z-20">
-          <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-[#141420]/95 backdrop-blur-xl border border-white/[0.08] shadow-2xl shadow-black/50 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-[#141420]/95 backdrop-blur-xl border border-white/8 shadow-2xl shadow-black/50 overflow-x-auto scrollbar-hide">
             <button onClick={() => setActiveStrategySection("all")}
-              className={`shrink-0 px-3 py-2 rounded-xl text-xs font-medium transition-all ${activeStrategySection === "all" ? "bg-white/[0.1] text-white" : "text-white/30"}`}>
+              className={`shrink-0 px-3 py-2 rounded-xl text-xs font-medium transition-all ${activeStrategySection === "all" ? "bg-white/10 text-white" : "text-white/30"}`}>
               All
             </button>
             {STRATEGY_SECTIONS.map((section) => {
@@ -638,7 +630,7 @@ function ToolkitPageInner() {
               return (
                 <button key={section.id} onClick={() => setActiveStrategySection(section.id)}
                   className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                    activeStrategySection === section.id ? "bg-white/[0.1] text-white" : "text-white/30"
+                    activeStrategySection === section.id ? "bg-white/10 text-white" : "text-white/30"
                   }`}>
                   <Icon className="w-3 h-3" />
                 </button>
@@ -657,8 +649,8 @@ function ToolkitPageInner() {
 
   function renderMarkdownContent(content: string) {
     return (
-      <div className="rounded-2xl bg-white/[0.02] border border-white/[0.06] overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
+      <div className="rounded-2xl bg-white/2 border border-white/6 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-white/6">
           <div className="flex items-center gap-2 text-white/40 text-xs">
             {isGenerating ? (
               <><Loader2 className={`w-3.5 h-3.5 animate-spin ${currentTool.color}`} /><span className={`${currentTool.color} font-medium`}>Generating...</span></>
@@ -668,12 +660,12 @@ function ToolkitPageInner() {
           </div>
           <div className="flex items-center gap-2">
             <button onClick={handleCopy}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs font-medium text-white/40 hover:text-white/60 hover:bg-white/[0.06] transition-all">
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/4 border border-white/6 text-xs font-medium text-white/40 hover:text-white/60 hover:bg-white/6 transition-all">
               {copyToast ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
               {copyToast ? "Copied!" : "Copy"}
             </button>
             <button onClick={handleExportPDF}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs font-medium text-white/40 hover:text-white/60 hover:bg-white/[0.06] transition-all">
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/4 border border-white/6 text-xs font-medium text-white/40 hover:text-white/60 hover:bg-white/6 transition-all">
               <FileText className="w-3 h-3" /> PDF
             </button>
             <button onClick={handleDownload}
@@ -690,15 +682,15 @@ function ToolkitPageInner() {
         <div className="px-5 sm:px-8 py-6 sm:py-8">
           <div className="prose prose-invert prose-sm max-w-none
             prose-headings:font-bold prose-headings:tracking-tight
-            prose-h2:text-xl prose-h2:mt-10 prose-h2:mb-4 prose-h2:pb-3 prose-h2:border-b prose-h2:border-white/[0.06]
+            prose-h2:text-xl prose-h2:mt-10 prose-h2:mb-4 prose-h2:pb-3 prose-h2:border-b prose-h2:border-white/6
             prose-h3:text-base prose-h3:mt-6 prose-h3:mb-3 prose-h3:text-white/80
             prose-p:text-white/50 prose-p:text-sm prose-p:leading-relaxed
             prose-li:text-white/50 prose-li:text-sm
             prose-strong:text-white/80 prose-strong:font-semibold
             prose-table:text-xs
-            prose-th:text-white/60 prose-th:font-semibold prose-th:px-3 prose-th:py-2 prose-th:bg-white/[0.04] prose-th:border-white/[0.08]
-            prose-td:text-white/40 prose-td:px-3 prose-td:py-2 prose-td:border-white/[0.06]
-            prose-hr:border-white/[0.06] prose-hr:my-8
+            prose-th:text-white/60 prose-th:font-semibold prose-th:px-3 prose-th:py-2 prose-th:bg-white/4 prose-th:border-white/8
+            prose-td:text-white/40 prose-td:px-3 prose-td:py-2 prose-td:border-white/6
+            prose-hr:border-white/6 prose-hr:my-8
           ">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           </div>
@@ -725,11 +717,11 @@ function ToolkitPageInner() {
       <GradientMesh />
 
       {/* Top bar */}
-      <div className="sticky top-0 z-30 bg-[#08080e]/80 backdrop-blur-xl border-b border-white/[0.06]">
+      <div className="sticky top-0 z-30 bg-[#08080e]/80 backdrop-blur-xl border-b border-white/6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
           <div className="flex items-center gap-3 min-w-0">
             <Link href="/" className="flex items-center gap-2 group shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
                 <Zap className="w-4 h-4 text-white" />
               </div>
               <span className="hidden sm:inline text-sm font-semibold text-white/70 group-hover:text-white transition-colors">Priority Debater</span>
@@ -739,24 +731,23 @@ function ToolkitPageInner() {
           </div>
           <div className="flex items-center gap-1">
             <Link href="/results"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all">
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/4 transition-all">
               <ArrowLeft className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Results</span>
             </Link>
             {displayContent && (
               <>
                 <button onClick={handleCopy}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all" title="Copy">
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/4 transition-all" title="Copy">
                   {copyToast ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   <span className="hidden sm:inline">{copyToast ? "Copied!" : "Copy"}</span>
                 </button>
                 <button onClick={handleExportPDF}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/[0.04] transition-all" title="PDF">
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white/30 hover:text-white/60 rounded-lg hover:bg-white/4 transition-all" title="PDF">
                   <FileText className="w-3.5 h-3.5" /><span className="hidden sm:inline">PDF</span>
                 </button>
               </>
             )}
-            <ThemeToggle />
           </div>
         </div>
       </div>
@@ -769,7 +760,7 @@ function ToolkitPageInner() {
         </div>
 
         {/* Tool tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-6 scrollbar-hide rounded-2xl backdrop-blur-xl bg-[var(--bg-primary)]/60 p-2 border border-white/[0.06]">
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-6 scrollbar-hide rounded-2xl backdrop-blur-xl bg-background/60 p-2 border border-white/6">
           {TOOLS.map((tool) => {
             const Icon = tool.icon;
             const hasContent = !!contents[tool.id];
@@ -781,8 +772,8 @@ function ToolkitPageInner() {
                 onClick={() => setActiveTool(tool.id)}
                 className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
                   isActive
-                    ? "bg-white/[0.08] text-white border-white/[0.12]"
-                    : "bg-white/[0.02] text-white/30 hover:text-white/50 border-white/[0.04] hover:border-white/[0.08]"
+                    ? "bg-white/8 text-white border-white/12"
+                    : "bg-white/2 text-white/30 hover:text-white/50 border-white/4 hover:border-white/8"
                 }`}
               >
                 {isToolGenerating ? (
@@ -816,7 +807,7 @@ function ToolkitPageInner() {
         {contents[activeTool] && !isGenerating && (
           <div className="mt-6 flex justify-center">
             <button onClick={() => handleGenerate(activeTool)}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm font-medium text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all">
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/4 border border-white/6 text-sm font-medium text-white/30 hover:text-white/60 hover:bg-white/6 transition-all">
               <Sparkles className="w-4 h-4" /> Regenerate {currentTool.shortLabel}
             </button>
           </div>

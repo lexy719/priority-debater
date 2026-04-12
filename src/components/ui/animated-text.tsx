@@ -79,7 +79,7 @@ export function TypewriterText({
     <span className={className}>
       {displayed}
       {displayed.length < text.length && (
-        <span className="animate-pulse text-[var(--accent-primary)]">|</span>
+        <span className="animate-pulse text-primary">|</span>
       )}
     </span>
   );

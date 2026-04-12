@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Debate",
-  description: "Defend your startup idea. Stress-test your logic with The Adversary.",
+  title: "Validation interviews",
+  description:
+    "Five separate AI interviews — customer, investor, operator, mentor, adversary — to validate and fail-proof your idea.",
 };
 
 export default function DebateLayout({
