@@ -212,6 +212,195 @@ export function buildLogoImagePrompt(
   return lines.filter(Boolean).join("\n");
 }
 
+// ---------------------------------------------------------------------------
+// Concept variants — differentiated prompts for multi-generation
+// ---------------------------------------------------------------------------
+
+const VARIANT_DIRECTIONS: Record<
+  number,
+  { label: string; styleBias: string }
+> = {
+  0: {
+    label: "Faithful",
+    styleBias:
+      "Stay close to the brief. Clean, expected, professional execution. Straightforward metaphor that communicates instantly.",
+  },
+  1: {
+    label: "Conservative / Classic",
+    styleBias:
+      "Lean toward timeless, heritage-inspired restraint. Favor symmetry, traditional typographic hierarchy, and understated elegance. Think established institutions — weight and permanence over novelty.",
+  },
+  2: {
+    label: "Bold / Daring",
+    styleBias:
+      "Push contrast, scale, and asymmetry. Use an unexpected crop, exaggerated proportions, or a provocative color accent. The composition should feel confident and forward-leaning — startup energy.",
+  },
+  3: {
+    label: "Creative Wildcard",
+    styleBias:
+      "Surprise the viewer. Try an unusual metaphor, a playful visual pun, or an unconventional mark structure. Break one 'rule' from the brief intentionally (e.g., swap mark type for something unexpected) while keeping the overall brand feeling coherent.",
+  },
+};
+
+const CONCEPT_OUTPUT_INSTRUCTION =
+  "Flat vector-style logo artwork, centered, plenty of padding, clean edges, suitable for PNG export. Dark navy (#0a0f1e) background. The brand name must be spelled EXACTLY as provided — text accuracy is the top priority. No mockups, no business cards, no watermarks, no UI chrome.";
+
+/**
+ * Build a differentiated concept prompt for a specific variant index (0-3).
+ * Each variant produces a notably different logo while respecting the brief's
+ * mark type, colors, and personality.
+ */
+export function buildLogoConceptPrompt(
+  topic: string,
+  position: string,
+  brief: LogoBrief,
+  extraNotes: string,
+  variantIndex: number,
+): string {
+  const idx = Math.max(0, Math.min(3, Math.floor(variantIndex)));
+  const variant = VARIANT_DIRECTIONS[idx] ?? VARIANT_DIRECTIONS[0];
+
+  const pos = position.trim();
+  const posShort = pos.length > 500 ? `${pos.slice(0, 497)}…` : pos;
+  const must = brief.mustHaves.map((id) => LOGO_MUST_HAVES.find((x) => x.id === id)?.label ?? id);
+  const avoid = brief.avoid.map((id) => LOGO_AVOID.find((x) => x.id === id)?.label ?? id);
+
+  const lines = [
+    `Professional logo design for "${topic}".`,
+    posShort ? `Business context: ${posShort}` : null,
+    ``,
+    `CONCEPT DIRECTION — ${variant.label}:`,
+    variant.styleBias,
+    ``,
+    `LOCKUPS & STRUCTURE: ${label(LOGO_MARK_TYPES, brief.markType)}. ${LOGO_MARK_TYPES.find((x) => x.id === brief.markType)?.hint}`,
+    `VISUAL LANGUAGE: ${label(LOGO_VISUAL_STYLES, brief.visualStyle)} — ${LOGO_VISUAL_STYLES.find((x) => x.id === brief.visualStyle)?.hint}`,
+    `COLOR: ${label(LOGO_COLOR_STRATEGIES, brief.colorStrategy)} — ${LOGO_COLOR_STRATEGIES.find((x) => x.id === brief.colorStrategy)?.hint}`,
+    `TYPE FEEL (if letters appear): ${label(LOGO_TYPE_FEELS, brief.typeFeel)} — ${LOGO_TYPE_FEELS.find((x) => x.id === brief.typeFeel)?.hint}`,
+    `PERSONALITY: ${label(LOGO_PERSONALITIES, brief.personality)}.`,
+    `PRIMARY CONSTRAINT: ${label(LOGO_USAGE_PRIORITIES, brief.usagePriority)} — ${LOGO_USAGE_PRIORITIES.find((x) => x.id === brief.usagePriority)?.hint}`,
+    `COMPLEXITY: ${label(LOGO_DETAIL_LEVELS, brief.detailLevel)}.`,
+    ``,
+    `MUST achieve: ${must.join("; ")}.`,
+    `DO NOT: ${avoid.join("; ")}.`,
+    ``,
+    CONCEPT_OUTPUT_INSTRUCTION,
+    extraNotes.trim() ? `Additional direction from founder: ${extraNotes.trim()}` : null,
+  ];
+
+  return lines.filter(Boolean).join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Mockup prompts — show the logo in real-world context
+// ---------------------------------------------------------------------------
+
+const MOCKUP_CONTEXTS: Record<
+  string,
+  { size: string; description: string; closing: string }
+> = {
+  "business-card": {
+    size: "1024x1536",
+    description:
+      "A premium business card resting on a dark marble desk surface. Soft directional studio lighting with subtle shadows. The card features the logo prominently on the front, with clean modern typography for contact details. Thick, textured card stock with a matte finish. Slight depth-of-field blur on the desk edges.",
+    closing: "Photorealistic product mockup, professional photography",
+  },
+  "email-header": {
+    size: "1536x1024",
+    description:
+      "A modern SaaS welcome/onboarding email displayed in an email client. The logo sits in the header area against a clean white or light background. Below the header is a friendly headline, a short paragraph of placeholder body text, and a prominent call-to-action button in the brand's accent color. Clean email template layout with generous whitespace.",
+    closing: "Clean UI screenshot, pixel-perfect",
+  },
+  "app-icon": {
+    size: "1024x1024",
+    description:
+      "An iOS/Android app icon with the standard rounded-square shape (Apple superellipse). Only the icon mark from the logo — no text. Clean flat design with the brand's primary color as background. The symbol is centered with balanced padding. Subtle ambient shadow beneath the icon as if resting on a surface.",
+    closing: "Clean UI screenshot, pixel-perfect",
+  },
+  "social-avatar": {
+    size: "1024x1024",
+    description:
+      "A circular social media profile picture (like Twitter/LinkedIn avatar). The logo mark is centered within the circle, with the brand's primary color or a dark background. Optimized for clarity at small sizes — the mark fills the space confidently without crowding the edges.",
+    closing: "Clean UI screenshot, pixel-perfect",
+  },
+  "website-hero": {
+    size: "1536x1024",
+    description:
+      "A modern SaaS landing page hero section displayed in a browser. The logo appears in the top navigation bar at normal nav size. The hero section below features a bold headline, a subtitle, and a CTA button, all using the brand's color palette. Clean, professional layout with generous whitespace, modern typography, and a subtle gradient or abstract background shape.",
+    closing: "Clean UI screenshot, pixel-perfect",
+  },
+  "billing-page": {
+    size: "1536x1024",
+    description:
+      "A SaaS billing/payment page UI displayed in a browser. The logo sits in the top navigation bar. The page shows a professional payment form with credit card fields, a plan summary sidebar, and pricing details. Fintech-grade styling — clean lines, trust badges, and the brand's color accents on buttons and highlights. Secure, trustworthy feel.",
+    closing: "Clean UI screenshot, pixel-perfect",
+  },
+};
+
+/**
+ * Build a mockup prompt that places the logo in a real-world context.
+ * `logoDescription` is a short visual description of the selected logo.
+ * `mockupContext` is one of the known context keys (business-card, email-header, etc.).
+ */
+export function buildMockupPrompt(
+  topic: string,
+  logoDescription: string,
+  mockupContext: string,
+): string {
+  const ctx = MOCKUP_CONTEXTS[mockupContext];
+  if (!ctx) {
+    throw new Error(
+      `Unknown mockup context "${mockupContext}". Valid: ${Object.keys(MOCKUP_CONTEXTS).join(", ")}`,
+    );
+  }
+
+  const lines = [
+    `Create a realistic mockup showing the "${topic}" brand logo in context.`,
+    ``,
+    `THE LOGO: ${logoDescription.trim()}`,
+    ``,
+    `MOCKUP SCENE: ${ctx.description}`,
+    ``,
+    `The brand name is "${topic}" — spell it exactly. The logo must be clearly visible and legible in the scene.`,
+    ``,
+    ctx.closing,
+  ];
+
+  return lines.join("\n");
+}
+
+/**
+ * Returns the recommended image size for a given mockup context.
+ */
+export function getMockupSize(context: string): string {
+  return MOCKUP_CONTEXTS[context]?.size ?? "1024x1024";
+}
+
+// ---------------------------------------------------------------------------
+// Refinement — iterate on an existing concept
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a refinement prompt that modifies an existing concept.
+ * Clearly separates the original design from the requested changes
+ * so the image model understands this is an iteration.
+ */
+export function buildRefinementPrompt(
+  originalPrompt: string,
+  instruction: string,
+): string {
+  const lines = [
+    `=== ORIGINAL DESIGN (keep everything not explicitly changed) ===`,
+    originalPrompt.trim(),
+    ``,
+    `=== MODIFICATION REQUESTED ===`,
+    instruction.trim(),
+    ``,
+    `Regenerate the logo incorporating the modification above while preserving all other aspects of the original design. Flat vector-style logo artwork, centered, plenty of padding, clean edges, suitable for PNG export. Dark navy (#0a0f1e) background. The brand name must be spelled EXACTLY as provided — text accuracy is the top priority. No mockups, no business cards, no watermarks, no UI chrome.`,
+  ];
+
+  return lines.join("\n");
+}
+
 /** Full brand-sheet prompt for Gemini — generates logo + variations + palette + typography + mockups in one image. */
 export function buildBrandSheetPrompt(
   topic: string,
