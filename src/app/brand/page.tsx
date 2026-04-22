@@ -919,9 +919,7 @@ function BrandStudioInner() {
                   <AlertTriangle className="h-5 w-5 shrink-0 text-red-400/90" />
                   <div>
                     <p>{conceptError}</p>
-                    <p className="mt-1 text-xs text-red-300/60">
-                      Make sure GEMINI_API_KEY is set in your .env.local file.
-                    </p>
+                    <p className="mt-1 text-xs text-red-300/60">Make sure OPENAI_API_KEY is set in your .env.local file.</p>
                   </div>
                 </div>
               )}

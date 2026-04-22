@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Priority Debater
 
-## Getting Started
+AI-powered startup idea validation platform. Submit any business idea and get a structured stress-test from 5 specialized AI personas — Investor, Customer, Operator, Mentor, and Adversary — each challenging your idea from a different angle.
 
-First, run the development server:
+**Live demo:** https://priority-debater.vercel.app
+
+---
+
+## What it does
+
+- **5-persona validation** — Each persona runs a separate interview thread, so you get focused criticism from each angle instead of one muddled chat
+- **Viability score** — Structured 0–100 scoring across 6 dimensions: problem-fit, market, competition, business model, execution, and timing
+- **Market analysis** — TAM/SAM/SOM sizing, competitive landscape, and risk flags
+- **Lean canvas generation** — Auto-generated from your validation session
+- **Debate mode** — Defend your idea in real-time against adversarial questioning
+- **Export** — PDF, Markdown, or shareable link
+
+## Tech stack
+
+- **Framework:** Next.js 15 (App Router)
+- **Language:** TypeScript (strict mode)
+- **Styling:** Tailwind CSS + Framer Motion
+- **AI:** OpenAI GPT-4.1 (plus GPT-4.1-mini for blind scoring)
+- **Deployment:** Vercel
+
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env.local
+# Add your OPENAI_API_KEY to .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Key product decisions
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Separate interview threads per persona** — The most important UX decision. One combined chat would produce averaged, hedged responses. Separate threads let each persona stay in character and give sharper, more useful feedback.
 
-## Learn More
+**Dual-pass scoring** — GPT-4.1 generates responses; a separate GPT-4.1-mini blind pass scores independently to reduce bias.
 
-To learn more about Next.js, take a look at the following resources:
+**No signup required** — Reduces friction to zero. Sessions are stored in localStorage for 24 hours.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── app/
+│   ├── api/debate/     # Core AI streaming endpoint
+│   ├── validate/       # Idea submission form
+│   ├── results/        # Validation results dashboard
+│   ├── debate/         # Live debate mode
+│   ├── journey/        # Guided onboarding flow
+│   └── brand/          # Brand studio (logo + landing generator)
+├── components/         # Shared UI components
+└── lib/                # Session management, streaming, types
+```
 
-## Deploy on Vercel
+## Environment variables
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+OPENAI_API_KEY=
+```

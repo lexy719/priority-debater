@@ -1,3 +1,5 @@
+import OpenAI from "openai";
+
 /**
  * Blind scoring pipeline — a second model independently scores the idea
  * to cross-validate the primary report's scores.
@@ -5,7 +7,7 @@
  * Flow:
  * 1. Primary model (GPT-4.1) generates the full report with scores.
  * 2. After streaming completes, this module sends ONLY the raw idea
- *    (topic + position + context) to Gemini with a scoring-only prompt.
+ *    (topic + position + context) to OpenAI with a scoring-only prompt.
  * 3. Both sets of scores are reconciled → final scores + confidence.
  */
 
@@ -50,15 +52,15 @@ const BLIND_SCORER_PROMPT = `You are a startup idea scoring engine. You receive 
 {"problemSolutionFit":N,"marketOpportunity":N,"competitiveEdge":N,"businessModel":N,"teamExecution":N,"timingTrends":N,"viability":N}`;
 
 /**
- * Call Gemini to get blind scores for a startup idea.
- * Returns null if Gemini is unavailable or fails (graceful degradation).
+ * Call OpenAI to get blind scores for a startup idea.
+ * Returns null if OpenAI is unavailable or fails (graceful degradation).
  */
 export async function getBlindScores(
   topic: string,
   position: string,
   context: string,
 ): Promise<BlindScores | null> {
-  const key = process.env.GEMINI_API_KEY?.trim();
+  const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) return null;
 
   const userPrompt = [
@@ -72,32 +74,17 @@ export async function getBlindScores(
     .join("\n");
 
   try {
-    const model = "gemini-2.5-flash";
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": key,
-      },
-      body: JSON.stringify({
-        contents: [
-          { role: "user", parts: [{ text: BLIND_SCORER_PROMPT + "\n\n" + userPrompt }] },
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 200,
-          responseMimeType: "application/json",
-        },
-      }),
+    const openai = new OpenAI({ apiKey: key });
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        { role: "system", content: BLIND_SCORER_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.1,
+      max_completion_tokens: 200,
     });
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    const text =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+    const text = completion.choices[0]?.message?.content?.trim() ?? "";
 
     // Parse JSON — strip markdown code fences if present
     const cleaned = text.replace(/^```json?\s*|```\s*$/g, "").trim();
@@ -120,7 +107,7 @@ export async function getBlindScores(
 
     return parsed as BlindScores;
   } catch {
-    // Gemini failed — graceful degradation, primary scores stand alone
+    // OpenAI failed — graceful degradation, primary scores stand alone
     return null;
   }
 }

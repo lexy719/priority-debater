@@ -418,6 +418,50 @@ export async function POST(request: Request) {
       apiKey: process.env.OPENAI_API_KEY,
     });
 
+    /**
+     * Stream an OpenAI response using the shared SSE format.
+     */
+    async function streamOpenAI(
+      system: string,
+      msgs: { role: "user" | "assistant"; content: string }[],
+      opts: { maxTokens?: number; temperature?: number } = {},
+    ): Promise<Response> {
+      const maxTokens = opts.maxTokens ?? 4000;
+      const temperature = opts.temperature ?? 0.7;
+      const encoder = new TextEncoder();
+      const sseHeaders = { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" };
+      const openaiMsgs: { role: "system" | "user" | "assistant"; content: string }[] = [
+        { role: "system", content: system },
+        ...msgs,
+      ];
+      const stream = await openai.chat.completions.create({
+        model: "gpt-4.1",
+        messages: openaiMsgs,
+        temperature,
+        max_completion_tokens: maxTokens,
+        stream: true,
+      });
+
+      const readable = new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const chunk of stream) {
+              const content = chunk.choices[0]?.delta?.content || "";
+              if (content) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+            }
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          } catch {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`));
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(readable, { headers: sseHeaders });
+    }
+
     const body = (await request.json()) as {
       action:
         | "start"
@@ -882,37 +926,7 @@ Table comparing key dimensions (rows = players, columns = capabilities / claims 
 
 Avoid empty SWOT boxes — every insight should tie to a decision or experiment.`;
       try {
-        const stream = await openai.chat.completions.create({
-          model: "gpt-4.1",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: prompt },
-          ],
-          temperature: 0.55,
-          max_completion_tokens: 5500,
-          stream: true,
-        });
-        const encoder = new TextEncoder();
-        const readable = new ReadableStream({
-          async start(controller) {
-            try {
-              for await (const chunk of stream) {
-                const content = chunk.choices[0]?.delta?.content || "";
-                if (content) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
-              }
-              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-              controller.close();
-            } catch (streamError) {
-              console.error("Competitor analysis stream error:", streamError);
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`));
-              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-              controller.close();
-            }
-          },
-        });
-        return new Response(readable, {
-          headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
-        });
+        return await streamOpenAI(systemPrompt, [{ role: "user", content: prompt }], { maxTokens: 5500, temperature: 0.55 });
       } catch (e) {
         console.error("Competitor analysis error:", e);
         return new Response(
@@ -1304,38 +1318,9 @@ RULES:
 - Every recommendation should pass the "can I do this Monday morning?" test.
 - Use emojis for section headers only, nowhere else.`;
 
+      const strategySystemPrompt = "You are an elite startup strategist. You combine the analytical rigor of a McKinsey partner, the pattern recognition of a YC partner who's seen 5,000 startups, and the practical wisdom of a 3x exited founder. You create actionable strategies, not academic frameworks. Every recommendation must pass the test: 'Can a founder act on this Monday morning?' Be specific, be honest, be actionable.";
       try {
-        const stream = await openai.chat.completions.create({
-          model: "gpt-4.1",
-          messages: [
-            { role: "system", content: "You are an elite startup strategist. You combine the analytical rigor of a McKinsey partner, the pattern recognition of a YC partner who's seen 5,000 startups, and the practical wisdom of a 3x exited founder. You create actionable strategies, not academic frameworks. Every recommendation must pass the test: 'Can a founder act on this Monday morning?' Be specific, be honest, be actionable." },
-            { role: "user", content: strategyPrompt },
-          ],
-          temperature: 0.7,
-          max_completion_tokens: 6000,
-          stream: true,
-        });
-        const encoder = new TextEncoder();
-        const readable = new ReadableStream({
-          async start(controller) {
-            try {
-              for await (const chunk of stream) {
-                const content = chunk.choices[0]?.delta?.content || "";
-                if (content) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
-              }
-              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-              controller.close();
-            } catch (streamError) {
-              console.error("Strategy stream error:", streamError);
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`));
-              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-              controller.close();
-            }
-          },
-        });
-        return new Response(readable, {
-          headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
-        });
+        return await streamOpenAI(strategySystemPrompt, [{ role: "user", content: strategyPrompt }], { maxTokens: 6000, temperature: 0.7 });
       } catch (stratError) {
         console.error("Strategy generation error:", stratError);
         return new Response(
@@ -1807,37 +1792,9 @@ RULES FOR THIS OPENING:
 - Do NOT summarize the full report. They already have it.`;
 
       try {
-        const stream = await openai.chat.completions.create({
-          model: "gpt-4.1",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: debateOpenPrompt },
-          ],
-          temperature: 0.85,
-          max_completion_tokens: 200,
-          stream: true,
-        });
-        const encoder = new TextEncoder();
-        const readable = new ReadableStream({
-          async start(controller) {
-            try {
-              for await (const chunk of stream) {
-                const content = chunk.choices[0]?.delta?.content || "";
-                if (content) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
-              }
-              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-              controller.close();
-            } catch (e) {
-              console.error("Debate open stream error:", e);
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`));
-              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-              controller.close();
-            }
-          },
-        });
-        return new Response(readable, {
-          headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
-        });
+        return await streamOpenAI(systemPrompt, [
+          { role: "user", content: debateOpenPrompt },
+        ], { maxTokens: 200, temperature: 0.85 });
       } catch (e) {
         console.error("Debate open error:", e);
         return new Response(JSON.stringify({ error: "Failed to start debate." }), { status: 500, headers: { "Content-Type": "application/json" } });
@@ -2006,7 +1963,7 @@ Be precise with numbers. Don't be generous — they came here to get better, not
 
 Based on their interests, background, and constraints from this conversation, generate 3 distinct startup ideas that:
 1. Solve real problems they might have experienced
-2. Fit their skills and resources
+2. Fit their experience and resources
 3. Have plausible market opportunity
 4. Are specific enough to stress-test
 
@@ -2100,58 +2057,28 @@ Stay in character as an operator who ships. Avoid pure finance theory.`,
       const basePrompt = quickPrompts[quickAction] || "Continue the interview in character.";
       const quickUserContent = lens ? `${lens}\n\n---\n\n${basePrompt}` : basePrompt;
 
-      const conversationHistory: { role: "system" | "user" | "assistant"; content: string }[] = [
-        { role: "system", content: systemPrompt },
+      const openaiMsgs: { role: "user" | "assistant"; content: string }[] = [
+        {
+          role: "user",
+          content: `Debate topic: "${setup.topic}"\nOriginal position: ${setup.position}\n${setup.context ? `Context: ${setup.context}` : ""}`
+        },
       ];
-
-      conversationHistory.push({
-        role: "user",
-        content: `Debate topic: "${setup.topic}"\nOriginal position: ${setup.position}\n${setup.context ? `Context: ${setup.context}` : ""}`
-      });
 
       if (messages) {
         for (const msg of messages) {
-          conversationHistory.push({
+          openaiMsgs.push({
             role: msg.role === "opponent" ? "assistant" : "user",
-            content: msg.content
+            content: msg.content,
           });
         }
       }
 
-      conversationHistory.push({
+      openaiMsgs.push({
         role: "user",
         content: quickUserContent,
       });
 
-      const stream = await openai.chat.completions.create({
-        model: "gpt-4.1",
-        messages: conversationHistory,
-        temperature: 0.7,
-        max_completion_tokens: 500,
-        stream: true,
-      });
-
-      const encoder = new TextEncoder();
-      const readable = new ReadableStream({
-        async start(controller) {
-          for await (const chunk of stream) {
-            const content = chunk.choices[0]?.delta?.content || "";
-            if (content) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
-            }
-          }
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-        },
-      });
-
-      return new Response(readable, {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          Connection: "keep-alive",
-        },
-      });
+      return await streamOpenAI(systemPrompt, openaiMsgs, { maxTokens: 500, temperature: 0.7 });
     }
 
     if (action === "start") {
@@ -2251,7 +2178,7 @@ The **Context** includes "${REFINEMENTS_CONTEXT_MARKER}". Everything **after** t
 
 **EVIDENCE DISCIPLINE:**
 - **Above 60** on any category requires a **specific** justification in that section (named competitor, buyer behavior, metric, regulation, channel, or comparable). Otherwise **cap at 60**.
-- **Team & Execution:** vague solo-founder text with no plan → **cap at 50** unless context states skills, hires, or milestones.
+- **Team & Execution:** vague solo-founder text with no plan → **cap at 50** unless context states relevant experience, hires, or milestones.
 - **Competitive Edge:** undifferentiated tool/AI wrapper → **cap at 50** until moat or wedge is concrete.
 
 **BRUTAL FILTER — USEFUL BEATS POLITE:**
@@ -2434,25 +2361,25 @@ Generate a complete analysis with these EXACT section headers (the parser depend
       }
       const deterministicSeed = Math.abs(seedHash);
 
-      const stream = await openai.chat.completions.create({
-        model: "gpt-4.1",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: openingPrompt },
-        ],
-        // Near-zero temperature + seed for validation reports → consistent, reproducible scores.
-        temperature: setup.template === "validate" ? 0.12 : 0.78,
-        ...(setup.template === "validate" ? { seed: deterministicSeed } : {}),
-        max_completion_tokens: 6000,
-        stream: true,
-      });
+      const startTemp = setup.template === "validate" ? 0.12 : 0.78;
 
       const encoder = new TextEncoder();
       const readable = new ReadableStream({
         async start(controller) {
           let fullText = "";
           try {
-            for await (const chunk of stream) {
+            const oaiStream = await openai.chat.completions.create({
+              model: "gpt-4.1",
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: openingPrompt },
+              ],
+              temperature: startTemp,
+              ...(setup.template === "validate" ? { seed: deterministicSeed } : {}),
+              max_completion_tokens: 6000,
+              stream: true,
+            });
+            for await (const chunk of oaiStream) {
               const content = chunk.choices[0]?.delta?.content || "";
               if (content) {
                 fullText += content;
@@ -2588,44 +2515,19 @@ ${validationContent ? `\n**Prior validation analysis (for context — do not rep
       },
     ];
 
+    const openaiConvMsgs: { role: "user" | "assistant"; content: string }[] = [
+      { role: "user", content: conversationHistory[1].content }, // the setup/context user message
+    ];
+
     for (const msg of messages) {
       const safeContent = sanitizeForDisplay(msg.content);
-      if (msg.role === "opponent") {
-        conversationHistory.push({ role: "assistant", content: safeContent });
-      } else {
-        conversationHistory.push({ role: "user", content: safeContent });
-      }
+      openaiConvMsgs.push({
+        role: msg.role === "opponent" ? "assistant" : "user",
+        content: safeContent,
+      });
     }
 
-    const stream = await openai.chat.completions.create({
-      model: "gpt-4.1",
-      messages: conversationHistory,
-      temperature: 0.8,
-      max_completion_tokens: 350,
-      stream: true,
-    });
-
-    const encoder = new TextEncoder();
-    const readable = new ReadableStream({
-      async start(controller) {
-        for await (const chunk of stream) {
-          const content = chunk.choices[0]?.delta?.content || "";
-          if (content) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
-          }
-        }
-        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-        controller.close();
-      },
-    });
-
-    return new Response(readable, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
+    return await streamOpenAI(systemPrompt, openaiConvMsgs, { maxTokens: 350, temperature: 0.8 });
   } catch (error) {
     console.error("API error:", error);
     const message =

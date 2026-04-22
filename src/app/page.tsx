@@ -101,6 +101,18 @@ function StaggerChild({ children, className = "" }: { children: React.ReactNode;
   );
 }
 
+// Icon accent color map for feature cards
+const ICON_COLORS = {
+  emerald: { bg: "rgba(16,185,129,0.12)", text: "#34d399" },
+  amber:   { bg: "rgba(245,158,11,0.12)", text: "#fbbf24" },
+  blue:    { bg: "rgba(59,130,246,0.12)", text: "#60a5fa" },
+  violet:  { bg: "rgba(139,92,246,0.12)", text: "#a78bfa" },
+  rose:    { bg: "rgba(244,63,94,0.12)",  text: "#fb7185" },
+  orange:  { bg: "rgba(249,115,22,0.12)", text: "#fb923c" },
+  indigo:  { bg: "rgba(99,102,241,0.12)", text: "#818cf8" },
+  teal:    { bg: "rgba(20,184,166,0.12)", text: "#2dd4bf" },
+} as const;
+
 const DEMO_IDEA = {
   title: "AsyncStand — voice standups for remote teams",
   lines: [
@@ -318,8 +330,8 @@ export default function Home() {
       <nav className="fixed top-0 w-full z-50" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(10,10,11,0.8)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
         <div className="mx-auto flex h-14 w-full max-w-[min(1520px,96vw)] items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2.5 font-semibold text-[14px]" style={{ letterSpacing: "-0.02em" }}>
-            <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
-              <Zap className="w-3.5 h-3.5 text-white" />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.2))", border: "1px solid rgba(99,102,241,0.25)" }}>
+              <Zap className="w-3.5 h-3.5" style={{ color: "#818cf8" }} />
             </div>
             Priority Debater
           </Link>
@@ -370,13 +382,16 @@ export default function Home() {
                 </Link>
               </div>
 
-              <div className="flex flex-wrap gap-x-5 gap-y-2 text-[12px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+              <div className="flex flex-wrap gap-x-5 gap-y-2 text-[12px]">
                 {[
-                  { icon: <Shield className="w-3.5 h-3.5" />, t: "100% private" },
-                  { icon: <Clock className="w-3.5 h-3.5" />, t: "2-min report" },
-                  { icon: <Target className="w-3.5 h-3.5" />, t: "15+ criteria" },
+                  { icon: <Shield className="w-3.5 h-3.5" />, t: "100% private", color: ICON_COLORS.emerald },
+                  { icon: <Clock className="w-3.5 h-3.5" />, t: "2-min report", color: ICON_COLORS.blue },
+                  { icon: <Target className="w-3.5 h-3.5" />, t: "15+ criteria", color: ICON_COLORS.violet },
                 ].map((item) => (
-                  <span key={item.t} className="flex items-center gap-1.5">{item.icon}{item.t}</span>
+                  <span key={item.t} className="flex items-center gap-1.5" style={{ color: "rgba(255,255,255,0.45)" }}>
+                    <span style={{ color: item.color.text }}>{item.icon}</span>
+                    {item.t}
+                  </span>
                 ))}
               </div>
             </motion.div>
@@ -398,14 +413,16 @@ export default function Home() {
         <div className="mx-auto w-full max-w-[min(1520px,96vw)] px-4 sm:px-6">
           <Stagger className="grid grid-cols-2 sm:grid-cols-4 gap-8">
             {[
-              { v: 15, s: "+", label: "Blind spots checked" },
-              { v: 5, s: "", label: "AI personas grilling you" },
-              { v: 2, s: " min", label: "Full validation report" },
-              { v: 0, s: "$", label: "Forever. No catch." },
+              { v: 15, s: "+", label: "Blind spots checked", prefix: "" },
+              { v: 5, s: "", label: "AI personas grilling you", prefix: "" },
+              { v: 2, s: " min", label: "Full validation report", prefix: "" },
+              { v: 0, s: "", label: "Forever. No catch.", prefix: "$", static: "$0" },
             ].map((s, i) => (
               <StaggerChild key={i}>
                 <div className="text-center cursor-default">
-                  <p className="text-2xl sm:text-3xl font-semibold" style={{ letterSpacing: "-0.03em" }}><Counter value={s.v} suffix={s.s} /></p>
+                  <p className="text-2xl sm:text-3xl font-semibold" style={{ letterSpacing: "-0.03em" }}>
+                    {s.static ? s.static : <>{s.prefix}<Counter value={s.v} suffix={s.s} /></>}
+                  </p>
                   <p className="text-[12px] mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{s.label}</p>
                 </div>
               </StaggerChild>
@@ -428,15 +445,19 @@ export default function Home() {
             {/* Connecting line (desktop) */}
             <div className="hidden sm:block absolute top-[28px] left-[16%] right-[16%] h-px" style={{ background: "rgba(255,255,255,0.06)" }} aria-hidden />
             {[
-              { num: "1", title: "Describe your idea", desc: "Plain English, no templates. Takes 30 seconds.", icon: <FileText className="w-4 h-4" /> },
-              { num: "2", title: "Get the brutal truth", desc: "5 AI personas score 15+ criteria. Market data, risk flags, viability score.", icon: <Flame className="w-4 h-4" /> },
-              { num: "3", title: "Build with conviction", desc: "Export your report, generate a landing page, enter debate mode, or ship.", icon: <Rocket className="w-4 h-4" /> },
+              { num: "1", title: "Describe your idea", desc: "Plain English, no templates. Takes 30 seconds.", icon: <FileText className="w-4 h-4" />, color: ICON_COLORS.indigo },
+              { num: "2", title: "Get the brutal truth", desc: "5 AI personas score 15+ criteria. Market data, risk flags, viability score.", icon: <Flame className="w-4 h-4" />, color: ICON_COLORS.amber },
+              { num: "3", title: "Build with conviction", desc: "Export your report, generate a landing page, enter debate mode, or ship.", icon: <Rocket className="w-4 h-4" />, color: ICON_COLORS.emerald },
             ].map((step, i) => (
               <Reveal key={step.num} delay={i * 0.1}>
                 <div className="text-center">
-                  <div className="w-14 h-14 rounded-full border border-white/8 bg-white/3 flex items-center justify-center mx-auto mb-4 relative z-10" style={{ color: "rgba(255,255,255,0.5)" }}>
-                    <span className="text-[16px] font-semibold">{step.num}</span>
+                  <div
+                    className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 relative z-10"
+                    style={{ background: step.color.bg, border: `1px solid ${step.color.text}28`, color: step.color.text }}
+                  >
+                    {step.icon}
                   </div>
+                  <p className="text-[11px] font-semibold mb-1" style={{ color: step.color.text, letterSpacing: "0.05em" }}>Step {step.num}</p>
                   <h3 className="text-[15px] font-semibold mb-1.5" style={{ letterSpacing: "-0.01em" }}>{step.title}</h3>
                   <p className="text-[13px] leading-relaxed max-w-[260px] mx-auto" style={{ color: "rgba(255,255,255,0.4)" }}>{step.desc}</p>
                 </div>
@@ -462,23 +483,26 @@ export default function Home() {
               {
                 title: "Viability Score & Radar Chart",
                 desc: `A calibrated 0–${SCORE_MAX} Go/No-Go read across 6 diligence dimensions. Market, problem–solution, model, competition, execution, timing — nothing hides.`,
-                icons: [<Sparkles key="s" className="w-4 h-4" />, <Target key="t" className="w-4 h-4" />],
+                icons: [{ icon: <Sparkles key="s" className="w-4 h-4" />, color: ICON_COLORS.indigo }, { icon: <Target key="t" className="w-4 h-4" />, color: ICON_COLORS.violet }],
+                glow: "rgba(99,102,241,0.06)",
               },
               {
                 title: "Market Sizing & Competition Map",
                 desc: "Real TAM/SAM/SOM estimates with sources. Plus 5+ competitors you forgot about, mapped against your positioning.",
-                icons: [<TrendingUp key="t" className="w-4 h-4" />, <Eye key="e" className="w-4 h-4" />],
+                icons: [{ icon: <TrendingUp key="t" className="w-4 h-4" />, color: ICON_COLORS.emerald }, { icon: <Eye key="e" className="w-4 h-4" />, color: ICON_COLORS.teal }],
+                glow: "rgba(16,185,129,0.06)",
               },
             ].map((f, i) => (
               <StaggerChild key={i}>
-                <div className="p-6 rounded-xl border border-white/6 bg-white/3 hover:bg-white/5 hover:border-white/10 transition-all h-full">
-                  <div className="flex gap-2 mb-4">
-                    {f.icons.map((icon, j) => (
-                      <div key={j} className="w-8 h-8 rounded-lg bg-white/6 flex items-center justify-center" style={{ color: "rgba(255,255,255,0.45)" }}>{icon}</div>
+                <div className="relative p-6 rounded-xl border border-white/6 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10 transition-all h-full overflow-hidden">
+                  <div className="pointer-events-none absolute top-0 left-0 w-full h-32" style={{ background: `radial-gradient(ellipse 80% 100% at 20% 0%, ${f.glow}, transparent)` }} aria-hidden />
+                  <div className="relative flex gap-2 mb-4">
+                    {f.icons.map((item, j) => (
+                      <div key={j} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: item.color.bg, color: item.color.text }}>{item.icon}</div>
                     ))}
                   </div>
-                  <h3 className="text-[15px] font-semibold mb-2" style={{ letterSpacing: "-0.01em" }}>{f.title}</h3>
-                  <p className="text-[13px] leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>{f.desc}</p>
+                  <h3 className="relative text-[15px] font-semibold mb-2" style={{ letterSpacing: "-0.01em" }}>{f.title}</h3>
+                  <p className="relative text-[13px] leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>{f.desc}</p>
                 </div>
               </StaggerChild>
             ))}
@@ -487,14 +511,14 @@ export default function Home() {
           {/* Row 2: Four smaller feature cards */}
           <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { icon: <AlertTriangle className="w-4 h-4" />, title: "Risk Flags", desc: "Blind spots that kill startups" },
-              { icon: <Grid3x3 className="w-4 h-4" />, title: "Lean Canvas", desc: "Full 9-cell, ready to iterate" },
-              { icon: <Briefcase className="w-4 h-4" />, title: "Business Plan", desc: "Investor-ready in one click" },
-              { icon: <Users className="w-4 h-4" />, title: "ICP & Positioning", desc: "Who buys and why they care" },
+              { icon: <AlertTriangle className="w-4 h-4" />, title: "Risk Flags", desc: "Blind spots that kill startups", color: ICON_COLORS.rose },
+              { icon: <Grid3x3 className="w-4 h-4" />, title: "Lean Canvas", desc: "Full 9-cell, ready to iterate", color: ICON_COLORS.blue },
+              { icon: <Briefcase className="w-4 h-4" />, title: "Business Plan", desc: "Investor-ready in one click", color: ICON_COLORS.violet },
+              { icon: <Users className="w-4 h-4" />, title: "ICP & Positioning", desc: "Who buys and why they care", color: ICON_COLORS.amber },
             ].map((f, i) => (
               <StaggerChild key={i}>
-                <div className="p-4 rounded-xl border border-white/6 bg-white/3 hover:bg-white/5 hover:border-white/10 transition-all">
-                  <div className="w-8 h-8 rounded-lg bg-white/6 flex items-center justify-center mb-3" style={{ color: "rgba(255,255,255,0.45)" }}>{f.icon}</div>
+                <div className="p-4 rounded-xl border border-white/6 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10 transition-all">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ background: f.color.bg, color: f.color.text }}>{f.icon}</div>
                   <p className="font-medium text-[13px] mb-0.5" style={{ letterSpacing: "-0.01em" }}>{f.title}</p>
                   <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>{f.desc}</p>
                 </div>
@@ -505,14 +529,14 @@ export default function Home() {
           {/* Row 3: Export & sharing row */}
           <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
             {[
-              { icon: <Download className="w-4 h-4" />, title: "PDF & MD Export", desc: "Take it anywhere" },
-              { icon: <Share2 className="w-4 h-4" />, title: "Share Link", desc: "Loop in your co-founder" },
-              { icon: <MessageSquare className="w-4 h-4" />, title: "Value Proposition", desc: "Messaging that lands" },
-              { icon: <Swords className="w-4 h-4" />, title: "AI Debate Mode", desc: "Defend it or kill it" },
+              { icon: <Download className="w-4 h-4" />, title: "PDF & MD Export", desc: "Take it anywhere", color: ICON_COLORS.teal },
+              { icon: <Share2 className="w-4 h-4" />, title: "Share Link", desc: "Loop in your co-founder", color: ICON_COLORS.blue },
+              { icon: <MessageSquare className="w-4 h-4" />, title: "Value Proposition", desc: "Messaging that lands", color: ICON_COLORS.indigo },
+              { icon: <Swords className="w-4 h-4" />, title: "AI Debate Mode", desc: "Defend it or kill it", color: ICON_COLORS.orange },
             ].map((f, i) => (
               <StaggerChild key={i}>
-                <div className="p-4 rounded-xl border border-white/6 bg-white/3 hover:bg-white/5 hover:border-white/10 transition-all">
-                  <div className="w-8 h-8 rounded-lg bg-white/6 flex items-center justify-center mb-3" style={{ color: "rgba(255,255,255,0.45)" }}>{f.icon}</div>
+                <div className="p-4 rounded-xl border border-white/6 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10 transition-all">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ background: f.color.bg, color: f.color.text }}>{f.icon}</div>
                   <p className="font-medium text-[13px] mb-0.5" style={{ letterSpacing: "-0.01em" }}>{f.title}</p>
                   <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>{f.desc}</p>
                 </div>
@@ -590,7 +614,7 @@ export default function Home() {
               { q: "Is my idea kept private?", a: "Completely. No database, no logs, no accounts. Everything is processed in real-time and lives only in your browser session. We never see or store your idea." },
               { q: "How accurate is the analysis?", a: "Our AI evaluates 15+ criteria using real market data and proven frameworks from top VCs and accelerators. But the real value isn't the score — it's the questions it forces you to answer. If you can't defend your idea against our personas, you won't be able to defend it against investors or the market." },
               { q: "What's the catch? Why is it free?", a: "No catch on the core validation tool — it's free with no signup, and always will be. In the future, premium features like AI-powered landing page generation will be offered as a paid upgrade, but the full idea validation, debate mode, and export tools remain completely free." },
-              { q: "What if I don't have an idea yet?", a: "Use the Idea Generator. Tell us your interests, skills, and constraints — we'll generate tailored startup ideas you can immediately validate and stress-test." },
+              { q: "What if I don't have an idea yet?", a: "Use the Idea Generator. Tell us your interests, experience, and constraints — we'll generate tailored startup ideas you can immediately validate and stress-test." },
             ].map((item, i) => (
               <AccordionItem
                 key={item.q}
@@ -624,29 +648,46 @@ export default function Home() {
       <section className="relative z-10 pb-24 sm:pb-32">
         <Reveal>
           <div className="mx-auto w-full max-w-[min(1520px,96vw)] px-4 sm:px-6">
-            <div className="relative overflow-hidden rounded-2xl border border-white/6 bg-white/2 px-4 py-16 text-center sm:px-6 sm:py-20">
-              {/* Subtle top glow */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] pointer-events-none" style={{ background: "radial-gradient(ellipse, rgba(140,150,255,0.06) 0%, transparent 70%)" }} />
+            <div className="relative overflow-hidden rounded-2xl px-4 py-16 text-center sm:px-6 sm:py-24"
+              style={{
+                background: "linear-gradient(145deg, rgba(16,16,24,0.98) 0%, rgba(12,10,20,0.99) 50%, rgba(8,8,14,1) 100%)",
+                border: "1px solid rgba(99,102,241,0.18)",
+                boxShadow: "0 0 0 1px rgba(255,255,255,0.04), 0 32px 64px -24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)",
+              }}
+            >
+              {/* Mesh glows */}
+              <div className="pointer-events-none absolute inset-0" aria-hidden>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px]" style={{ background: "radial-gradient(ellipse 70% 60% at 50% 0%, rgba(99,102,241,0.12), transparent 65%)" }} />
+                <div className="absolute bottom-0 left-0 w-[400px] h-[250px]" style={{ background: "radial-gradient(ellipse at 0% 100%, rgba(16,185,129,0.06), transparent 60%)" }} />
+                <div className="absolute bottom-0 right-0 w-[400px] h-[250px]" style={{ background: "radial-gradient(ellipse at 100% 100%, rgba(139,92,246,0.07), transparent 60%)" }} />
+              </div>
 
               <div className="relative">
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold mb-4" style={{ letterSpacing: "-0.03em", color: "rgba(255,255,255,0.95)" }}>
-                  Stop building on hope.{" "}
-                  <span className="text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(135deg, #848CD0, #B39DDB)" }}>
+                {/* Trust pill */}
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/4 px-3.5 py-1 text-[11px] mb-6" style={{ color: "rgba(255,255,255,0.45)" }}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Free forever &middot; No credit card &middot; No signup
+                </span>
+
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold mb-5" style={{ letterSpacing: "-0.035em", color: "rgba(255,255,255,0.95)", lineHeight: 1.1 }}>
+                  Stop building on hope.
+                  <br />
+                  <span className="text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(135deg, #848CD0 30%, #B39DDB 70%)" }}>
                     Start building on evidence.
                   </span>
                 </h2>
-                <p className="text-[15px] mb-8 max-w-md mx-auto" style={{ color: "rgba(255,255,255,0.35)" }}>
-                  2 minutes. 5 AI personas. Zero sugar-coating. Free forever.
+                <p className="text-[15px] mb-10 max-w-sm mx-auto" style={{ color: "rgba(255,255,255,0.35)" }}>
+                  2 minutes. 5 AI personas. Zero sugar-coating.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                   <Link href="/journey"
-                    className="group inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-white text-[#0A0A0B] font-medium text-[14px] transition-all hover:bg-white/90">
+                    className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-lg bg-white text-[#0A0A0B] font-semibold text-[14px] transition-all hover:bg-white/90 hover:shadow-[0_8px_24px_-8px_rgba(255,255,255,0.3)] hover:-translate-y-px">
                     Start guided journey
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </Link>
                   <Link href="/validate?mode=generate"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-[14px] font-medium transition-all"
-                    style={{ color: "rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    className="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg text-[14px] font-medium transition-all hover:-translate-y-px"
+                    style={{ color: "rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
                     <Wand2 className="w-4 h-4" /> Generate an Idea
                   </Link>
                 </div>

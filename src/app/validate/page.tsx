@@ -62,7 +62,7 @@ const generateTemplate = {
   },
   labels: {
     topic: "Industries or themes you like",
-    position: "Your background, skills & problems you've seen",
+    position: "Your background, experience & problems you've seen",
     context: "Your situation",
   },
 };

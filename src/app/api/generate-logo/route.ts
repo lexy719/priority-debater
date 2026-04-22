@@ -30,9 +30,6 @@ function checkRateLimit(clientId: string): boolean {
   return entry.count <= RATE_MAX;
 }
 
-const DEFAULT_GEMINI_IMAGE_MODEL =
-  process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
-
 async function generateWithOpenAI(
   prompt: string,
   size: "1024x1024" | "1024x1536" | "1536x1024" = "1024x1024",
@@ -54,82 +51,8 @@ async function generateWithOpenAI(
   return { dataUrl: `data:image/png;base64,${b64}` };
 }
 
-async function generateWithGemini(prompt: string): Promise<{ dataUrl: string }> {
-  const key = process.env.GEMINI_API_KEY?.trim();
-  if (!key) {
-    throw new Error(
-      "GEMINI_API_KEY is not configured. Use a Google AI Studio key for Nano Banana / Gemini image models.",
-    );
-  }
-  const model = DEFAULT_GEMINI_IMAGE_MODEL.replace(/^models\//, "");
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": key,
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }],
-        },
-      ],
-      generationConfig: {
-        responseModalities: ["TEXT", "IMAGE"],
-        imageConfig: {
-          aspectRatio: "1:1",
-          imageSize: "1K",
-        },
-      },
-    }),
-  });
-
-  const raw = await res.text();
-  if (!res.ok) {
-    let msg = `Gemini image error (${res.status})`;
-    try {
-      const j = JSON.parse(raw) as { error?: { message?: string } };
-      if (j.error?.message) msg = j.error.message;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
-
-  let data: {
-    candidates?: Array<{
-      content?: { parts?: Array<{ text?: string; inlineData?: { mimeType?: string; data?: string } }> };
-    }>;
-  };
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    throw new Error("Invalid response from Gemini.");
-  }
-
-  const parts = data.candidates?.[0]?.content?.parts;
-  if (!parts?.length) throw new Error("Gemini returned no image parts.");
-
-  for (const part of parts) {
-    const p = part as {
-      inlineData?: { mimeType?: string; data?: string };
-      inline_data?: { mime_type?: string; data?: string };
-    };
-    const b64 = p.inlineData?.data ?? p.inline_data?.data;
-    const mime = p.inlineData?.mimeType ?? p.inline_data?.mime_type ?? "image/png";
-    if (b64) {
-      return { dataUrl: `data:${mime};base64,${b64}` };
-    }
-  }
-
-  throw new Error("Gemini returned no inline image data. Try another model in GEMINI_IMAGE_MODEL.");
-}
-
 /**
- * POST { prompt: string | string[], provider?: "openai" | "gemini" | "auto", count?: 1-4, size?: string }
+ * POST { prompt: string | string[], provider?: "openai" | "auto", count?: 1-4, size?: string }
  *
  * Single generation (count=1 or omitted):
  *   Returns { dataUrl: string }
@@ -185,53 +108,16 @@ export async function POST(request: Request) {
   // --- Resolve provider ---
   const providerRaw = String(body.provider || "auto").toLowerCase();
   const hasOpenAI = !!process.env.OPENAI_API_KEY?.trim();
-  const hasGemini = !!process.env.GEMINI_API_KEY?.trim();
-
-  let provider = providerRaw;
-  if (provider === "auto") {
-    const prefer = process.env.LOGO_IMAGE_PROVIDER?.trim().toLowerCase();
-    if (hasGemini && !hasOpenAI) provider = "gemini";
-    else if (hasOpenAI && !hasGemini) provider = "openai";
-    else if (hasOpenAI && hasGemini) {
-      provider = prefer === "gemini" ? "gemini" : "openai";
-    } else if (hasGemini) provider = "gemini";
-    else if (hasOpenAI) provider = "openai";
-    else {
-      return Response.json(
-        {
-          error:
-            "No image provider configured. Set OPENAI_API_KEY (DALL·E 3) and/or GEMINI_API_KEY (Nano Banana / Gemini image).",
-        },
-        { status: 503 },
-      );
-    }
-  }
-
-  if (provider !== "openai" && provider !== "gemini") {
+  const provider = providerRaw === "auto" ? "openai" : providerRaw;
+  if (provider !== "openai") {
     return Response.json({ error: `Unknown provider: ${provider}` }, { status: 400 });
   }
-
-  // --- Gemini: only supports count=1 ---
-  if (provider === "gemini" && count > 1) {
-    // Fall back: generate only the first prompt with Gemini, return single result
-    try {
-      const { dataUrl } = await generateWithGemini(prompts[0]);
-      return Response.json({ dataUrl });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Image generation failed.";
-      return Response.json({ error: message }, { status: 502 });
-    }
-  }
+  if (!hasOpenAI) return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
 
   // --- Single generation (backward compatible) ---
   if (count === 1) {
     try {
-      if (provider === "openai") {
-        const { dataUrl } = await generateWithOpenAI(prompts[0], size);
-        return Response.json({ dataUrl });
-      }
-      // gemini
-      const { dataUrl } = await generateWithGemini(prompts[0]);
+      const { dataUrl } = await generateWithOpenAI(prompts[0], size);
       return Response.json({ dataUrl });
     } catch (e) {
       const message = e instanceof Error ? e.message : "Image generation failed.";
