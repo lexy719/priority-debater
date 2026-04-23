@@ -23,6 +23,7 @@ import { AppShell, AppLogoLink } from "@/components/AppShell";
 import { cn } from "@/lib/utils";
 import { classifyIdeaCategory } from "@/lib/idea-category";
 import { saveSession } from "@/lib/session";
+import { TEST_FIXTURE_SESSION } from "@/lib/test-fixture";
 import {
   CONTENT_POLICY_ERROR,
   isContentPolicyViolation,
@@ -319,6 +320,11 @@ function ValidateForm() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleLoadDemo = () => {
+    saveSession({ ...TEST_FIXTURE_SESSION, createdAt: Date.now() });
+    router.push("/results");
   };
 
   // Progress percentage
@@ -779,6 +785,22 @@ function ValidateForm() {
                         {setup.position.trim().length < 10 && "Add at least 10 characters in step 2."}
                       </p>
                     )}
+
+                    <div className="mt-4 flex items-center gap-3 rounded-xl border border-dashed border-white/[0.12] bg-white/[0.015] px-3.5 py-3">
+                      <span className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/50">
+                        Dev
+                      </span>
+                      <p className="flex-1 text-[11px] leading-snug text-white/40">
+                        Skip the API and preview a finished report with demo data.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleLoadDemo}
+                        className="shrink-0 rounded-lg border border-white/15 bg-white/[0.06] px-3 py-1.5 text-[11px] font-medium text-white/75 transition-colors hover:border-white/25 hover:bg-white/[0.1] hover:text-white"
+                      >
+                        Load demo report
+                      </button>
+                    </div>
                   </motion.div>
 
                   <p className="text-center text-[11px] text-white/25 lg:hidden">
