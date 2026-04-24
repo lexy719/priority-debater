@@ -3,8 +3,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2,
@@ -16,8 +14,6 @@ import {
   RotateCcw,
   ArrowLeft,
   ArrowRight,
-  Copy,
-  CheckCircle2,
   Settings2,
   Wand2,
   Palette,
@@ -36,14 +32,13 @@ import {
   type LogoBrief,
 } from "@/lib/logo-brief";
 import {
-  buildLogoConceptPrompt,
+  buildLogoImagePrompt,
   buildRefinementPrompt,
   buildMockupPrompt,
   getMockupSize,
 } from "@/lib/logo-brief";
 import { loadSessionWithStatus } from "@/lib/session";
 import { messageFromFailedResponse } from "@/lib/read-api-error";
-import { streamDebateMarkdown } from "@/lib/stream-debate-markdown";
 import type { ValidationSession } from "@/lib/types";
 import { AppShell, AppLogoLink } from "@/components/AppShell";
 
@@ -59,6 +54,7 @@ interface Concept {
   src: string;
   promptUsed: string;
   label: string;
+  rationale?: string;
 }
 
 interface Refinement {
@@ -75,13 +71,38 @@ interface MockupSlot {
   error: string | null;
 }
 
+interface BrandKitBlueprint {
+  designAnchor: string;
+  consistencyRules: string[];
+  conceptVariants: Array<{
+    label: string;
+    rationale: string;
+    promptDelta: string;
+  }>;
+  brandKit: {
+    audience: string;
+    personality: string;
+    positioning: string;
+    tone: string;
+    palette: Array<{ token: string; hex: string; usage: string }>;
+    typography: {
+      primary: string;
+      secondary: string;
+      guidance: string;
+    };
+    logoRules: string[];
+    competitorGuardrails: Array<{ risk: string; response: string }>;
+    rolloutChecklist: string[];
+  };
+}
+
 const MOCKUP_CONTEXTS: { context: string; label: string }[] = [
   { context: "business-card", label: "Business Card" },
-  { context: "email-header", label: "Email Header" },
+  { context: "logo-on-dark", label: "Logo on dark" },
   { context: "app-icon", label: "App Icon" },
   { context: "social-avatar", label: "Social Avatar" },
-  { context: "website-hero", label: "Website Hero" },
-  { context: "billing-page", label: "Billing Page" },
+  { context: "logo-on-light", label: "Logo on light" },
+  { context: "favicon", label: "Favicon legibility" },
 ];
 
 const QUICK_CHIPS = [
@@ -96,6 +117,99 @@ const QUICK_CHIPS = [
   "Simpler",
 ] as const;
 
+// ── Live brief summary ──
+
+function BriefSummaryCard({ brief, topic, extraNotes }: { brief: LogoBrief; topic: string; extraNotes: string }) {
+  const markLabel = LOGO_MARK_TYPES.find((m) => m.id === brief.markType)?.label ?? brief.markType;
+  const styleLabel = LOGO_VISUAL_STYLES.find((s) => s.id === brief.visualStyle)?.label ?? brief.visualStyle;
+  const colorLabel = LOGO_COLOR_STRATEGIES.find((c) => c.id === brief.colorStrategy)?.label ?? brief.colorStrategy;
+  const personalityLabel = LOGO_PERSONALITIES.find((p) => p.id === brief.personality)?.label ?? brief.personality;
+  const mustHaveLabels = brief.mustHaves.map((id) => LOGO_MUST_HAVES.find((m) => m.id === id)?.label ?? id);
+  const avoidLabels = brief.avoid.map((id) => LOGO_AVOID.find((a) => a.id === id)?.label ?? id);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/8 to-violet-500/5 p-4"
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-500/20">
+          <Sparkles className="h-3 w-3 text-indigo-300" />
+        </div>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-indigo-200/70">Live brief</span>
+      </div>
+      <p className="text-xs text-zinc-400 leading-relaxed mb-2">
+        <span className="text-white font-medium">{topic || "Your brand"}</span>{" "}
+        — {personalityLabel} {markLabel.toLowerCase()} in {styleLabel.toLowerCase()} style with {colorLabel.toLowerCase()} colors.
+      </p>
+      {mustHaveLabels.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-1.5">
+          {mustHaveLabels.map((l) => (
+            <span key={l} className="rounded-full bg-emerald-500/15 border border-emerald-500/20 px-2 py-0.5 text-[9px] font-medium text-emerald-300">
+              ✓ {l}
+            </span>
+          ))}
+        </div>
+      )}
+      {avoidLabels.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {avoidLabels.map((l) => (
+            <span key={l} className="rounded-full bg-rose-500/12 border border-rose-500/20 px-2 py-0.5 text-[9px] font-medium text-rose-300">
+              ✕ {l}
+            </span>
+          ))}
+        </div>
+      )}
+      {extraNotes && (
+        <p className="mt-2 text-[10px] text-zinc-500 italic">"{extraNotes}"</p>
+      )}
+    </motion.div>
+  );
+}
+
+// ── Brand Guidelines Card ──
+
+function BrandGuidelinesCard({ blueprint }: { blueprint: BrandKitBlueprint }) {
+  return (
+    <div className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/8 to-purple-500/5 p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-500/20 border border-violet-500/25">
+          <Settings2 className="h-4 w-4 text-violet-300" />
+        </div>
+        <div>
+          <h3 className="text-sm font-bold text-white">Brand Guidelines</h3>
+          <p className="text-[10px] text-zinc-500">Do&apos;s and don&apos;ts for consistent identity</p>
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/5 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300/70 mb-2">✓ Do</p>
+          <ul className="space-y-1.5">
+            {blueprint.brandKit.logoRules.slice(0, 4).map((rule, i) => (
+              <li key={`do-${i}`} className="text-xs text-emerald-200/75 flex items-start gap-1.5">
+                <span className="mt-1 h-1 w-1 rounded-full bg-emerald-400 shrink-0" />
+                {rule}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-xl border border-rose-500/15 bg-rose-500/5 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-300/70 mb-2">✕ Don&apos;t</p>
+          <ul className="space-y-1.5">
+            {blueprint.brandKit.competitorGuardrails.slice(0, 4).map((g, i) => (
+              <li key={`dont-${i}`} className="text-xs text-rose-200/75 flex items-start gap-1.5">
+                <span className="mt-1 h-1 w-1 rounded-full bg-rose-400 shrink-0" />
+                {g.risk}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ────────────────────────────────────────────────────────────
 // Helpers
 // ────────────────────────────────────────────────────────────
@@ -104,16 +218,8 @@ function uid(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function extractColorSwatches(md: string): Array<{ token: string; hex: string; usage: string }> {
-  const colors: Array<{ token: string; hex: string; usage: string }> = [];
-  const re = /\|\s*([\w\s/&]+?)\s*\|\s*(#[0-9A-Fa-f]{3,8})\s*\|\s*(.*?)\s*\|/g;
-  let m;
-  while ((m = re.exec(md)) !== null) {
-    const token = m[1].trim();
-    if (token.toLowerCase() === "token" || token.startsWith("---")) continue;
-    colors.push({ token, hex: m[2].trim(), usage: m[3].trim() });
-  }
-  return colors;
+function ensureHex(color: string): string {
+  return /^#[0-9A-Fa-f]{6}$/.test(color) ? color : "#6366F1";
 }
 
 const bgClasses: Record<PreviewBg, string> = {
@@ -310,13 +416,17 @@ function SkeletonCard({ label }: { label: string }) {
 function ConceptCard({
   concept,
   selected,
+  compareSelected,
   previewBg,
   onSelect,
+  onCompare,
 }: {
   concept: Concept;
   selected: boolean;
+  compareSelected: boolean;
   previewBg: PreviewBg;
   onSelect: () => void;
+  onCompare: () => void;
 }) {
   return (
     <motion.div
@@ -345,8 +455,28 @@ function ConceptCard({
           className="h-full w-full object-contain p-4"
         />
       </div>
-      <div className="px-4 py-3 border-t border-white/6 flex items-center justify-between">
-        <span className="text-xs font-medium text-zinc-400">{concept.label}</span>
+      <div className="border-t border-white/6 px-4 py-3">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-medium text-zinc-300">{concept.label}</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCompare();
+            }}
+            className={cn(
+              "rounded-md border px-2 py-0.5 text-[10px] font-semibold transition-colors",
+              compareSelected
+                ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-200"
+                : "border-white/10 bg-white/5 text-white/55 hover:bg-white/10",
+            )}
+          >
+            {compareSelected ? "Compared" : "Compare"}
+          </button>
+        </div>
+        {concept.rationale && (
+          <p className="mb-3 text-[11px] leading-relaxed text-zinc-500">{concept.rationale}</p>
+        )}
         <button
           type="button"
           onClick={(e) => {
@@ -371,11 +501,13 @@ function ConceptCard({
 function MockupCard({
   slot,
   topicSlug,
+  onRetry,
 }: {
   slot: MockupSlot;
   topicSlug: string;
+  onRetry: (context: string) => void;
 }) {
-  const isWide = ["email-header", "website-hero", "billing-page"].includes(slot.context);
+  const isWide = slot.context === "business-card";
 
   return (
     <motion.div
@@ -395,6 +527,13 @@ function MockupCard({
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-900/60 px-4">
             <AlertTriangle className="h-5 w-5 text-red-400/70" />
             <span className="text-[11px] text-red-300/80 text-center">{slot.error}</span>
+            <button
+              type="button"
+              onClick={() => onRetry(slot.context)}
+              className="mt-1 rounded-md border border-white/15 bg-white/10 px-2 py-1 text-[10px] font-semibold text-white/80 hover:bg-white/15"
+            >
+              Retry
+            </button>
           </div>
         )}
         {slot.src && !slot.generating && (
@@ -450,6 +589,7 @@ function BrandStudioInner() {
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [conceptsGenerating, setConceptsGenerating] = useState(false);
   const [selectedConceptIdx, setSelectedConceptIdx] = useState<number | null>(null);
+  const [compareConceptIdxs, setCompareConceptIdxs] = useState<number[]>([]);
   const [conceptError, setConceptError] = useState<string | null>(null);
 
   // Refine (step 2)
@@ -458,14 +598,13 @@ function BrandStudioInner() {
   const [refineGenerating, setRefineGenerating] = useState(false);
   const [refineInput, setRefineInput] = useState("");
   const [refineError, setRefineError] = useState<string | null>(null);
+  const [refinementBasePrompt, setRefinementBasePrompt] = useState("");
 
   // Mockups & brand kit (step 3)
   const [mockups, setMockups] = useState<MockupSlot[]>([]);
-  const [brandKitContent, setBrandKitContent] = useState("");
-  const [brandKitStreaming, setBrandKitStreaming] = useState("");
+  const [brandKitBlueprint, setBrandKitBlueprint] = useState<BrandKitBlueprint | null>(null);
   const [brandKitGenerating, setBrandKitGenerating] = useState(false);
   const [brandKitError, setBrandKitError] = useState<string | null>(null);
-  const [copyToast, setCopyToast] = useState(false);
 
   // Preview
   const [previewBg, setPreviewBg] = useState<PreviewBg>("light");
@@ -530,13 +669,63 @@ function BrandStudioInner() {
     setConceptError(null);
     setConcepts([]);
     setSelectedConceptIdx(null);
-
-    const labels = ["Concept A", "Concept B", "Concept C"];
+    setCompareConceptIdxs([]);
+    setBrandKitBlueprint(null);
+    setBrandKitError(null);
 
     try {
-      // Generate 3 concepts in parallel
-      const promises = [0, 1, 2].map(async (variantIndex) => {
-        const prompt = buildLogoConceptPrompt(topic, position, brief, extraNotes, variantIndex);
+      const blueprintRes = await fetch("/api/brand-kit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          setup: session.setup,
+          validationContent: session.validationContent,
+          logoBrief: brief,
+        }),
+      });
+      if (!blueprintRes.ok) throw new Error(await messageFromFailedResponse(blueprintRes));
+      const blueprint = (await blueprintRes.json()) as BrandKitBlueprint;
+      setBrandKitBlueprint(blueprint);
+
+      const basePrompt = buildLogoImagePrompt(topic, position, brief, extraNotes);
+      const conceptMeta = [
+        ...(blueprint.conceptVariants.length
+          ? blueprint.conceptVariants.slice(0, 3)
+          : [
+              { label: "Concept A", rationale: "Balanced direction", promptDelta: "Stay faithful to the brief." },
+              { label: "Concept B", rationale: "Conservative direction", promptDelta: "Favor timeless execution." },
+              { label: "Concept C", rationale: "Bold direction", promptDelta: "Increase distinction without clutter." },
+            ]),
+        {
+          label: "Concept D",
+          rationale: "Typography-forward wordmark emphasis",
+          promptDelta: "Focus on letterform personality and spacing discipline while keeping symbol support minimal.",
+        },
+        {
+          label: "Concept E",
+          rationale: "Icon-led compact system for app/social",
+          promptDelta: "Prioritize icon memorability and tiny-size legibility before decorative details.",
+        },
+        {
+          label: "Concept F",
+          rationale: "Premium restrained variant",
+          promptDelta: "Lower visual noise, fewer colors, and higher contrast for a timeless premium feel.",
+        },
+      ].slice(0, 6);
+
+      const generated: Concept[] = [];
+      for (let variantIndex = 0; variantIndex < conceptMeta.length; variantIndex++) {
+        const variant = conceptMeta[variantIndex];
+        const prompt = [
+          basePrompt,
+          "",
+          `Design anchor: ${blueprint.designAnchor}`,
+          `Consistency rules: ${blueprint.consistencyRules.join(" | ")}`,
+          "",
+          `Variant profile (${variant.label}): ${variant.promptDelta}`,
+          `Why this concept exists: ${variant.rationale}`,
+        ].join("\n");
+
         const res = await fetch("/api/generate-logo", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -546,11 +735,9 @@ function BrandStudioInner() {
         const data = await res.json();
         const src = data.dataUrl || data.url || data.results?.[0]?.dataUrl;
         if (!src) throw new Error("No image returned");
-        return { id: uid(), src, promptUsed: prompt, label: labels[variantIndex] } as Concept;
-      });
-
-      const results = await Promise.all(promises);
-      setConcepts(results);
+        generated.push({ id: uid(), src, promptUsed: prompt, label: variant.label, rationale: variant.rationale });
+      }
+      setConcepts(generated);
     } catch (e) {
       setConceptError(e instanceof Error ? e.message : "Failed to generate concepts.");
     } finally {
@@ -569,6 +756,7 @@ function BrandStudioInner() {
       if (!c) return;
       // Initialize refinements with the original concept
       setRefinements([{ id: c.id, src: c.src, promptUsed: c.promptUsed }]);
+      setRefinementBasePrompt(c.promptUsed);
       setActiveRefinementIdx(0);
       setRefineInput("");
       setRefineError(null);
@@ -576,6 +764,14 @@ function BrandStudioInner() {
     },
     [concepts],
   );
+
+  const toggleCompareConcept = useCallback((idx: number) => {
+    setCompareConceptIdxs((prev) => {
+      if (prev.includes(idx)) return prev.filter((x) => x !== idx);
+      if (prev.length >= 2) return [prev[1], idx];
+      return [...prev, idx];
+    });
+  }, []);
 
   // ────────────────────────────────────────────────────────
   // Step 2: Generate refinement
@@ -592,7 +788,11 @@ function BrandStudioInner() {
       setRefineInput("");
 
       try {
-        const prompt = buildRefinementPrompt(activeRef.promptUsed, instruction.trim());
+        const basePrompt = refinementBasePrompt || activeRef.promptUsed;
+        const prompt = buildRefinementPrompt(
+          basePrompt,
+          `${instruction.trim()}\n\nKeep the same core identity and only apply this requested change.`,
+        );
         const res = await fetch("/api/generate-logo", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -612,7 +812,7 @@ function BrandStudioInner() {
         setRefineGenerating(false);
       }
     },
-    [refinements, activeRefinementIdx, refineGenerating],
+    [refinements, activeRefinementIdx, refineGenerating, refinementBasePrompt],
   );
 
   // ────────────────────────────────────────────────────────
@@ -625,6 +825,66 @@ function BrandStudioInner() {
 
   // Auto-trigger mockups and brand kit on entering step 3
   const hasFiredBrandKit = useRef(false);
+  const logoDescriptionRef = useRef("");
+
+  const generateMockupForContext = useCallback(
+    async (context: string, logoDescription: string) => {
+      const idx = MOCKUP_CONTEXTS.findIndex((m) => m.context === context);
+      if (idx < 0) return;
+
+      setMockups((prev) =>
+        prev.map((slot, si) =>
+          si === idx ? { ...slot, generating: true, error: null } : slot,
+        ),
+      );
+
+      const runAttempt = async (prompt: string, size: string) => {
+        const res = await fetch("/api/generate-logo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt, count: 1, size }),
+        });
+        if (!res.ok) throw new Error(await messageFromFailedResponse(res));
+        const data = await res.json();
+        const src = data.dataUrl || data.url || data.results?.[0]?.dataUrl;
+        if (!src) throw new Error("No image returned");
+        return src as string;
+      };
+
+      try {
+        const size = getMockupSize(context);
+        const primaryPrompt = buildMockupPrompt(topic, logoDescription, context);
+        let src: string;
+        try {
+          src = await runAttempt(primaryPrompt, size);
+        } catch {
+          const fallbackPrompt = [
+            `Create a clean branded asset preview for "${topic}".`,
+            `Logo description: ${logoDescription}`,
+            `Context: ${context}`,
+            "Keep only one simple scene and avoid dense UI text.",
+            "No long paragraphs. Prioritize clarity and logo readability.",
+          ].join("\n");
+          src = await runAttempt(fallbackPrompt, size);
+        }
+
+        setMockups((prev) =>
+          prev.map((slot, si) =>
+            si === idx ? { ...slot, src, generating: false, error: null } : slot,
+          ),
+        );
+      } catch (e) {
+        setMockups((prev) =>
+          prev.map((slot, si) =>
+            si === idx
+              ? { ...slot, generating: false, error: e instanceof Error ? e.message : "Failed" }
+              : slot,
+          ),
+        );
+      }
+    },
+    [topic],
+  );
 
   useEffect(() => {
     if (step !== "brandkit" || !session || hasFiredBrandKit.current) return;
@@ -635,8 +895,9 @@ function BrandStudioInner() {
 
     // Describe the logo for mockup prompts
     const logoDescription = `Logo for "${topic}" — ${activeRef.promptUsed.slice(0, 200)}`;
+    logoDescriptionRef.current = logoDescription;
 
-    // Generate 6 mockups in parallel
+    // Generate utility-first mockups
     const initialMockups: MockupSlot[] = MOCKUP_CONTEXTS.map((m) => ({
       ...m,
       src: null,
@@ -644,87 +905,54 @@ function BrandStudioInner() {
       error: null,
     }));
     setMockups(initialMockups);
+    MOCKUP_CONTEXTS.forEach((m) => void generateMockupForContext(m.context, logoDescription));
 
-    MOCKUP_CONTEXTS.forEach(async (m, i) => {
-      try {
-        const prompt = buildMockupPrompt(topic, logoDescription, m.context);
-        const size = getMockupSize(m.context);
-        const res = await fetch("/api/generate-logo", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt, count: 1, size }),
-        });
-        if (!res.ok) throw new Error(await messageFromFailedResponse(res));
-        const data = await res.json();
-        const src = data.dataUrl || data.url || data.results?.[0]?.dataUrl;
-        if (!src) throw new Error("No image returned");
-
-        setMockups((prev) =>
-          prev.map((slot, si) =>
-            si === i ? { ...slot, src, generating: false } : slot,
-          ),
-        );
-      } catch (e) {
-        setMockups((prev) =>
-          prev.map((slot, si) =>
-            si === i
-              ? { ...slot, generating: false, error: e instanceof Error ? e.message : "Failed" }
-              : slot,
-          ),
-        );
-      }
-    });
-
-    // Stream brand kit text
+    // Build structured brand kit blueprint if missing
     setBrandKitGenerating(true);
     setBrandKitError(null);
-    setBrandKitStreaming("");
-    setBrandKitContent("");
-
-    streamDebateMarkdown("logo-brand-kit", session, (acc) => setBrandKitStreaming(acc), {
-      logoBrief: brief,
-    })
-      .then((final) => {
-        setBrandKitContent(final);
-        setBrandKitStreaming("");
+    if (!brandKitBlueprint) {
+      fetch("/api/brand-kit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          setup: session.setup,
+          validationContent: session.validationContent,
+          logoBrief: brief,
+        }),
       })
-      .catch((e) => {
-        setBrandKitError(e instanceof Error ? e.message : "Brand kit generation failed.");
-      })
-      .finally(() => {
-        setBrandKitGenerating(false);
-      });
-  }, [step, session, refinements, activeRefinementIdx, topic, brief]);
+        .then(async (res) => {
+          if (!res.ok) throw new Error(await messageFromFailedResponse(res));
+          const data = (await res.json()) as BrandKitBlueprint;
+          setBrandKitBlueprint(data);
+        })
+        .catch((e) => {
+          setBrandKitError(e instanceof Error ? e.message : "Brand kit generation failed.");
+        })
+        .finally(() => {
+          setBrandKitGenerating(false);
+        });
+    } else {
+      setBrandKitGenerating(false);
+    }
+  }, [step, session, refinements, activeRefinementIdx, topic, brief, brandKitBlueprint, generateMockupForContext]);
 
   // ── Derived display values ──
-  const displayBrandKit = brandKitContent || brandKitStreaming;
-  const colorSwatches = useMemo(
-    () => (displayBrandKit ? extractColorSwatches(displayBrandKit) : []),
-    [displayBrandKit],
-  );
+  const colorSwatches = useMemo(() => brandKitBlueprint?.brandKit.palette ?? [], [brandKitBlueprint]);
   const activeLogo = refinements[activeRefinementIdx]?.src ?? null;
+  const retryMockup = useCallback(
+    (context: string) => {
+      if (!logoDescriptionRef.current) return;
+      void generateMockupForContext(context, logoDescriptionRef.current);
+    },
+    [generateMockupForContext],
+  );
 
-  // ── Brand kit actions ──
-  const handleCopyKit = useCallback(() => {
-    if (!displayBrandKit) return;
-    navigator.clipboard.writeText(displayBrandKit).then(() => {
-      setCopyToast(true);
-      setTimeout(() => setCopyToast(false), 2000);
+  const regenerateAllMockups = useCallback(() => {
+    if (!logoDescriptionRef.current) return;
+    MOCKUP_CONTEXTS.forEach((m) => {
+      void generateMockupForContext(m.context, logoDescriptionRef.current);
     });
-  }, [displayBrandKit]);
-
-  const handleDownloadKit = useCallback(() => {
-    if (!displayBrandKit) return;
-    const blob = new Blob([displayBrandKit], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${topicSlug}-brand-kit.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [displayBrandKit, topicSlug]);
+  }, [generateMockupForContext]);
 
   // ── Loading state ──
   if (!session) {
@@ -759,11 +987,14 @@ function BrandStudioInner() {
     >
       <main className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-8">
         {/* ── Title ── */}
-        <div className="mb-4 text-center">
-          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-indigo-300/55">
+        <div className="mb-6 rounded-3xl border border-white/8 bg-linear-to-br from-indigo-500/10 via-violet-500/6 to-transparent px-5 py-5 text-center shadow-2xl shadow-black/30 sm:px-8">
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-indigo-300/70">
             Logo maker
           </p>
           <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{topic}</h1>
+          <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
+            Explore a full concept set, refine the winner, and export practical brand assets.
+          </p>
         </div>
 
         {/* ── Step indicator ── */}
@@ -782,51 +1013,29 @@ function BrandStudioInner() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.25 }}
+              className="rounded-3xl border border-white/8 bg-[#0b0b14]/85 p-5 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.8)] backdrop-blur-sm sm:p-7"
             >
-              {/* Design preferences */}
-              <div className="mb-6">
-                <div className="rounded-2xl border border-white/6 bg-zinc-900/50 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setBriefOpen(!briefOpen)}
-                    className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors hover:bg-white/3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Settings2 className="h-4 w-4 text-zinc-500" />
-                      <span className="text-sm font-medium text-zinc-300">Design preferences</span>
-                      {!briefOpen && (
-                        <span className="text-[11px] text-zinc-600">
-                          Mark, style, colors, personality
-                        </span>
-                      )}
-                    </div>
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 text-zinc-600 transition-transform duration-200",
-                        briefOpen && "rotate-180",
-                      )}
-                    />
-                  </button>
-
-                  {briefOpen && (
-                    <div className="border-t border-white/6 px-5 py-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[11px] text-zinc-600">
-                          Shapes the concept generation prompts.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setBrief(DEFAULT_LOGO_BRIEF);
-                            setExtraNotes("");
-                          }}
-                          className="inline-flex items-center gap-1 text-[10px] font-medium text-zinc-500 hover:text-white"
-                        >
-                          <RotateCcw className="h-3 w-3" /> Reset
-                        </button>
+              <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+                <aside className="space-y-4 lg:sticky lg:top-20 lg:h-fit">
+                  <div className="rounded-2xl border border-white/8 bg-black/25 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setBriefOpen(!briefOpen)}
+                      className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-white/4"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Settings2 className="h-4 w-4 text-zinc-500" />
+                        <span className="text-sm font-semibold text-zinc-200">Design controls</span>
                       </div>
-
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 text-zinc-600 transition-transform duration-200",
+                          briefOpen && "rotate-180",
+                        )}
+                      />
+                    </button>
+                    {briefOpen && (
+                      <div className="space-y-3 border-t border-white/6 px-4 py-4">
                         <ChipGroup
                           label="Mark"
                           options={LOGO_MARK_TYPES}
@@ -863,112 +1072,126 @@ function BrandStudioInner() {
                           selected={brief.avoid}
                           onToggle={toggleAvoid}
                         />
+                        <div>
+                          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                            Notes
+                          </span>
+                          <input
+                            value={extraNotes}
+                            onChange={(e) => setExtraNotes(e.target.value)}
+                            placeholder="Exact spelling, symbols to avoid, etc..."
+                            className="w-full rounded-lg border border-zinc-700/50 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-indigo-500/40 focus:outline-none focus:ring-1 focus:ring-indigo-500/30"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBrief(DEFAULT_LOGO_BRIEF);
+                            setExtraNotes("");
+                          }}
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold text-zinc-500 hover:text-white"
+                        >
+                          <RotateCcw className="h-3 w-3" /> Reset controls
+                        </button>
                       </div>
+                    )}
+                  </div>
 
+                  {/* Live brief summary */}
+                  <BriefSummaryCard brief={brief} topic={topic} extraNotes={extraNotes} />
+
+                  <button
+                    type="button"
+                    onClick={generateConcepts}
+                    disabled={conceptsGenerating}
+                    className={cn(
+                      "flex w-full items-center justify-center gap-2.5 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-xl transition-all",
+                      "bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 hover:from-indigo-500 hover:via-violet-500 hover:to-purple-500",
+                      "shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-[1.01] active:scale-[0.99]",
+                      "disabled:pointer-events-none disabled:opacity-40",
+                    )}
+                  >
+                    {conceptsGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    {concepts.length > 0 ? "Regenerate concept set" : "Generate concept set"}
+                  </button>
+                </aside>
+
+                <section className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/8 bg-black/20 px-4 py-2.5">
+                    <div>
+                      <p className="text-sm font-semibold text-white">Concept gallery</p>
+                      <p className="text-xs text-zinc-500">Pick one to refine. Compare up to two variants side-by-side.</p>
+                    </div>
+                    <BgToggle value={previewBg} onChange={setPreviewBg} />
+                  </div>
+
+                  {compareConceptIdxs.length > 0 && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {compareConceptIdxs.map((idx) => {
+                        const concept = concepts[idx];
+                        if (!concept) return null;
+                        return (
+                          <div key={`compare-${concept.id}`} className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3">
+                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-emerald-200/80">
+                              Compare • {concept.label}
+                            </p>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={concept.src} alt={`Compare ${concept.label}`} className={cn("h-52 w-full rounded-lg object-contain p-3", bgClasses[previewBg])} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {conceptError && (
+                    <div className="flex gap-3 rounded-xl border border-red-500/20 bg-red-950/40 p-4 text-sm text-red-200/95">
+                      <AlertTriangle className="h-5 w-5 shrink-0 text-red-400/90" />
                       <div>
-                        <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                          Notes
-                        </span>
-                        <input
-                          value={extraNotes}
-                          onChange={(e) => setExtraNotes(e.target.value)}
-                          placeholder="Competitor logos to avoid, exact name spelling..."
-                          className="w-full rounded-lg border border-zinc-700/50 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-indigo-500/40 focus:outline-none focus:ring-1 focus:ring-indigo-500/30"
-                        />
+                        <p>{conceptError}</p>
+                        <p className="mt-1 text-xs text-red-300/60">Make sure OPENAI_API_KEY is set in your .env.local file.</p>
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
 
-              {/* Generate / Regenerate button */}
-              <div className="mb-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-                <button
-                  type="button"
-                  onClick={generateConcepts}
-                  disabled={conceptsGenerating}
-                  className={cn(
-                    "flex items-center justify-center gap-2.5 rounded-2xl px-10 py-4 text-sm font-bold text-white shadow-xl transition-all",
-                    "bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 hover:from-indigo-500 hover:via-violet-500 hover:to-purple-500",
-                    "shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-[1.02] active:scale-[0.98]",
-                    "disabled:pointer-events-none disabled:opacity-40",
+                  {conceptsGenerating && (
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                      {["Concept A", "Concept B", "Concept C", "Concept D", "Concept E", "Concept F"].map((label) => (
+                        <SkeletonCard key={label} label={label} />
+                      ))}
+                    </div>
                   )}
-                >
-                  <span className="inline-flex items-center gap-2.5">
-                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
-                      {conceptsGenerating ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-5 w-5" />
-                      )}
-                    </span>
-                    <span>
-                      {conceptsGenerating
-                        ? "Generating 3 concepts..."
-                        : concepts.length > 0
-                          ? "Regenerate concepts"
-                          : "Generate 3 Concepts"}
-                    </span>
-                  </span>
-                </button>
+
+                  {!conceptsGenerating && concepts.length > 0 && (
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                      {concepts.map((c, i) => (
+                        <ConceptCard
+                          key={c.id}
+                          concept={c}
+                          selected={selectedConceptIdx === i}
+                          compareSelected={compareConceptIdxs.includes(i)}
+                          previewBg={previewBg}
+                          onSelect={() => selectConceptAndRefine(i)}
+                          onCompare={() => toggleCompareConcept(i)}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {!conceptsGenerating && concepts.length === 0 && !conceptError && (
+                    <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-950/30 py-20 text-center">
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900/60">
+                        <ImageIcon className="h-8 w-8 text-zinc-700" strokeWidth={1.25} />
+                      </div>
+                      <h3 className="text-lg font-semibold text-zinc-300">
+                        Your logo concepts will appear here
+                      </h3>
+                      <p className="mx-auto mt-2 max-w-xs text-sm text-zinc-500">
+                        Use the controls on the left and generate a full concept gallery.
+                      </p>
+                    </div>
+                  )}
+                </section>
               </div>
-
-              {/* Error */}
-              {conceptError && (
-                <div className="mb-6 mx-auto max-w-2xl flex gap-3 rounded-xl border border-red-500/20 bg-red-950/40 p-4 text-sm text-red-200/95">
-                  <AlertTriangle className="h-5 w-5 shrink-0 text-red-400/90" />
-                  <div>
-                    <p>{conceptError}</p>
-                    <p className="mt-1 text-xs text-red-300/60">Make sure OPENAI_API_KEY is set in your .env.local file.</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Background toggle */}
-              {(concepts.length > 0 || conceptsGenerating) && (
-                <div className="mb-4 flex justify-end">
-                  <BgToggle value={previewBg} onChange={setPreviewBg} />
-                </div>
-              )}
-
-              {/* Skeleton loading cards */}
-              {conceptsGenerating && (
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                  {["Concept A", "Concept B", "Concept C"].map((label) => (
-                    <SkeletonCard key={label} label={label} />
-                  ))}
-                </div>
-              )}
-
-              {/* Concept cards grid */}
-              {!conceptsGenerating && concepts.length > 0 && (
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                  {concepts.map((c, i) => (
-                    <ConceptCard
-                      key={c.id}
-                      concept={c}
-                      selected={selectedConceptIdx === i}
-                      previewBg={previewBg}
-                      onSelect={() => selectConceptAndRefine(i)}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Empty state */}
-              {!conceptsGenerating && concepts.length === 0 && !conceptError && (
-                <div className="mx-auto max-w-lg rounded-2xl border border-dashed border-zinc-800 bg-zinc-950/30 py-20 text-center">
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900/60">
-                    <ImageIcon className="h-8 w-8 text-zinc-700" strokeWidth={1.25} />
-                  </div>
-                  <h3 className="text-lg font-semibold text-zinc-400">
-                    Your logo concepts will appear here
-                  </h3>
-                  <p className="mx-auto mt-2 max-w-xs text-sm text-zinc-600">
-                    Configure your preferences above, then generate 3 unique concepts.
-                  </p>
-                </div>
-              )}
             </motion.div>
           )}
 
@@ -982,6 +1205,7 @@ function BrandStudioInner() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.25 }}
+              className="rounded-3xl border border-white/8 bg-[#0b0b14]/85 p-5 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.8)] backdrop-blur-sm sm:p-7"
             >
               {/* Back link */}
               <button
@@ -1104,38 +1328,82 @@ function BrandStudioInner() {
                 </div>
               </div>
 
-              {/* Iterations strip */}
+              {/* Refinement timeline */}
               {refinements.length > 1 && (
                 <div className="mt-6">
-                  <span className="mb-3 block text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
-                    Iterations ({refinements.length})
-                  </span>
-                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-                    {refinements.map((ref, i) => (
-                      <button
-                        key={ref.id}
-                        type="button"
-                        onClick={() => setActiveRefinementIdx(i)}
-                        className={cn(
-                          "shrink-0 overflow-hidden rounded-xl border transition-all",
-                          activeRefinementIdx === i
-                            ? "border-indigo-400/50 ring-2 ring-indigo-500/30"
-                            : "border-zinc-800 hover:border-zinc-600",
-                        )}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={ref.src}
-                          alt={i === 0 ? "Original" : `Refinement ${i}`}
-                          className="h-20 w-20 object-contain bg-white sm:h-24 sm:w-24 p-1"
-                        />
-                      </button>
-                    ))}
-                    {refineGenerating && (
-                      <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/60 sm:h-24 sm:w-24">
-                        <Loader2 className="h-5 w-5 animate-spin text-indigo-400/50" />
-                      </div>
-                    )}
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-500/15 border border-indigo-500/20">
+                      <RotateCcw className="h-3 w-3 text-indigo-300" />
+                    </div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                      Refinement timeline ({refinements.length} versions)
+                    </span>
+                  </div>
+                  <div className="relative">
+                    {/* Timeline line */}
+                    <div className="absolute left-[39px] top-0 bottom-0 w-px bg-gradient-to-b from-indigo-500/30 via-violet-500/20 to-transparent sm:left-[47px]" />
+                    <div className="flex flex-col gap-3">
+                      {refinements.map((ref, i) => (
+                        <button
+                          key={ref.id}
+                          type="button"
+                          onClick={() => setActiveRefinementIdx(i)}
+                          className={cn(
+                            "flex items-center gap-3 rounded-xl p-2 transition-all text-left group",
+                            activeRefinementIdx === i
+                              ? "bg-indigo-500/10 border border-indigo-500/25"
+                              : "hover:bg-white/[0.03] border border-transparent",
+                          )}
+                        >
+                          {/* Step number */}
+                          <div className={cn(
+                            "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold z-10",
+                            activeRefinementIdx === i
+                              ? "bg-indigo-500 text-white ring-2 ring-indigo-500/30"
+                              : "bg-zinc-800 text-zinc-500 border border-zinc-700 group-hover:border-zinc-600",
+                          )}>
+                            {i + 1}
+                          </div>
+                          {/* Thumbnail */}
+                          <div className={cn(
+                            "shrink-0 overflow-hidden rounded-lg border transition-all",
+                            activeRefinementIdx === i
+                              ? "border-indigo-400/50 ring-1 ring-indigo-500/20"
+                              : "border-zinc-800 group-hover:border-zinc-600",
+                          )}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={ref.src}
+                              alt={i === 0 ? "Original" : `Refinement ${i}`}
+                              className="h-14 w-14 object-contain bg-white sm:h-16 sm:w-16 p-0.5"
+                            />
+                          </div>
+                          {/* Label */}
+                          <div className="min-w-0">
+                            <p className={cn(
+                              "text-xs font-semibold truncate",
+                              activeRefinementIdx === i ? "text-white" : "text-zinc-400",
+                            )}>
+                              {i === 0 ? "Original concept" : `Refinement #${i}`}
+                            </p>
+                            <p className="text-[10px] text-zinc-600 truncate">
+                              {i === 0 ? "Base design" : "Adjusted from feedback"}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                      {refineGenerating && (
+                        <div className="flex items-center gap-3 rounded-xl p-2">
+                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 border border-zinc-700 z-10">
+                            <Loader2 className="h-3 w-3 animate-spin text-indigo-400" />
+                          </div>
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900/60 sm:h-16 sm:w-16">
+                            <Loader2 className="h-4 w-4 animate-spin text-indigo-400/40" />
+                          </div>
+                          <p className="text-xs text-zinc-500">Generating...</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1152,6 +1420,7 @@ function BrandStudioInner() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.25 }}
+              className="rounded-3xl border border-white/8 bg-[#0b0b14]/85 p-5 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.8)] backdrop-blur-sm sm:p-7"
             >
               {/* Back link */}
               <button
@@ -1193,29 +1462,37 @@ function BrandStudioInner() {
 
               {/* ── Mockups grid ── */}
               <div className="mb-10">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-indigo-500/25 bg-indigo-500/15">
-                    <ImageIcon className="h-4 w-4 text-indigo-300" />
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-indigo-500/25 bg-indigo-500/15">
+                      <ImageIcon className="h-4 w-4 text-indigo-300" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-white">Brand asset previews</h2>
+                      <p className="text-xs text-zinc-500">
+                        Utility-focused outputs like app icon, avatar, favicon, and light/dark lockups
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-base font-bold text-white">Mockups</h2>
-                    <p className="text-xs text-zinc-500">
-                      Your logo on real-world surfaces
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={regenerateAllMockups}
+                    className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-white/75 hover:bg-white/10"
+                  >
+                    Regenerate all
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {mockups.map((slot) => (
-                    <MockupCard key={slot.context} slot={slot} topicSlug={topicSlug} />
+                    <MockupCard key={slot.context} slot={slot} topicSlug={topicSlug} onRetry={retryMockup} />
                   ))}
                 </div>
               </div>
 
-              {/* ── Brand Kit (text) ── */}
-              {(displayBrandKit || brandKitGenerating) && (
+              {/* ── Brand Kit (structured) ── */}
+              {(brandKitBlueprint || brandKitGenerating) && (
                 <div className="mt-10">
-                  {/* Section header */}
                   <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-violet-500/25 bg-violet-500/15">
@@ -1224,47 +1501,17 @@ function BrandStudioInner() {
                       <div>
                         <h2 className="text-lg font-bold text-white">Brand Kit</h2>
                         <p className="text-xs text-zinc-500">
-                          Color palette, typography, logo concepts, and guidelines
+                          Structured identity system with positioning guardrails
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {brandKitGenerating ? (
-                        <span className="flex items-center gap-1.5 text-xs text-violet-300">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating...
-                        </span>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={handleCopyKit}
-                            disabled={!displayBrandKit}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700/50 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-white transition-colors disabled:opacity-40"
-                          >
-                            {copyToast ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5" />
-                            )}
-                            <span className="hidden sm:inline">
-                              {copyToast ? "Copied" : "Copy"}
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleDownloadKit}
-                            disabled={!displayBrandKit}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700/50 bg-zinc-800/50 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-white transition-colors disabled:opacity-40"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">.md</span>
-                          </button>
-                        </>
-                      )}
-                    </div>
+                    {brandKitGenerating && (
+                      <span className="flex items-center gap-1.5 text-xs text-violet-300">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Building system...
+                      </span>
+                    )}
                   </div>
 
-                  {/* Brand kit error */}
                   {brandKitError && (
                     <div className="mb-4 flex gap-3 rounded-xl border border-red-500/20 bg-red-950/40 p-4 text-sm text-red-200/95">
                       <AlertTriangle className="h-5 w-5 shrink-0 text-red-400/90" />
@@ -1272,48 +1519,114 @@ function BrandStudioInner() {
                     </div>
                   )}
 
-                  {/* Color swatches */}
-                  {colorSwatches.length > 0 && (
-                    <div className="mb-6 rounded-xl border border-white/6 bg-zinc-950/40 p-4">
-                      <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                        Color palette
-                      </p>
-                      <div className="flex flex-wrap gap-3">
-                        {colorSwatches.map((sw, i) => (
-                          <button
-                            key={`${sw.hex}-${i}`}
-                            type="button"
-                            onClick={() => navigator.clipboard.writeText(sw.hex)}
-                            title={`Copy ${sw.hex} — ${sw.usage}`}
-                            className="group flex flex-col items-center gap-1.5 rounded-lg p-2 transition-colors hover:bg-white/4"
-                          >
-                            <div
-                              style={{ backgroundColor: sw.hex }}
-                              className="h-12 w-12 rounded-xl border border-white/10 shadow-lg group-hover:scale-105 transition-transform"
-                            />
-                            <span className="font-mono text-[10px] text-zinc-400 group-hover:text-zinc-200">
-                              {sw.hex}
-                            </span>
-                            <span className="max-w-[80px] truncate text-[10px] text-zinc-600">
-                              {sw.token}
-                            </span>
-                          </button>
-                        ))}
+                  {brandKitBlueprint && (
+                    <>
+                      <div className="mb-6 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-xl border border-white/7 bg-zinc-950/40 p-4">
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Audience
+                          </p>
+                          <p className="text-sm text-zinc-300">{brandKitBlueprint.brandKit.audience}</p>
+                        </div>
+                        <div className="rounded-xl border border-white/7 bg-zinc-950/40 p-4">
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Positioning
+                          </p>
+                          <p className="text-sm text-zinc-300">{brandKitBlueprint.brandKit.positioning}</p>
+                        </div>
+                        <div className="rounded-xl border border-white/7 bg-zinc-950/40 p-4">
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Personality
+                          </p>
+                          <p className="text-sm text-zinc-300">{brandKitBlueprint.brandKit.personality}</p>
+                        </div>
+                        <div className="rounded-xl border border-white/7 bg-zinc-950/40 p-4">
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Tone
+                          </p>
+                          <p className="text-sm text-zinc-300">{brandKitBlueprint.brandKit.tone}</p>
+                        </div>
                       </div>
-                    </div>
-                  )}
 
-                  {/* Markdown content */}
-                  <div className="rounded-2xl border border-white/7 bg-gradient-to-b from-zinc-900/80 to-zinc-950/90 shadow-2xl shadow-black/50 overflow-hidden relative">
-                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500/35 to-transparent" />
-                    <div className="p-6 sm:p-8">
-                      <div className="prose prose-invert prose-sm max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-h2:mt-8 prose-h2:mb-4 prose-h2:border-b prose-h2:border-white/6 prose-h2:pb-2 prose-h3:mt-5 prose-h3:mb-2 prose-p:leading-relaxed prose-p:text-zinc-400 prose-strong:text-white/90 prose-li:text-zinc-400 prose-code:rounded-md prose-code:bg-zinc-800/80 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-indigo-200/90 prose-code:before:content-[''] prose-code:after:content-[''] prose-table:text-sm prose-th:bg-zinc-800/50 prose-th:text-zinc-300 prose-td:text-zinc-400">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {displayBrandKit}
-                        </ReactMarkdown>
+                      <div className="mb-6 rounded-xl border border-white/6 bg-zinc-950/40 p-4">
+                        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                          Color palette
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                          {colorSwatches.map((sw, i) => (
+                            <button
+                              key={`${sw.hex}-${i}`}
+                              type="button"
+                              onClick={() => navigator.clipboard.writeText(sw.hex)}
+                              title={`Copy ${sw.hex} — ${sw.usage}`}
+                              className="group flex flex-col items-center gap-1.5 rounded-lg p-2 transition-colors hover:bg-white/4"
+                            >
+                              <div
+                                style={{ backgroundColor: ensureHex(sw.hex) }}
+                                className="h-12 w-12 rounded-xl border border-white/10 shadow-lg group-hover:scale-105 transition-transform"
+                              />
+                              <span className="font-mono text-[10px] text-zinc-300 group-hover:text-white">
+                                {sw.hex}
+                              </span>
+                              <span className="max-w-[120px] truncate text-[10px] text-zinc-500">{sw.token}</span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  </div>
+
+                      <div className="mb-6 grid gap-3 lg:grid-cols-2">
+                        <div className="rounded-xl border border-white/7 bg-zinc-950/40 p-4">
+                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Typography
+                          </p>
+                          <p className="text-sm text-zinc-300">Primary: {brandKitBlueprint.brandKit.typography.primary}</p>
+                          <p className="mt-1 text-sm text-zinc-300">Secondary: {brandKitBlueprint.brandKit.typography.secondary}</p>
+                          <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                            {brandKitBlueprint.brandKit.typography.guidance}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-white/7 bg-zinc-950/40 p-4">
+                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Competitor guardrails
+                          </p>
+                          <div className="space-y-2">
+                            {brandKitBlueprint.brandKit.competitorGuardrails.map((g, i) => (
+                              <div key={`${g.risk}-${i}`} className="rounded-lg border border-white/8 bg-white/2 p-2.5">
+                                <p className="text-xs font-semibold text-white/85">{g.risk}</p>
+                                <p className="mt-1 text-xs text-zinc-400">{g.response}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Brand guidelines do's/don'ts */}
+                      <BrandGuidelinesCard blueprint={brandKitBlueprint} />
+
+                      <div className="grid gap-3 lg:grid-cols-2">
+                        <div className="rounded-xl border border-white/7 bg-zinc-950/40 p-4">
+                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Logo rules
+                          </p>
+                          <ul className="space-y-1.5 text-xs text-zinc-300">
+                            {brandKitBlueprint.brandKit.logoRules.map((rule, i) => (
+                              <li key={`${rule}-${i}`}>- {rule}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div className="rounded-xl border border-white/7 bg-zinc-950/40 p-4">
+                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Rollout checklist
+                          </p>
+                          <ul className="space-y-1.5 text-xs text-zinc-300">
+                            {brandKitBlueprint.brandKit.rolloutChecklist.map((item, i) => (
+                              <li key={`${item}-${i}`}>- {item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </motion.div>

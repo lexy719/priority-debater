@@ -301,38 +301,38 @@ const MOCKUP_CONTEXTS: Record<
   "business-card": {
     size: "1024x1536",
     description:
-      "A premium business card resting on a dark marble desk surface. Soft directional studio lighting with subtle shadows. The card features the logo prominently on the front, with clean modern typography for contact details. Thick, textured card stock with a matte finish. Slight depth-of-field blur on the desk edges.",
+      "A premium business card centered on a dark neutral surface. The logo appears clean and prominent with generous whitespace. Minimal contact text only.",
     closing: "Photorealistic product mockup, professional photography",
   },
-  "email-header": {
-    size: "1536x1024",
+  "logo-on-dark": {
+    size: "1024x1024",
     description:
-      "A modern SaaS welcome/onboarding email displayed in an email client. The logo sits in the header area against a clean white or light background. Below the header is a friendly headline, a short paragraph of placeholder body text, and a prominent call-to-action button in the brand's accent color. Clean email template layout with generous whitespace.",
-    closing: "Clean UI screenshot, pixel-perfect",
+      "A clean brand presentation tile with the logo centered on a dark background. No extra UI, no paragraphs, no decorative patterns.",
+    closing: "Minimal brand asset preview, ultra clean",
   },
   "app-icon": {
     size: "1024x1024",
     description:
-      "An iOS/Android app icon with the standard rounded-square shape (Apple superellipse). Only the icon mark from the logo — no text. Clean flat design with the brand's primary color as background. The symbol is centered with balanced padding. Subtle ambient shadow beneath the icon as if resting on a surface.",
+      "An iOS/Android style app icon with rounded-square shape. Use the icon mark only (no wordmark). Keep high contrast and simple geometry with centered composition.",
     closing: "Clean UI screenshot, pixel-perfect",
   },
   "social-avatar": {
     size: "1024x1024",
     description:
-      "A circular social media profile picture (like Twitter/LinkedIn avatar). The logo mark is centered within the circle, with the brand's primary color or a dark background. Optimized for clarity at small sizes — the mark fills the space confidently without crowding the edges.",
-    closing: "Clean UI screenshot, pixel-perfect",
+      "A circular social avatar with the logo mark centered. No tiny text. Optimized for readability at very small sizes.",
+    closing: "Social avatar asset, clean vector-like finish",
   },
-  "website-hero": {
-    size: "1536x1024",
+  "logo-on-light": {
+    size: "1024x1024",
     description:
-      "A modern SaaS landing page hero section displayed in a browser. The logo appears in the top navigation bar at normal nav size. The hero section below features a bold headline, a subtitle, and a CTA button, all using the brand's color palette. Clean, professional layout with generous whitespace, modern typography, and a subtle gradient or abstract background shape.",
-    closing: "Clean UI screenshot, pixel-perfect",
+      "A clean brand presentation tile with the logo centered on a white or very light background. No extra UI, no paragraphs, no decorative patterns.",
+    closing: "Minimal brand asset preview, ultra clean",
   },
-  "billing-page": {
-    size: "1536x1024",
+  favicon: {
+    size: "1024x1024",
     description:
-      "A SaaS billing/payment page UI displayed in a browser. The logo sits in the top navigation bar. The page shows a professional payment form with credit card fields, a plan summary sidebar, and pricing details. Fintech-grade styling — clean lines, trust badges, and the brand's color accents on buttons and highlights. Secure, trustworthy feel.",
-    closing: "Clean UI screenshot, pixel-perfect",
+      "A favicon-focused preview showing the icon in tiny-size contexts (16px, 32px, 64px) on a simple neutral canvas, demonstrating legibility.",
+    closing: "Practical favicon legibility preview, crisp and uncluttered",
   },
 };
 
@@ -361,6 +361,8 @@ export function buildMockupPrompt(
     `MOCKUP SCENE: ${ctx.description}`,
     ``,
     `The brand name is "${topic}" — spell it exactly. The logo must be clearly visible and legible in the scene.`,
+    `Do not invent a completely different symbol. Keep mark structure consistent with the logo description.`,
+    `Avoid dense UI text blocks and tiny unreadable paragraphs.`,
     ``,
     ctx.closing,
   ];

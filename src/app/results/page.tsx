@@ -134,10 +134,10 @@ function scoreTone(value: number | null | undefined, goThreshold = 70, nogoThres
   return "neutral";
 }
 
-const toneText = (t: Tone) => (t === "bull" ? "text-[--success]" : t === "bear" ? "text-[--error]" : "text-[--ink-0]");
-const toneBg = (t: Tone) => (t === "bull" ? "bg-[--success]" : t === "bear" ? "bg-[--error]" : "bg-[--ink-1]");
+const toneText = (t: Tone) => (t === "bull" ? "text-[--success]" : t === "bear" ? "text-[--error]" : "text-[--accent-ink]");
+const toneBg = (t: Tone) => (t === "bull" ? "bg-[--success]" : t === "bear" ? "bg-[--error]" : "bg-[--accent]");
 const toneStroke = (t: Tone) =>
-  t === "bull" ? "var(--success)" : t === "bear" ? "var(--error)" : "var(--ink-0)";
+  t === "bull" ? "var(--success)" : t === "bear" ? "var(--error)" : "var(--accent)";
 
 // ───────────────────────────────────────────────────────────────
 // SVG primitives
@@ -520,7 +520,7 @@ function Sidebar({
       <div className="border-b border-[--line] p-4">
         <Link
           href="/validate"
-          className="flex w-full items-center justify-center gap-2 rounded-[--r] bg-[--ink-0] px-3 py-2.5 text-sm font-medium text-[--bg] transition hover:brightness-95"
+          className="flex w-full items-center justify-center gap-2 rounded-[--r] bg-[--accent] px-3 py-2.5 text-sm font-medium text-white shadow-[0_0_0_1px_rgba(124,106,255,0.4),0_8px_20px_-6px_rgba(124,106,255,0.55)] transition hover:brightness-110"
         >
           <Plus className="h-4 w-4" />
           New validation
@@ -552,7 +552,7 @@ function Sidebar({
                   className={cn(
                     "group flex items-center gap-3 rounded-[--r] border px-3 py-2 transition",
                     step.status === "done" && "border-[--line] bg-[--surface-2] text-[--ink-0]",
-                    step.status === "ready" && "border-[--line-strong] bg-[--surface-2] text-[--ink-0] hover:bg-[--surface-3]",
+                    step.status === "ready" && "border-[--accent-strong] bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-2))] text-[--ink-0] hover:bg-[color-mix(in_srgb,var(--accent)_18%,var(--surface-2))]",
                     step.status === "locked" && "border-transparent text-[--ink-2]",
                   )}
                 >
@@ -560,7 +560,7 @@ function Sidebar({
                     className={cn(
                       "grid h-6 w-6 shrink-0 place-items-center rounded-full border",
                       step.status === "done" && "border-[--success]/40 bg-[--success-soft] text-[--success]",
-                      step.status === "ready" && "border-[--line-strong] text-[--ink-0]",
+                      step.status === "ready" && "border-[--accent-strong] bg-[--accent-soft] text-[--accent-ink]",
                       step.status === "locked" && "border-[--line] text-[--ink-2]",
                     )}
                   >
@@ -578,14 +578,14 @@ function Sidebar({
                       className={cn(
                         "caption block",
                         step.status === "done" && "text-[--success]",
-                        step.status === "ready" && "text-[--ink-2]",
+                        step.status === "ready" && "text-[--accent-ink]",
                         step.status === "locked" && "text-[--ink-2]",
                       )}
                     >
                       {step.status === "done" ? "Complete" : step.status === "ready" ? "Ready" : "Locked"}
                     </span>
                   </div>
-                  {step.status === "ready" && <ArrowRight className="h-3.5 w-3.5 text-[--ink-2] transition group-hover:translate-x-0.5 group-hover:text-[--ink-0]" />}
+                  {step.status === "ready" && <ArrowRight className="h-3.5 w-3.5 text-[--accent-ink] transition group-hover:translate-x-0.5" />}
                 </El>
               </li>
             );
@@ -827,7 +827,7 @@ function ResultsInner() {
             <button
               type="button"
               onClick={handleNew}
-              className="inline-flex h-9 items-center gap-2 rounded-[--r] bg-[--ink-0] px-3 text-xs font-medium text-[--bg] transition hover:brightness-95"
+              className="inline-flex h-9 items-center gap-2 rounded-[--r] bg-[--accent] px-3 text-xs font-medium text-white shadow-[0_4px_16px_-4px_rgba(124,106,255,0.5)] transition hover:brightness-110"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>New</span>
@@ -880,8 +880,8 @@ function ResultsInner() {
                   <span>{t.label}</span>
                   <span
                     className={cn(
-                      "absolute inset-x-2 -bottom-px h-px transition",
-                      tab === t.id ? "bg-[--ink-0]" : "bg-transparent",
+                      "absolute inset-x-2 -bottom-px h-0.5 rounded-full transition",
+                      tab === t.id ? "bg-[--accent] shadow-[0_0_12px_rgba(124,106,255,0.6)]" : "bg-transparent",
                     )}
                   />
                 </button>

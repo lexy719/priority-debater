@@ -287,11 +287,12 @@ body {
 }
 
 /* ── Radial hero gradient ──
-   Violet glow from top-center, fades to transparent. Used behind
-   hero banner on dashboard. At 6% opacity — the whisper, not the shout. */
+   Violet glow + warm spot. Two radials so the banner doesn't flatten.
+   Loud enough to see, soft enough to live behind content. */
 .radial-hero {
   background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124, 106, 255, 0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 15% 0%, rgba(124, 106, 255, 0.22) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 85% 110%, rgba(255, 178, 107, 0.08) 0%, transparent 60%),
     var(--surface-1);
 }
 
