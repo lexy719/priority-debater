@@ -12,43 +12,43 @@
   /* ── Surfaces ──
      Graphite base, two steps up for cards, one more for hover.
      Not #000 — deep-graphite reads as paper stock, not OLED. */
-  --bg:          #0D0D0F;
-  --surface-1:   #16161A;  /* cards, inputs */
-  --surface-2:   #1C1C20;  /* elevated, hover */
-  --surface-3:   #23232A;  /* sticky chrome, active rows */
+  --bg:          #0B0B0D;   /* warm off-black — not OLED pure black */
+  --surface-1:   #121214;   /* cards, inputs */
+  --surface-2:   #191A1D;   /* elevated, hover, modals */
+  --surface-3:   #23242A;   /* sticky chrome, active rows */
 
   /* ── Ink (neutral family) ──
      Four shades, used for every non-semantic UI moment.
-     If it isn't status, hierarchy, or data — it's ink. */
-  --ink-0:       #F4F4F5;  /* primary ink, headings, max contrast */
-  --ink-1:       #A1A1AA;  /* body copy, secondary */
-  --ink-2:       #52525B;  /* metadata, labels, placeholders */
-  --ink-3:       #27272A;  /* disabled, dividers in copy */
+     Warm whites — less clinical than pure #FFF. */
+  --ink-0:       #F5F5F4;   /* primary ink, headings */
+  --ink-1:       #A1A1A6;   /* body copy, secondary */
+  --ink-2:       #6B6B70;   /* metadata, labels — bumped for contrast */
+  --ink-3:       #2A2A2E;   /* disabled, copy dividers */
 
   /* ── Lines ──
-     One-pixel hairlines. The system leans on borders, not shadows,
-     for structure — so these matter more than most apps. */
-  --line:        rgba(244, 244, 245, 0.07);
-  --line-soft:   rgba(244, 244, 245, 0.04);
-  --line-strong: rgba(244, 244, 245, 0.12);
+     Hairlines carry structure. Slightly warmer than the old alpha-white. */
+  --line:        rgba(245, 245, 244, 0.08);
+  --line-soft:   rgba(245, 245, 244, 0.04);
+  --line-strong: rgba(245, 245, 244, 0.14);
 
   /* ── Accent ──
-     Document gold. Used sparingly: primary CTA, active selection,
-     one data-viz hue, citations. Never decorative. */
-  --accent:        #E8C547;
-  --accent-soft:   rgba(232, 197, 71, 0.12);
-  --accent-strong: rgba(232, 197, 71, 0.35);
-  --accent-ink:    #F4E3A1;
+     Signature violet — single saturated hue in the system. Used for
+     primary CTA, active selection, one chart series, insight cues. */
+  --accent:        #7C6AFF;
+  --accent-soft:   rgba(124, 106, 255, 0.14);
+  --accent-strong: rgba(124, 106, 255, 0.38);
+  --accent-ink:    #C5BCFF;
+  --accent-warm:   #FFB26B;   /* secondary data-viz hue, risk indicator */
 
   /* ── Semantic (state) ──
-     Desaturated. Appears only on badges, risk flags, toasts, form
-     validation. Never as decoration on icons or section dividers. */
-  --success:      #5CB88A;
-  --success-soft: rgba(92, 184, 138, 0.14);
-  --warning:      #E8A54B;
-  --warning-soft: rgba(232, 165, 75, 0.14);
-  --error:        #D46F5C;
-  --error-soft:   rgba(212, 111, 92, 0.14);
+     Muted mint + coral, not neon. Used only on badges, verdicts,
+     directional data signals (GO/NO-GO, bull/bear). */
+  --success:      #3DD68C;
+  --success-soft: rgba(61, 214, 140, 0.14);
+  --warning:      #FFB26B;
+  --warning-soft: rgba(255, 178, 107, 0.14);
+  --error:        #FF6B6B;
+  --error-soft:   rgba(255, 107, 107, 0.14);
 
   /* ── Typography families ──
      Sans for UI. Serif for numbers and display headlines.
@@ -248,6 +248,57 @@ body {
 .hairline        { border: 1px solid var(--line); }
 .hairline-soft   { border: 1px solid var(--line-soft); }
 .hairline-strong { border: 1px solid var(--line-strong); }
+
+/* ── Premium card treatment ──
+   Subtle top-edge light catch (inset 1px white) + hairline border.
+   Mimics real material; the border alone is too flat. */
+.card-premium {
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.card-premium:hover {
+  border-color: var(--line-strong);
+}
+
+/* Card with violet gradient-border hint — for hero / featured cards. */
+.card-featured {
+  position: relative;
+  background: var(--surface-1);
+  border-radius: var(--r);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.card-featured::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(124, 106, 255, 0.45) 0%, rgba(245, 245, 244, 0.06) 40%, rgba(245, 245, 244, 0.02) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ── Radial hero gradient ──
+   Violet glow from top-center, fades to transparent. Used behind
+   hero banner on dashboard. At 6% opacity — the whisper, not the shout. */
+.radial-hero {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124, 106, 255, 0.10) 0%, transparent 60%),
+    var(--surface-1);
+}
+
+/* Tabular-lining numerals for UI metrics — used alongside .num classes. */
+.tabular-nums {
+  font-variant-numeric: tabular-nums lining-nums;
+}
 
 /* ── Legacy .t-* utilities — retained so current pages keep working ── */
 .t-bg { background-color: var(--bg-primary); }
