@@ -1,4 +1,10 @@
-export type LandingTemplateId = "saas-nova" | "editorial-aurora" | "bento-prism" | "startup-horizon" | "minimal-slate" | "custom";
+export type LandingTemplateId =
+  | "saas-nova"
+  | "editorial-aurora"
+  | "bento-prism"
+  | "startup-horizon"
+  | "minimal-slate"
+  | "custom";
 
 /** Curated designer templates (AI fills copy only). */
 export type CuratedLandingTemplateId = Exclude<LandingTemplateId, "custom">;
@@ -22,38 +28,38 @@ export const LANDING_TEMPLATE_LABELS: Record<
   { title: string; description: string; layout: string }
 > = {
   "saas-nova": {
-    title: "SaaS Nova",
-    layout: "Dark mesh hero + gradient frame visual · glass bento features · FAQ · gradient email CTA",
+    title: "Signal Deck",
+    layout: "Dark command hero + dashboard visual + premium bento sections + analyst-style FAQ + email CTA",
     description:
-      "Obsidian / indigo product UI: Syne headlines, glass cards, cyan–violet glow. Strong default for B2B SaaS.",
+      "A high-end product launch system with dense cards, metrics, and polished enterprise energy. Best for B2B SaaS and AI tools.",
   },
   "editorial-aurora": {
-    title: "Editorial Aurora",
-    layout: "Magazine headline + full-bleed image band · split problem · numbered steps · serif FAQ",
+    title: "Ledger",
+    layout: "Editorial split hero + image narrative band + side-note storytelling + serif FAQ + warm CTA",
     description:
-      "Warm paper, Playfair + DM Sans, amber accent. Premium editorial and service brands.",
+      "An investor-letter meets magazine-cover landing page with quieter luxury and stronger reading rhythm. Great for premium brands and services.",
   },
   "bento-prism": {
-    title: "Bento Prism",
-    layout: "Neon bento (hero image + copy + 3 cells) · problem · steps · benefits bridge · FAQ · glow CTA",
+    title: "Command Grid",
+    layout: "Devtool shell hero + neon bento grid + metric rail + command-style sections + glow CTA",
     description:
-      "Dark lattice, JetBrains tags, cyan–magenta glass. Devtools, AI, and high-tech launches.",
+      "A sharper technical design language with console chrome, dense system cards, and strong motion cues. Built for devtools, AI, and ambitious launches.",
   },
   "startup-horizon": {
-    title: "Startup Horizon",
-    layout: "Sunrise gradient hero + card visual · scrolling marquee · 3-up features · dark CTA",
+    title: "Momentum",
+    layout: "Layered launch hero + ticker proof band + startup narrative sections + bold dark CTA",
     description:
-      "Coral–rose–amber energy, Jakarta Sans, ticker of benefits. Consumer apps and bold startups.",
+      "A modern launch page with more optimism, more proof, and cleaner conversion framing. Strong for consumer apps and story-led startup positioning.",
   },
   "minimal-slate": {
-    title: "Minimal Slate",
-    layout: "Swiss grid hero + framed image · rules-only sections · 3-column features · minimal CTA",
+    title: "Frame",
+    layout: "Swiss editorial grid + framed visual + precision feature rails + restrained conversion CTA",
     description:
-      "Near-monochrome Inter, thin borders, maximum whitespace. Design-led and prosumer products.",
+      "A restrained premium system with tighter composition and design-led clarity. Best when we want confidence without noise.",
   },
   custom: {
     title: "Custom (AI layout)",
-    layout: "Varies each run — chosen from the shared HTML kit (nav, hero, sections, CTA)",
+    layout: "Varies each run - chosen from the shared HTML kit (nav, hero, sections, CTA)",
     description:
       "Full page generated from your validation brief. More variety, less predictable structure than fixed templates.",
   },

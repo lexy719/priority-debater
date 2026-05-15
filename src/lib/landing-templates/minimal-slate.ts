@@ -1,6 +1,7 @@
 /**
- * Minimal Slate — "Swiss Mono"
- * Black / white / gray, large type, thin rules, almost no decoration.
+ * Minimal Slate - "Frame"
+ * Still restrained, but rebuilt with stronger swiss-system composition,
+ * asymmetry, framing, and more premium whitespace discipline.
  */
 export const MINIMAL_SLATE_TEMPLATE = `<!DOCTYPE html>
 <html lang="en">
@@ -10,99 +11,124 @@ export const MINIMAL_SLATE_TEMPLATE = `<!DOCTYPE html>
   <title>%%BRAND_NAME%%</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <style>
-    :root{--bg:#f7f7f5;--fg:#0a0a0a;--muted:rgba(10,10,10,0.52);--line:rgba(10,10,10,0.09);--max:960px;--display:"Space Grotesk",system-ui,sans-serif;}
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-    html{scroll-behavior:smooth;}
-    body{font-family:Inter,system-ui,sans-serif;background-color:var(--bg);color:var(--fg);font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased;}
-    body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0.5;
-      background-image:radial-gradient(rgba(10,10,10,0.07) 1px,transparent 1px);background-size:20px 20px;}
-    .wrap{max-width:var(--max);margin:0 auto;padding:0 clamp(1.25rem,5vw,2.5rem);position:relative;z-index:1;}
+    :root{
+      --bg:#f4f2ee;--paper:#fbfaf8;--ink:#111111;--muted:rgba(17,17,17,0.62);--faint:rgba(17,17,17,0.38);
+      --line:rgba(17,17,17,0.09);--line-2:rgba(17,17,17,0.14);
+      --max:1080px;--radius:22px;--radius-sm:14px;
+      --shadow:0 16px 40px -30px rgba(17,17,17,0.22);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
+    .grain{position:fixed;inset:0;pointer-events:none;opacity:0.18;background-image:radial-gradient(rgba(17,17,17,0.08) 1px,transparent 1px);background-size:18px 18px}
+    .wrap{width:min(var(--max),calc(100% - 2rem));margin:0 auto;position:relative;z-index:1}
 
-    header{position:sticky;top:0;z-index:30;background:rgba(247,247,245,0.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
-    .nav{display:flex;align-items:center;justify-content:space-between;min-height:56px;flex-wrap:wrap;gap:0.75rem;}
-    .logo{font-weight:600;font-size:0.95rem;letter-spacing:-0.02em;text-decoration:none;color:var(--fg);}
-    .nav-links{display:none;gap:1.75rem;}
-    @media(min-width:820px){.nav-links{display:flex;}}
-    .nav-links a{font-size:0.78rem;font-weight:500;color:var(--muted);text-decoration:none;text-transform:uppercase;letter-spacing:0.08em;}
-    .nav-links a:hover{color:var(--fg);}
-    .nav-cta{font-size:0.78rem;font-weight:600;text-decoration:none;color:var(--fg);border-bottom:1px solid var(--fg);padding-bottom:1px;}
-    .nav-toggle{font-size:0.72rem;padding:0.35rem 0.65rem;border:1px solid var(--line);background:transparent;cursor:pointer;}
-    @media(min-width:820px){.nav-toggle{display:none;}}
-    .nav-mobile{display:none;width:100%;flex-direction:column;gap:0.4rem;padding:0 0 0.75rem;}
-    .nav-mobile.open{display:flex;}
-    .nav-mobile a{font-size:0.85rem;color:var(--muted);text-decoration:none;}
-    @media(min-width:820px){.nav-mobile{display:none!important;}}
+    header{position:sticky;top:0;z-index:30;background:rgba(244,242,238,0.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+    .nav{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:66px;flex-wrap:wrap}
+    .logo{text-decoration:none;font-family:"Space Grotesk",Inter,sans-serif;font-size:0.98rem;font-weight:700;letter-spacing:-0.03em}
+    .nav-links{display:none;gap:1.6rem}
+    @media(min-width:900px){.nav-links{display:flex}}
+    .nav-links a{text-decoration:none;color:var(--muted);font-size:0.8rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase}
+    .nav-links a:hover{color:var(--ink)}
+    .nav-cta{text-decoration:none;color:var(--ink);font-size:0.8rem;font-weight:800;border-bottom:2px solid var(--ink);padding-bottom:0.08rem}
+    .nav-toggle{display:inline-flex;padding:0.45rem 0.78rem;border:1px solid var(--line-2);background:transparent;border-radius:12px;font-size:0.76rem;cursor:pointer}
+    @media(min-width:900px){.nav-toggle{display:none}}
+    .nav-mobile{display:none;flex-direction:column;gap:0.5rem;padding:0 0 1rem}
+    .nav-mobile.open{display:flex}
+    .nav-mobile a{text-decoration:none;color:var(--muted)}
+    @media(min-width:900px){.nav-mobile{display:none!important}}
 
-    .hero{padding:clamp(3rem,12vw,5.5rem) 0;}
-    .hero-grid{display:grid;gap:2.5rem;align-items:start;}
-    @media(min-width:860px){.hero-grid{grid-template-columns:1.15fr 0.85fr;gap:3rem;}}
-    .kicker{font-size:0.65rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:1.25rem;}
-    h1{font-family:var(--display);font-size:clamp(2.05rem,4.6vw,3.15rem);font-weight:700;line-height:1.02;letter-spacing:-0.045em;margin-bottom:1rem;text-wrap:balance;}
-    .lead{font-size:1rem;color:var(--muted);max-width:40ch;}
-    .hero-ctas{margin-top:1.5rem;display:flex;gap:0.75rem;flex-wrap:wrap;}
-    .btn{display:inline-flex;padding:0.65rem 0;font-size:0.8rem;font-weight:600;text-decoration:none;}
-    .btn-p{border-bottom:2px solid var(--fg);color:var(--fg);}
-    .btn-s{color:var(--muted);}
+    .hero{padding:clamp(3rem,10vw,6rem) 0 2rem}
+    .hero-grid{display:grid;gap:1.3rem}
+    @media(min-width:980px){.hero-grid{grid-template-columns:1.15fr 0.85fr;align-items:start}}
+    .eyebrow{font-size:0.7rem;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:1rem}
+    h1{font-family:"Space Grotesk",Inter,sans-serif;font-size:clamp(2.7rem,5.4vw,5rem);font-weight:700;line-height:0.92;letter-spacing:-0.065em;max-width:9ch}
+    .lead{margin-top:1rem;max-width:40ch;font-size:1rem;color:var(--muted)}
+    .hero-actions{display:flex;flex-wrap:wrap;gap:0.8rem;margin-top:1.5rem}
+    .btn{display:inline-flex;align-items:center;justify-content:center;padding:0.9rem 1.2rem;border-radius:14px;text-decoration:none;font-size:0.88rem;font-weight:800}
+    .btn-dark{background:var(--ink);color:var(--paper)}
+    .btn-line{border:1px solid var(--line-2);background:rgba(255,255,255,0.52);color:var(--ink)}
+    .hero-copy{display:grid;gap:1.1rem}
+    .hero-note{display:grid;gap:0.8rem}
+    @media(min-width:640px){.hero-note{grid-template-columns:repeat(2,1fr)}}
+    .hero-note .card{padding:1rem;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,0.45)}
+    .hero-note .k{font-size:0.7rem;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--faint);margin-bottom:0.35rem}
+    .hero-note p{font-size:0.88rem;color:var(--muted)}
 
-    .visual{border:1px solid var(--line);background:#fff;position:relative;box-shadow:12px 12px 0 rgba(10,10,10,0.06);transition:box-shadow .3s,transform .3s;}
-    .visual::before{content:"";position:absolute;inset:-1px;border:1px solid rgba(10,10,10,0.04);pointer-events:none;transform:translate(4px,4px);z-index:-1;}
-    @media(hover:hover){.visual:hover{box-shadow:16px 16px 0 rgba(10,10,10,0.08);transform:translate(-2px,-2px);}}
-    .visual .hero-visual img{width:100%;display:block;aspect-ratio:5/4;object-fit:cover;}
-    .visual .hero-visual:empty{min-height:280px;background:linear-gradient(145deg,#d4d4d4 0%,#f5f5f5 50%,#e8e8e8 100%);}
-    .visual .photo-credit{font-size:0.65rem;color:var(--muted);padding:0.5rem 0.65rem;border-top:1px solid var(--line);}
-    .visual .photo-credit a{color:var(--fg);}
+    .frame{padding:1px;border-radius:28px;background:linear-gradient(135deg,rgba(17,17,17,0.26),rgba(17,17,17,0.04));box-shadow:var(--shadow)}
+    .frame-inner{border-radius:27px;background:var(--paper);overflow:hidden}
+    .frame-top{display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1rem;border-bottom:1px solid var(--line)}
+    .frame-top .k{font-size:0.76rem;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--faint)}
+    .frame-top .dots{display:flex;gap:0.4rem}.frame-top .dots span{width:9px;height:9px;border-radius:999px;background:rgba(17,17,17,0.14)}
+    .frame-body{display:grid;gap:1rem;padding:1rem}
+    .hero-visual-shell{overflow:hidden;border-radius:20px;border:1px solid var(--line);background:#efebe6;min-height:300px}
+    .hero-visual-shell .hero-visual img{display:block;width:100%;height:100%;min-height:300px;object-fit:cover}
+    .hero-visual-shell .hero-visual:empty{min-height:300px;background:linear-gradient(135deg,#ebe6de,#f9f7f3)}
+    .photo-credit{padding:0.68rem 0.85rem;border-top:1px solid var(--line);font-size:0.68rem;color:var(--faint)}
+    .photo-credit a{color:var(--ink)}
+    .info-grid{display:grid;gap:0.8rem}
+    @media(min-width:640px){.info-grid{grid-template-columns:repeat(3,1fr)}}
+    .info{padding:0.95rem;border-radius:16px;border:1px solid var(--line);background:#fff}
+    .info .v{font-family:"Space Grotesk",Inter,sans-serif;font-size:1.45rem;font-weight:700;letter-spacing:-0.05em}
+    .info .l{margin-top:0.2rem;font-size:0.78rem;color:var(--faint)}
 
-    .hero-accent-mn{position:absolute;top:0;right:0;width:64px;opacity:0.22;pointer-events:none;}
-    .hero-accent-mn svg{width:100%;height:auto;display:block;}
-    .hero .hero-grid>div:first-child{position:relative;}
+    .proof{padding:0.8rem 0 3rem}
+    .proof-shell{display:grid;gap:1rem}
+    @media(min-width:860px){.proof-shell{grid-template-columns:0.95fr 1.05fr;align-items:center}}
+    .proof-card,.quote-card{padding:1.1rem 1.15rem;border-radius:20px;border:1px solid var(--line);background:rgba(255,255,255,0.52)}
+    .proof-card .k{font-size:0.72rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:var(--faint);margin-bottom:0.45rem}
+    .proof-card p{color:var(--muted)}
+    .quote-card p{font-family:"Space Grotesk",Inter,sans-serif;font-size:1.1rem;line-height:1.5;letter-spacing:-0.03em}
 
-    .trust-strip{padding:2rem 0 2.5rem;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#fff;}
-    .trust-row{max-width:640px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:baseline;gap:0.75rem 1.25rem;justify-content:center;text-align:center;}
-    .trust-eyebrow{font-family:var(--display);font-size:0.72rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);}
-    .trust-main{font-size:0.92rem;color:var(--fg);max-width:42ch;line-height:1.55;}
-    .trust-mark{flex-shrink:0;width:28px;height:2px;background:var(--fg);opacity:0.2;align-self:center;}
+    section{padding:4.5rem 0;border-top:1px solid var(--line)}
+    .section-grid{display:grid;gap:2rem}
+    @media(min-width:900px){.section-grid{grid-template-columns:0.75fr 1.25fr}}
+    .section-label{font-size:0.72rem;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:0.8rem}
+    h2{font-family:"Space Grotesk",Inter,sans-serif;font-size:clamp(1.9rem,3.7vw,3rem);font-weight:700;line-height:0.94;letter-spacing:-0.055em}
+    .section-copy p{color:var(--muted)}
+    .section-copy p + p{margin-top:1rem}
 
-    .block{padding:3rem 0;border-top:1px solid var(--line);}
-    .sec-h{font-size:0.65rem;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;}
-    h2{font-family:var(--display);font-size:clamp(1.38rem,2.6vw,1.85rem);font-weight:600;letter-spacing:-0.035em;margin-bottom:0.75rem;}
-    .body-text{color:var(--muted);max-width:58ch;}
-    .quote{margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--line);font-size:0.95rem;color:var(--fg);font-style:italic;}
+    .feature-grid{display:grid;gap:1rem}
+    @media(min-width:760px){.feature-grid{grid-template-columns:repeat(3,1fr)}}
+    .feature{padding-top:1rem;border-top:2px solid var(--ink);position:relative}
+    .feature::after{content:attr(data-n);position:absolute;top:0.7rem;right:0;font-family:"Space Grotesk",Inter,sans-serif;font-size:2.8rem;font-weight:700;line-height:1;color:rgba(17,17,17,0.06)}
+    .feature h3{font-size:1rem;font-weight:800;margin-bottom:0.35rem;position:relative;z-index:1}
+    .feature p{font-size:0.9rem;color:var(--muted);position:relative;z-index:1}
 
-    .grid3{display:grid;gap:1.5rem;}
-    @media(min-width:700px){.grid3{grid-template-columns:repeat(3,1fr);}}
-    .cell{padding:1.35rem 0 0;border-top:2px solid var(--fg);position:relative;}
-    .cell::before{content:attr(data-i);font-family:var(--display);font-size:clamp(2.5rem,6vw,3.5rem);font-weight:700;line-height:1;color:rgba(10,10,10,0.06);position:absolute;top:0.5rem;right:0;pointer-events:none;}
-    .cell h3{font-size:0.9rem;font-weight:600;margin-bottom:0.4rem;}
-    .cell p{font-size:0.82rem;color:var(--muted);}
+    .steps{display:grid;gap:1rem}
+    @media(min-width:860px){.steps{grid-template-columns:repeat(3,1fr)}}
+    .step{padding:1.15rem 0;border-top:1px solid var(--line)}
+    @media(min-width:860px){.step{padding:1.2rem 1rem;border-left:1px solid var(--line)}.step:first-child{border-left:none}}
+    .step .n{font-size:0.72rem;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--faint);margin-bottom:0.5rem}
+    .step h3{font-size:1rem;font-weight:800;margin-bottom:0.3rem}
+    .step p{font-size:0.9rem;color:var(--muted)}
 
-    .steps{display:grid;gap:0;}
-    @media(min-width:768px){.steps{grid-template-columns:repeat(3,1fr);}}
-    .step{padding:1.5rem 0;border-top:1px solid var(--line);}
-    @media(min-width:768px){.step{border-left:1px solid var(--line);padding:1.5rem;border-top:1px solid var(--line);}.step:first-child{border-left:none;}}
-    .step .n{font-size:0.65rem;font-weight:600;letter-spacing:0.12em;color:var(--muted);margin-bottom:0.5rem;}
-    .step h3{font-size:0.95rem;margin-bottom:0.35rem;}
-    .step p{font-size:0.82rem;color:var(--muted);}
+    .faq{display:grid;gap:0}
+    .faq details{border-bottom:1px solid var(--line)}
+    .faq summary{list-style:none;cursor:pointer;padding:1rem 0;display:flex;justify-content:space-between;gap:1rem;align-items:center;font-size:0.94rem;font-weight:800}
+    .faq summary::-webkit-details-marker{display:none}
+    .faq summary::after{content:"+";font-size:1rem;color:var(--faint)}
+    .faq details[open] summary::after{content:"−"}
+    .faq .a{padding:0 0 1rem;font-size:0.9rem;color:var(--muted)}
 
-    .faq details{border-bottom:1px solid var(--line);}
-    .faq summary{cursor:pointer;padding:1rem 0;font-weight:500;font-size:0.9rem;list-style:none;display:flex;justify-content:space-between;}
-    .faq summary::-webkit-details-marker{display:none;}
-    .faq .a{padding:0 0 1rem;font-size:0.82rem;color:var(--muted);}
+    .cta{padding-top:1rem;padding-bottom:5rem}
+    .cta-shell{padding:2.4rem 1.2rem;border-radius:28px;border:1px solid var(--line-2);background:linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0.46));text-align:center;box-shadow:var(--shadow)}
+    .cta-shell h2{max-width:12ch;margin:0 auto 0.6rem}
+    .cta-shell p{max-width:40ch;margin:0 auto;color:var(--muted)}
+    .cta-note{margin-top:1rem;font-size:0.72rem;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:var(--faint)}
+    .email-row{display:flex;flex-wrap:wrap;justify-content:center;gap:0.65rem;margin-top:1.15rem}
+    .email-row input{width:min(100%,280px);padding:0.95rem 1rem;border-radius:14px;border:1px solid var(--line-2);background:#fff;color:var(--ink);font:inherit}
+    .email-row button{border:none;cursor:pointer}
 
-    .cta-block{padding:3rem 0 4rem;text-align:center;border-top:1px solid var(--line);}
-    .cta-block h2{margin-bottom:0.5rem;}
-    .cta-block .sub{color:var(--muted);font-size:0.9rem;}
-    .cta-block .note{font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin:1.25rem 0 0.5rem;}
-    .email-row{display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;max-width:400px;margin:0.75rem auto 0;}
-    .email-row input{flex:1;min-width:180px;padding:0.65rem 0.75rem;border:1px solid var(--line);background:#fff;font:inherit;font-size:0.85rem;}
-    .email-row button{padding:0.65rem 1rem;border:none;background:var(--fg);color:var(--bg);font:inherit;font-size:0.8rem;font-weight:600;cursor:pointer;}
-
-    footer{padding:1.5rem 0;font-size:0.7rem;color:var(--muted);text-align:center;border-top:1px solid var(--line);}
-    :focus-visible{outline:2px solid var(--fg);outline-offset:2px;}
+    footer{padding:1.6rem 0 2.4rem;border-top:1px solid var(--line);text-align:center;font-size:0.78rem;color:var(--faint)}
+    :focus-visible{outline:2px solid var(--ink);outline-offset:3px}
   </style>
 </head>
 <body>
+  <div class="grain" aria-hidden="true"></div>
+
   <header data-tpl-nav>
     <div class="wrap nav">
       <a class="logo" href="#">%%BRAND_NAME%%</a>
@@ -127,73 +153,92 @@ export const MINIMAL_SLATE_TEMPLATE = `<!DOCTYPE html>
   <main>
     <section class="hero">
       <div class="wrap hero-grid">
-        <div>
-          <div class="hero-accent-mn" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="8" width="48" height="48" stroke="var(--fg)" stroke-width="1" opacity="0.2"/><path d="M16 32h32M32 16v32" stroke="var(--fg)" stroke-width="1" opacity="0.15"/></svg></div>
-          <p class="kicker">%%FLOAT_CARD_TITLE%%</p>
+        <div class="hero-copy">
+          <div class="eyebrow">%%FLOAT_CARD_TITLE%%</div>
           <h1>%%HERO_HEADLINE%%</h1>
           <p class="lead">%%HERO_SUB%%</p>
-          <div class="hero-ctas">
-            <a class="btn btn-p" href="#cta">%%CTA_PRIMARY%%</a>
-            <a class="btn btn-s" href="#how">%%CTA_SECONDARY%%</a>
+          <div class="hero-actions">
+            <a class="btn btn-dark" href="#cta">%%CTA_PRIMARY%%</a>
+            <a class="btn btn-line" href="#how">%%CTA_SECONDARY%%</a>
+          </div>
+          <div class="hero-note">
+            <div class="card"><div class="k">Perspective</div><p>%%BENEFITS_TITLE%%</p></div>
+            <div class="card"><div class="k">Why it lands</div><p>Minimal is stronger when the composition carries the drama.</p></div>
           </div>
         </div>
-        <div class="visual">
-          %%RAW_HERO_VISUAL%%
-        </div>
-      </div>
-    </section>
-
-    <section class="trust-strip" id="trust" aria-label="Social proof">
-      <div class="wrap">
-        <div class="trust-row">
-          <span class="trust-mark" aria-hidden="true"></span>
-          <div>
-            <p class="trust-eyebrow">%%SOCIAL_PROOF_EYEBROW%%</p>
-            <p class="trust-main">%%SOCIAL_PROOF_MAIN%%</p>
+        <div class="frame">
+          <div class="frame-inner">
+            <div class="frame-top">
+              <div class="dots"><span></span><span></span><span></span></div>
+              <div class="k">%%BRAND_NAME%% preview</div>
+            </div>
+            <div class="frame-body">
+              <div class="hero-visual-shell">%%RAW_HERO_VISUAL%%</div>
+              <div class="info-grid">
+                <div class="info"><div class="v">01</div><div class="l">Direct promise</div></div>
+                <div class="info"><div class="v">02</div><div class="l">Quiet proof</div></div>
+                <div class="info"><div class="v">03</div><div class="l">Clean action</div></div>
+              </div>
+            </div>
           </div>
-          <span class="trust-mark" aria-hidden="true"></span>
         </div>
       </div>
     </section>
 
-    <section id="problem" class="block">
-      <div class="wrap">
-        <p class="sec-h">%%PROBLEM_EYEBROW%%</p>
-        <h2>%%PROBLEM_TITLE%%</h2>
-        <p class="body-text">%%PROBLEM_BODY%%</p>
-        <p class="quote">%%PROBLEM_QUOTE%%</p>
+    <section class="proof" id="trust" aria-label="Social proof">
+      <div class="wrap proof-shell">
+        <div class="proof-card"><div class="k">%%SOCIAL_PROOF_EYEBROW%%</div><p>%%SOCIAL_PROOF_MAIN%%</p></div>
+        <div class="quote-card"><p>%%PROBLEM_QUOTE%%</p></div>
       </div>
     </section>
 
-    <section id="features" class="block">
-      <div class="wrap">
-        <p class="sec-h">%%BENEFITS_EYEBROW%%</p>
-        <h2>%%BENEFITS_TITLE%%</h2>
-        <div class="grid3" style="margin-top:2rem;">
-          <div class="cell" data-i="I"><h3>%%FEATURE1_TITLE%%</h3><p>%%FEATURE1_BODY%%</p></div>
-          <div class="cell" data-i="II"><h3>%%FEATURE2_TITLE%%</h3><p>%%FEATURE2_BODY%%</p></div>
-          <div class="cell" data-i="III"><h3>%%FEATURE3_TITLE%%</h3><p>%%FEATURE3_BODY%%</p></div>
+    <section id="problem">
+      <div class="wrap section-grid">
+        <div>
+          <div class="section-label">%%PROBLEM_EYEBROW%%</div>
+          <h2>%%PROBLEM_TITLE%%</h2>
+        </div>
+        <div class="section-copy">
+          <p>%%PROBLEM_BODY%%</p>
         </div>
       </div>
     </section>
 
-    <section id="how" class="block">
-      <div class="wrap">
-        <p class="sec-h">%%HOW_EYEBROW%%</p>
-        <h2>%%HOW_TITLE%%</h2>
-        <div class="steps" style="margin-top:2rem;">
-          <div class="step"><p class="n">01</p><h3>%%HOW_STEP1_TITLE%%</h3><p>%%HOW_STEP1_BODY%%</p></div>
-          <div class="step"><p class="n">02</p><h3>%%HOW_STEP2_TITLE%%</h3><p>%%HOW_STEP2_BODY%%</p></div>
-          <div class="step"><p class="n">03</p><h3>%%HOW_STEP3_TITLE%%</h3><p>%%HOW_STEP3_BODY%%</p></div>
+    <section id="features">
+      <div class="wrap section-grid">
+        <div>
+          <div class="section-label">%%BENEFITS_EYEBROW%%</div>
+          <h2>%%BENEFITS_TITLE%%</h2>
+        </div>
+        <div class="feature-grid">
+          <div class="feature" data-n="01"><h3>%%FEATURE1_TITLE%%</h3><p>%%FEATURE1_BODY%%</p></div>
+          <div class="feature" data-n="02"><h3>%%FEATURE2_TITLE%%</h3><p>%%FEATURE2_BODY%%</p></div>
+          <div class="feature" data-n="03"><h3>%%FEATURE3_TITLE%%</h3><p>%%FEATURE3_BODY%%</p></div>
         </div>
       </div>
     </section>
 
-    <section id="faq" class="block">
-      <div class="wrap">
-        <p class="sec-h">%%FAQ_EYEBROW%%</p>
-        <h2>%%FAQ_TITLE%%</h2>
-        <div class="faq" style="margin-top:1.5rem;max-width:640px;">
+    <section id="how">
+      <div class="wrap section-grid">
+        <div>
+          <div class="section-label">%%HOW_EYEBROW%%</div>
+          <h2>%%HOW_TITLE%%</h2>
+        </div>
+        <div class="steps">
+          <div class="step"><div class="n">Step 01</div><h3>%%HOW_STEP1_TITLE%%</h3><p>%%HOW_STEP1_BODY%%</p></div>
+          <div class="step"><div class="n">Step 02</div><h3>%%HOW_STEP2_TITLE%%</h3><p>%%HOW_STEP2_BODY%%</p></div>
+          <div class="step"><div class="n">Step 03</div><h3>%%HOW_STEP3_TITLE%%</h3><p>%%HOW_STEP3_BODY%%</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="wrap section-grid">
+        <div>
+          <div class="section-label">%%FAQ_EYEBROW%%</div>
+          <h2>%%FAQ_TITLE%%</h2>
+        </div>
+        <div class="faq">
           <details><summary>%%FAQ1_Q%%</summary><div class="a">%%FAQ1_A%%</div></details>
           <details><summary>%%FAQ2_Q%%</summary><div class="a">%%FAQ2_A%%</div></details>
           <details><summary>%%FAQ3_Q%%</summary><div class="a">%%FAQ3_A%%</div></details>
@@ -201,15 +246,17 @@ export const MINIMAL_SLATE_TEMPLATE = `<!DOCTYPE html>
       </div>
     </section>
 
-    <section id="cta" class="cta-block">
+    <section id="cta" class="cta">
       <div class="wrap">
-        <h2>%%CTA_FINAL_TITLE%%</h2>
-        <p class="sub">%%CTA_FINAL_SUB%%</p>
-        <p class="note">%%FLOAT_CARD_TITLE%%</p>
-        <form class="email-row" action="#" method="get" onsubmit="return false;">
-          <input type="email" name="email" placeholder="%%EMAIL_PLACEHOLDER%%" autocomplete="email">
-          <button type="button">%%FLOAT_CTA_LABEL%%</button>
-        </form>
+        <div class="cta-shell">
+          <h2>%%CTA_FINAL_TITLE%%</h2>
+          <p>%%CTA_FINAL_SUB%%</p>
+          <div class="cta-note">%%FLOAT_CARD_TITLE%%</div>
+          <form class="email-row" action="#" method="get" onsubmit="return false;">
+            <input type="email" name="email" placeholder="%%EMAIL_PLACEHOLDER%%" autocomplete="email">
+            <button type="button" class="btn btn-dark">%%FLOAT_CTA_LABEL%%</button>
+          </form>
+        </div>
       </div>
     </section>
   </main>
@@ -218,15 +265,14 @@ export const MINIMAL_SLATE_TEMPLATE = `<!DOCTYPE html>
 
   <script>
   (function(){
-    var h=document.querySelector("[data-tpl-nav]");
-    if(h){
-      var t=h.querySelector("[data-tpl-nav-toggle]");
-      var m=h.querySelector("[data-tpl-nav-mobile]");
-      if(t&&m){t.addEventListener("click",function(){m.classList.toggle("open");});}
-      document.querySelectorAll('a[href^="#"]').forEach(function(a){
-        a.addEventListener("click",function(){if(m&&m.classList.contains("open"))m.classList.remove("open");});
-      });
-    }
+    var nav=document.querySelector("[data-tpl-nav]");
+    if(!nav)return;
+    var toggle=nav.querySelector("[data-tpl-nav-toggle]");
+    var mobile=document.querySelector("[data-tpl-nav-mobile]");
+    if(toggle&&mobile){toggle.addEventListener("click",function(){mobile.classList.toggle("open");});}
+    document.querySelectorAll('a[href^="#"]').forEach(function(a){
+      a.addEventListener("click",function(){if(mobile&&mobile.classList.contains("open"))mobile.classList.remove("open");});
+    });
   })();
   </script>
 </body>

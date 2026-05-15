@@ -1,52 +1,57 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
-import { ThemeProvider } from "@/components/ThemeProvider";
+import { Inter, Anton, JetBrains_Mono } from "next/font/google";
+import { SmoothScroll } from "@/components/v2/smooth-scroll";
+import { Cursor } from "@/components/v2/cursor";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const sans = Inter({
+  variable: "--app-font-sans",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800", "900"],
+});
+
+const mono = JetBrains_Mono({
+  variable: "--app-font-mono",
   subsets: ["latin"],
   display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const display = Anton({
+  variable: "--app-font-display",
   subsets: ["latin"],
   display: "swap",
-});
-
-// Signature move: numeric data and display headlines use Instrument Serif.
-const instrumentSerif = Instrument_Serif({
-  variable: "--font-instrument-serif",
-  weight: "400",
-  style: ["normal", "italic"],
-  subsets: ["latin"],
-  display: "swap",
+  weight: ["400"],
 });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://priority-debater.vercel.app"),
   title: {
-    default: "Priority Debater — Stress-Test Your Startup Idea With 5 AI Personas",
+    default: "Priority Debater - A verdict on your idea before you commit.",
     template: "%s | Priority Debater",
   },
   description:
-    "Most tools validate your ego. We validate your idea. 5 AI personas rip your startup idea apart from every angle — investor, customer, operator, mentor, adversary. Viability scores, lean canvas, financials, and a brutal debate mode. Free, 2 minutes, no signup.",
-  keywords: ["startup validation", "idea validator", "AI validation", "business plan", "startup idea", "startup stress test", "idea validation tool", "lean canvas generator"],
+    "Five expert personas debate your startup idea and return a scored verdict, objections, evidence gaps, a risk register, and a full strategic dossier.",
+  keywords: [
+    "startup validation",
+    "idea validator",
+    "AI verdict",
+    "startup tribunal",
+    "founder tool",
+    "investor panel simulation",
+    "lean canvas",
+  ],
   openGraph: {
-    title: "Priority Debater — Stress-Test Your Startup Idea",
-    description: "5 AI personas rip your idea apart so the market doesn't have to. Free, 2 minutes, no signup.",
+    title: "Priority Debater - A verdict on your idea.",
+    description: "Five expert personas. One verdict. Before you commit.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Priority Debater — Stress-Test Your Startup Idea",
-    description: "5 AI personas rip your idea apart so the market doesn't have to. Free, 2 min.",
+    title: "Priority Debater - A verdict on your idea.",
+    description: "Five expert personas. One verdict. Before you commit.",
   },
-  robots: {
-    index: true,
-    follow: true,
-  },
+  robots: { index: true, follow: true },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -57,23 +62,19 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} antialiased`}
-      >
-        <ThemeProvider>
+    <html lang="en">
+      <body className={`${sans.variable} ${mono.variable} ${display.variable} antialiased`}>
+        <SmoothScroll>
+          <Cursor />
           {children}
-        </ThemeProvider>
+        </SmoothScroll>
       </body>
     </html>
   );

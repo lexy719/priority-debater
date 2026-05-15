@@ -28,6 +28,12 @@ export function tierColorClasses(score: number): { text: string; bar: string } {
   return { text: "text-red-400", bar: "bg-red-500" };
 }
 
+export function scoreToGoNoGoType(score: number): "go" | "caution" | "nogo" {
+  if (score >= 70) return "go";
+  if (score >= 50) return "caution";
+  return "nogo";
+}
+
 /** Convert parsed token to 0–100 given denominator from report line. */
 export function normalizeScoreFromDenominator(raw: number, denominator: 10 | 100): number {
   if (!Number.isFinite(raw)) return 0;

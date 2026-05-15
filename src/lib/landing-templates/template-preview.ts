@@ -5,20 +5,20 @@ import { mergeLandingTemplate } from "./merge-landing";
 import type { CuratedLandingTemplateId } from "./types";
 
 export type LandingTemplatePreviewOptions = {
-  /** User's idea title — drives brand line + hero in previews */
+  /** User's idea title - drives brand line + hero in previews. */
   topic?: string;
   position?: string;
-  /** From /api/landing-preview-images; if empty, same fallbacks as server merge */
+  /** From /api/landing-preview-images; if empty, same fallbacks as server merge. */
   images?: LandingImageRef[];
 };
 
-/** When the pitch is short or still loading, blend in demo lines so the gallery never looks empty. */
+/** Blend in demo lines so gallery cards never look empty while the brief is still short. */
 const PREVIEW_FALLBACK_PITCH =
   "Teams lose hours to manual workflows and scattered tools. This product automates the painful steps with a fast setup, clear ROI, and integrations that fit stacks teams already run. Early users report measurable time savings in week one.";
 
 /**
- * Gallery-only CSS. Templates use scroll-reveal (opacity:0 until JS adds .visible / .on / .vis);
- * in small sandboxed iframes that often misfires, previews looked like blank boxes.
+ * Templates use reveal classes that stay hidden until JS runs. In gallery iframes we
+ * force those states visible so previews don't render as blank boxes.
  */
 const GALLERY_PREVIEW_STYLE = `<style data-priority-debater-preview>
   .reveal,.reveal-scale,.rv{
@@ -33,7 +33,7 @@ const GALLERY_PREVIEW_STYLE = `<style data-priority-debater-preview>
 
 function truncate(s: string, max: number): string {
   const t = s.trim();
-  return t.length <= max ? t : `${t.slice(0, max - 1)}…`;
+  return t.length <= max ? t : `${t.slice(0, max - 3)}...`;
 }
 
 function injectGalleryPreviewMode(html: string): string {
@@ -44,9 +44,8 @@ function injectGalleryPreviewMode(html: string): string {
 }
 
 /**
- * Full HTML for a template card iframe. Uses the same slot keys as post-generation
- * (defaultSaasNovaSlots + topic/position). Gallery: enough copy for a full-looking hero,
- * and forced-visible sections so thumbnails match what users get after generation.
+ * Full HTML for a template-card iframe. Uses the same slot keys as post-generation
+ * (defaultSaasNovaSlots + topic/position) with enough copy to make the gallery feel alive.
  */
 export function getLandingTemplatePreviewHtml(
   id: CuratedLandingTemplateId,
@@ -70,9 +69,7 @@ export function getLandingTemplatePreviewHtml(
   };
 
   const slots = defaultSaasNovaSlots(setup);
-
-  const pool =
-    options?.images && options.images.length > 0 ? options.images : FALLBACK_LANDING_IMAGES;
+  const pool = options?.images && options.images.length > 0 ? options.images : FALLBACK_LANDING_IMAGES;
 
   const idxMap: Record<string, number> = {
     "saas-nova": 0,
@@ -81,9 +78,9 @@ export function getLandingTemplatePreviewHtml(
     "startup-horizon": 3,
     "minimal-slate": 4,
   };
+
   const idx = idxMap[id] ?? 0;
   const img = pool[idx % pool.length];
 
-  const merged = mergeLandingTemplate(id, slots, [img]);
-  return injectGalleryPreviewMode(merged);
+  return injectGalleryPreviewMode(mergeLandingTemplate(id, slots, [img]));
 }

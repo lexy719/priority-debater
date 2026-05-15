@@ -1,0 +1,8 @@
+Set-Location : A positional parameter cannot be found that accepts argument 'de'.
+At line:1 char:1
++ Set-Location C:\Users\manue\OneDrive\Ambiente de Trabalho\priority-de ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Set-Location], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.SetLocationCommand
+ 
+⨯ Unable to acquire lock at C:\Users\manue\OneDrive\Ambiente de Trabalho\priority-debater\.next\dev\lock, is another instance of next dev running?

@@ -1,17 +1,42 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import PitchDeckPage from "@/components/pitch/PitchDeckPage";
+import { deck as staticDeck, project as staticProject } from "@/data/studioData";
+import { loadSessionWithStatus } from "@/lib/session";
+import { buildDashboardViewModel } from "@/lib/dashboard-view-model";
+import {
+  buildDeckFromViewModel,
+  buildPitchDeckTalkTrack,
+  buildPitchProjectFromViewModel,
+} from "@/lib/deck-from-view-model";
+import type { ValidationSession } from "@/lib/types";
 
-// Redirect legacy /pitch route to unified toolkit
-export default function PitchRedirect() {
-  const router = useRouter();
+export default function PitchPage() {
+  const [session, setSession] = useState<ValidationSession | null>(null);
+
   useEffect(() => {
-    router.replace("/toolkit?tab=pitch-deck");
-  }, [router]);
+    queueMicrotask(() => {
+      const r = loadSessionWithStatus();
+      setSession(r.status === "loaded" ? r.session : null);
+    });
+  }, []);
+
+  const vm = useMemo(() => buildDashboardViewModel(session), [session]);
+  const deck = useMemo(() => (vm.live ? buildDeckFromViewModel(vm) : staticDeck), [vm]);
+  const projectInfo = useMemo(() => (vm.live ? buildPitchProjectFromViewModel(vm) : staticProject), [vm]);
+  const talk = useMemo(() => buildPitchDeckTalkTrack(vm), [vm]);
+  const footerByline = vm.live
+    ? `FOUNDER · ${vm.idea.title.slice(0, 52)}`
+    : "HELENA VOSS · FOUNDER · helena@cargobyte.eu";
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#08080e]">
-      <div className="w-8 h-8 rounded-full border-2 border-indigo-500/30 border-t-indigo-500 animate-spin" />
-    </div>
+    <PitchDeckPage
+      deck={deck}
+      project={projectInfo}
+      footerByline={footerByline}
+      talkTrackObjection={talk.objection}
+      talkTrackAnswer={talk.answer}
+    />
   );
 }
