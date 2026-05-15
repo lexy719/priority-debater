@@ -2,10 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-"use client";
-
-import { useEffect, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/dashboard/Navbar";
 import TickerTape from "@/components/dashboard/TickerTape";
 import ScoreHero from "@/components/dashboard/ScoreHero";
