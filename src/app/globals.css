@@ -245,8 +245,13 @@ body {
 }
 
 .ticker-track {
-  animation: ticker 60s linear infinite;
+  animation: ticker 35s linear infinite;
   will-change: transform;
+}
+
+.ticker-row:hover .ticker-track,
+.ticker-row-dark:hover .ticker-track {
+  animation-play-state: paused;
 }
 
 .hl-strip {
