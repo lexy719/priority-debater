@@ -232,7 +232,7 @@ export default function LandingPage() {
       <Hero />
       <CapabilitiesGrid />
       <VerdictTape />
-      <ResultsPreview />
+      <WhereItBreaks />
       <KineticStory />
       <DecisionCockpit />
       <Deliverables />
@@ -487,184 +487,201 @@ function VerdictTape() {
   );
 }
 
-function ResultsPreview() {
-  const previewScores = [
-    { label: "Problem fit", score: 82, color: "var(--go)" },
-    { label: "Market pull", score: 68, color: "var(--ink-0)" },
-    { label: "Timing", score: 74, color: "var(--ink-0)" },
-    { label: "Business model", score: 48, color: "var(--no-go)" },
-    { label: "Competition", score: 44, color: "var(--no-go)" },
-    { label: "Execution edge", score: 58, color: "var(--ink-0)" },
-  ];
+function WhereItBreaks() {
+  const RED = "#ef4444";
 
-  const highlights = [
+  const scoreAxes = [
+    { label: "Problem fit",    value: "82", sub: "/ 100", tone: "go" },
+    { label: "Market pull",    value: "68", sub: "/ 100", tone: "mid" },
+    { label: "Timing",         value: "74", sub: "/ 100", tone: "mid" },
+    { label: "Business model", value: "48", sub: "/ 100", tone: "no" },
+    { label: "Competition",    value: "44", sub: "/ 100", tone: "no" },
+    { label: "Execution edge", value: "58", sub: "/ 100", tone: "mid" },
+  ] as const;
+
+  const deliverables = [
     {
-      num: "01",
+      icon: Gauge,
+      eyebrow: "Deliverable 01",
       title: "Verdict score",
-      body: "GO, Caution, or No-Go with a visible 6-axis score model.",
-      accent: "#4b9be3",
+      body: "GO, Caution, or No-Go — a single defensible call backed by a visible 6-axis model.",
     },
     {
-      num: "02",
+      icon: Radar,
+      eyebrow: "Deliverable 02",
       title: "Risk radar",
-      body: "Assumptions ranked by likelihood, damage, and evidence gaps.",
-      accent: "var(--no-go)",
+      body: "Assumptions ranked by likelihood, blast radius, and the evidence you're still missing.",
     },
     {
-      num: "03",
+      icon: UsersRound,
+      eyebrow: "Deliverable 03",
       title: "5-persona debate",
-      body: "Investor, customer, operator, adversary, and mentor — each in character.",
-      accent: "var(--caution)",
+      body: "Investor, customer, operator, adversary, and mentor — each in character, on the record.",
     },
     {
-      num: "04",
+      icon: Target,
+      eyebrow: "Deliverable 04",
       title: "Proof sprint",
-      body: "The smallest test that can change the decision. Shipped with every report.",
-      accent: "var(--go)",
+      body: "The smallest test that can flip the decision. Shipped with every report.",
     },
-  ];
+  ] as const;
+
+  const toneValueClass = (t: string) =>
+    t === "no" ? "text-[#ef4444]" : t === "go" ? "text-[#22c55e]" : "text-white";
 
   return (
-    <section id="personas" className="border-b-2 border-white/10 bg-black px-5 py-24 text-white md:px-8 md:py-32">
+    <section
+      id="personas"
+      className="border-y-2 border-[#ef4444] bg-black px-5 py-24 text-white md:px-8 md:py-32"
+    >
       <div className="mx-auto max-w-[1400px]">
-        <div className="grid gap-10 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div className="space-y-6">
-            <div className="text-[12px] font-mono text-white/40 uppercase tracking-[0.25em]">
-              §04 / RISK ANALYSIS
+        {/* Header */}
+        <div className="grid gap-8 lg:grid-cols-2 lg:items-end">
+          <div>
+            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#ef4444]">
+              04 / Risk Analysis
             </div>
-            <h2 className="text-[clamp(80px,8vw,120px)] font-anton uppercase leading-[0.8] tracking-tighter text-white">
-              WHERE IT
+            <h2 className="mt-5 font-sans text-[clamp(36px,5vw,64px)] font-black uppercase leading-[0.95] tracking-tight text-white">
+              Where It
               <br />
-              <span className="text-white px-4" style={{ backgroundColor: "rgb(239, 68, 68)" }}>BREAKS.</span>
+              <span className="bg-[#ef4444] px-2 py-1 text-black">Breaks.</span>
             </h2>
           </div>
-          <p className="max-w-[520px] text-[17px] text-white/60 leading-relaxed font-serif italic border-l-4 border-no-go pl-8">
-            Every report surfaces the assumptions investors will test first, the trades behind market fit, and the open risk gaps that make scaling dangerous.
+          <p className="max-w-[480px] text-[15px] leading-[1.7] text-white/70 lg:justify-self-end">
+            Every report surfaces the assumptions investors test first, the
+            trades behind market fit, and the open risk gaps that make scaling
+            dangerous.
           </p>
         </div>
 
-        <div className="mt-14 grid gap-8 lg:grid-cols-[500px_1fr]">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.55 }}
-            className="bg-white/5 border-2 border-white/10 p-6 md:p-8 lg:p-10 shadow-brutal"
-          >
-            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
-              <div>
-                <div className="font-mono text-[10px] uppercase tracking-widest text-white/70">
-                  Case №017 · Sample report
-                </div>
-                <h3 className="mt-1 font-sans text-[24px] font-bold uppercase tracking-tight text-white">
-                  Linden — rideshare for elders
-                </h3>
+        {/* Cold-metrics grid */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.55 }}
+          className="mt-12 grid grid-cols-2 md:grid-cols-3 gap-0 border-2 border-[#ef4444]"
+        >
+          {scoreAxes.map((m) => (
+            <div
+              key={m.label}
+              className="border-r-2 border-b-2 border-[#ef4444]/40 p-5 last:border-r-0"
+            >
+              <div className="font-mono text-[10px] uppercase tracking-widest text-white/55">
+                {m.label}
               </div>
-              <div className="flex items-center gap-2 border-2 border-[--caution] px-3 py-1">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ background: "var(--caution)" }}
-                />
-                <span className="font-mono text-[10px] uppercase tracking-wider text-[--caution]">
+              <div className="mt-2 flex items-baseline gap-1">
+                <span className={`font-mono text-[36px] font-bold leading-none tracking-tight ${toneValueClass(m.tone)}`}>
+                  {m.value}
+                </span>
+                <span className="font-mono text-[11px] text-white/50">{m.sub}</span>
+              </div>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* Verdict callout bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.05 }}
+          className="mt-0 grid border-x-2 border-b-2 border-[#ef4444] md:grid-cols-[auto_1fr_auto]"
+        >
+          {/* Big score cell */}
+          <div className="flex items-center gap-5 border-b-2 border-[#ef4444]/40 px-6 py-6 md:border-b-0 md:border-r-2">
+            <div className="font-mono text-[72px] font-bold leading-none tracking-tight text-white tabular-nums">
+              62
+            </div>
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
+                Verdict score · / 100
+              </div>
+              <div className="mt-2 inline-flex items-center gap-2 border-2 border-[#eab308] px-2 py-1">
+                <span className="h-2 w-2 rounded-full bg-[#eab308]" />
+                <span className="font-mono text-[10px] uppercase tracking-widest text-[#eab308]">
                   Caution
                 </span>
               </div>
             </div>
+          </div>
 
-            <div className="border-b border-white/10 pb-6 mb-6 flex flex-col gap-4">
-              <div className="font-mono text-[88px] leading-[0.85] tracking-[-0.05em] text-white tabular-nums">
-                62
+          {/* Subject + quote */}
+          <div className="border-b-2 border-[#ef4444]/40 px-6 py-6 md:border-b-0 md:border-r-2">
+            <div className="font-mono text-[10px] uppercase tracking-widest text-white/55">
+              Case №017 · Sample report
+            </div>
+            <h3 className="mt-2 font-sans text-[22px] font-bold uppercase tracking-tight text-white">
+              Linden — Rideshare for elders
+            </h3>
+            <p className="mt-3 text-[14px] leading-[1.6] text-white/70">
+              The buyer pain is real — but unit economics are brutal and Uber
+              Health is already circling.
+            </p>
+          </div>
+
+          {/* CTA cell */}
+          <Link
+            href="/results"
+            className="group flex items-center justify-between gap-4 bg-[#ef4444] px-6 py-6 text-black transition-transform hover:-translate-x-[2px] hover:-translate-y-[2px]"
+          >
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-black/70">
+                Full report
               </div>
-              <div className="space-y-2">
-                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/60">
-                  verdict score · / 100
-                </div>
-                <p className="font-serif text-[16px] leading-[1.35] text-white/80 max-w-[420px]">
-                  The buyer pain is real — but unit economics are brutal and Uber Health is circling.
-                </p>
+              <div className="mt-1 font-sans text-[18px] font-bold uppercase tracking-tight">
+                See the dossier
               </div>
             </div>
+            <ArrowRight className="h-6 w-6 transition-transform group-hover:translate-x-1" />
+          </Link>
+        </motion.div>
 
-            <div className="divide-y divide-white/10">
-              {previewScores.map((s, index) => (
-                <motion.div
-                  key={s.label}
-                  initial={{ opacity: 0 }}
-                  whileInView={{ opacity: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.06 }}
-                  className="grid grid-cols-[140px_1fr_60px] gap-4 items-center py-3"
-                >
-                  <span className="text-[13px] text-white/70">{s.label}</span>
-                  <div className="h-[3px] bg-white/10 overflow-hidden rounded-full">
-                    <motion.div
-                      className="h-full rounded-full"
-                      initial={{ width: 0 }}
-                      whileInView={{ width: `${s.score}%` }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.8, delay: index * 0.08, ease: [0.25, 0.4, 0.25, 1] }}
-                      style={{ background: s.color }}
-                    />
-                  </div>
-                  <span
-                    className="font-mono text-[18px] tabular-nums text-right"
-                    style={{ color: s.color }}
-                  >
-                    {s.score}
-                  </span>
-                </motion.div>
-              ))}
+        {/* Deliverables sub-section */}
+        <div className="mt-20 grid gap-8 lg:grid-cols-2 lg:items-end">
+          <div>
+            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#ef4444]">
+              04.5 / Output
             </div>
+            <h2 className="mt-5 font-sans text-[clamp(30px,4vw,52px)] font-black uppercase leading-[0.95] tracking-tight text-white">
+              What ships
+              <br />
+              <span className="bg-[#ef4444] px-2 py-1 text-black">In the envelope.</span>
+            </h2>
+          </div>
+          <p className="max-w-[480px] text-[15px] leading-[1.7] text-white/70 lg:justify-self-end">
+            Four artifacts. One envelope. Each one defensible on its own,
+            devastating in combination.
+          </p>
+        </div>
 
-            <div className="mt-6 border-t border-white/10 pt-4">
-              <Link href="/results">
-                <Button 
-                  className="w-full md:w-auto !bg-no-go !text-white !border-no-go"
-                  style={{ 
-                    boxShadow: "4px 4px 0 0 rgb(239, 68, 68)",
-                    backgroundColor: "rgb(239, 68, 68)",
-                    color: "white",
-                    borderColor: "rgb(239, 68, 68)"
-                  }}
-                >
-                  See the full report
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-          </motion.div>
-
-          <div className="space-y-4">
-            {highlights.map((h, index) => (
-              <motion.div
-                key={h.num}
-                initial={{ opacity: 0, y: 18 }}
+        <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 border-2 border-[#ef4444]">
+          {deliverables.map((d, index) => {
+            const Icon = d.icon;
+            return (
+              <motion.article
+                key={d.title}
+                initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.06 }}
-                className={cn(
-                  "rounded-3xl border-2 p-6 md:p-7",
-                  h.num === "04" ? "border-white/10 bg-black text-white" : "border-white/10 bg-white/5 text-white"
-                )}
+                transition={{ duration: 0.45, delay: index * 0.06 }}
+                className="min-h-[240px] border-b-2 border-r-2 border-[#ef4444]/40 p-5 last:border-r-0 md:nth-[2n]:border-r-0 lg:[&:nth-child(2)]:border-r-2 lg:[&:nth-child(4)]:border-r-0"
               >
-                <div className="flex items-center justify-between gap-4">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/70">
-                    Deliverable {h.num}
-                  </span>
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ background: h.accent }}
-                  />
+                <div
+                  className="grid h-10 w-10 place-items-center border-2 border-[#ef4444] bg-[#ef4444] text-black"
+                >
+                  <Icon className="h-4 w-4" />
                 </div>
-                <h3 className="mt-5 font-serif text-[28px] leading-none tracking-[-0.02em] text-white">
-                  {h.title}
+                <div className="mt-5 font-mono text-[10px] uppercase tracking-widest text-white/55">
+                  {d.eyebrow}
+                </div>
+                <h3 className="mt-2 font-sans text-[22px] font-bold uppercase tracking-tight text-white">
+                  {d.title}
                 </h3>
-                <p className="mt-4 text-[14px] leading-[1.7] text-white/75">
-                  {h.body}
-                </p>
-              </motion.div>
-            ))}
-          </div>
+                <p className="mt-2 text-[13px] leading-[1.6] text-white/70">{d.body}</p>
+              </motion.article>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -867,7 +884,7 @@ function PremiumFeatures() {
                 Beyond validation
               </div>
               <h2 className="mt-5 max-w-[640px] font-serif text-[clamp(38px,5.5vw,72px)] leading-[0.95] tracking-[-0.04em] text-[--bg]">
-                Don't just validate it. Ship it.
+                Don&apos;t just validate it. Ship it.
               </h2>
             </div>
             <div className="p-6 md:p-8">
