@@ -1,686 +1,383 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { ArrowLeft, ArrowRight, Download, Loader2, Monitor, Smartphone, Sparkles, Palette, RefreshCw } from "lucide-react";
+import { toast, Toaster } from "sonner";
+
 import StudioTopNav from "@/components/studio/StudioTopNav";
 import TickerTape from "@/components/dashboard/TickerTape";
 import Footer from "@/components/dashboard/Footer";
-import { Wordmark } from "@/components/brand/LogoMark";
-import {
-  project,
-  landingThemes,
-  landingHeroVariants,
-  landingSections,
-  landingFeatures,
-  landingMetrics,
-  landingQuote,
-  exportTargets,
-} from "@/data/studioData";
-import {
-  Eye,
-  EyeOff,
-  Monitor,
-  Smartphone,
-  Download,
-  Sparkles,
-  ArrowUp,
-  ArrowDown,
-  Pencil,
-  Lock,
-  Palette,
-  X,
-} from "lucide-react";
-import { toast, Toaster } from "sonner";
 
-const PRESET_ACCENTS = ["#7dd3fc", "#38bdf8", "#ffe600", "#ff3b30", "#14b870", "#ff2d87"];
+import EditorialTemplate from "@/components/landing-templates/EditorialTemplate";
+import FounderWarmTemplate from "@/components/landing-templates/FounderWarmTemplate";
+import TechMinimalTemplate from "@/components/landing-templates/TechMinimalTemplate";
+import BrutalistTemplate from "@/components/landing-templates/BrutalistTemplate";
 
-type SectionRow = (typeof landingSections)[number] & { enabled: boolean };
+import { TEMPLATE_GALLERY, type LandingCopy, type TemplateId, type TemplateProps } from "@/lib/landing-template-types";
+import type { LandingImageRef } from "@/lib/landing-images";
+import { loadSession } from "@/lib/session";
 
-type HeroEdit = { title: string; sub: string; kicker: string };
+const PRESET_ACCENTS = ["#ffe600", "#7dd3fc", "#a78bfa", "#fb7185", "#34d399", "#fb923c"];
 
-function PreviewFrame({
-  theme,
-  hero,
-  sections,
-  device,
-  accent,
-}: {
-  theme: (typeof landingThemes)[number];
-  hero: (typeof landingHeroVariants)[number] & Partial<HeroEdit>;
-  sections: SectionRow[];
-  device: string;
-  accent: string;
-}) {
-  const isInk = theme.id === "ink";
-  const accentText = isInk ? "#0a0a0a" : "#fff";
+const TEMPLATE_COMPONENTS: Record<TemplateId, React.ComponentType<TemplateProps>> = {
+    editorial: EditorialTemplate,
+    warm: FounderWarmTemplate,
+    tech: TechMinimalTemplate,
+    brutalist: BrutalistTemplate,
+};
 
-  const visible = sections.filter((s) => s.enabled);
-
-  return (
-    <div
-      className={`mx-auto border-2 border-black transition-all ${
-        device === "mobile" ? "max-w-[420px]" : "w-full"
-      }`}
-      style={{ background: theme.bg, color: theme.fg }}
-      data-testid="landing-preview-frame"
-    >
-      <div className="flex items-center gap-2 border-b-2 border-black bg-black px-3 py-2">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#ff3b30]" />
-        <span className="h-2.5 w-2.5 rounded-full bg-[#ff8a00]" />
-        <span className="h-2.5 w-2.5 rounded-full bg-[#14b870]" />
-        <div className="ml-3 flex-1 truncate font-mono text-[10px] text-white/60">{project.domain}</div>
-        <div className="font-mono text-[9px] tracking-wider text-[var(--c-green)]">● LIVE</div>
-      </div>
-
-      <div className="flex items-center justify-between border-b border-current/15 px-5 py-3">
-        <div className="font-display text-base">
-          <Wordmark color={theme.fg} accent={accent} />
-        </div>
-        <div className="hidden gap-5 font-mono text-[9px] tracking-wider opacity-70 sm:flex">
-          <span>PRODUCT</span>
-          <span>PILOTS</span>
-          <span>PRICING</span>
-          <span>CONTACT</span>
-        </div>
-        <button
-          type="button"
-          className="border px-3 py-1 font-mono text-[9px] tracking-wider"
-          style={{ borderColor: theme.fg }}
-        >
-          {hero.cta}
-        </button>
-      </div>
-
-      {visible.map((s) => {
-        if (s.id === "hero")
-          return (
-            <div key="hero" className="border-b border-current/10 px-5 py-12 sm:px-10 sm:py-20 lg:py-24">
-              <div
-                className="inline-block border px-2 py-0.5 font-mono text-[10px] tracking-wider opacity-80"
-                style={{ borderColor: theme.fg }}
-              >
-                {hero.kicker}
-              </div>
-              <h1
-                className={`mt-6 font-display leading-[0.85] tracking-tight ${
-                  device === "mobile" ? "text-5xl" : "text-6xl sm:text-7xl lg:text-[112px]"
-                }`}
-              >
-                {hero.title.split(". ").map((seg, i, arr) => (
-                  <span key={i} className="block">
-                    {i === arr.length - 2 ? (
-                      <span
-                        style={{
-                          background: accent,
-                          color: accentText,
-                          padding: "0 0.08em",
-                          boxDecorationBreak: "clone",
-                        }}
-                      >
-                        {seg}.
-                      </span>
-                    ) : (
-                      seg + (i < arr.length - 1 ? "." : "")
-                    )}
-                  </span>
-                ))}
-              </h1>
-              <p className="mt-8 max-w-xl font-mono text-sm leading-relaxed opacity-70 sm:text-base">{hero.sub}</p>
-              <div className="mt-9 flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  className="border-2 border-current px-6 py-3 font-mono text-xs tracking-wider"
-                  style={{ background: theme.fg, color: theme.bg }}
-                >
-                  {hero.cta} →
-                </button>
-                <button type="button" className="border-2 border-current px-6 py-3 font-mono text-xs tracking-wider">
-                  SEE THE NUMBERS
-                </button>
-                <span className="ml-2 inline-flex items-center gap-2 font-mono text-[10px] tracking-wider opacity-60">
-                  ● 5/5 PERSONAS DEBATED · 99.2% UPTIME
-                </span>
-              </div>
-            </div>
-          );
-
-        if (s.id === "logos")
-          return (
-            <div
-              key="logos"
-              className="border-y border-current/10 px-5 py-6 text-center font-mono text-[10px] tracking-wider opacity-60"
-            >
-              <span className="mr-3 opacity-50">TRUSTED BY OPERATORS AT</span>
-              DHL · POSTNL · MIROR · COLIS PRIVÉ · FEDEX EU · +3 IN PILOT
-            </div>
-          );
-
-        if (s.id === "problem")
-          return (
-            <div key="problem" className="border-t border-current/10 px-5 py-12 sm:px-10 sm:py-16">
-              <div className="font-mono text-[10px] tracking-wider opacity-60">§01 / THE PROBLEM</div>
-              <div className="mt-3 grid gap-6 lg:grid-cols-3">
-                <h2 className="font-display text-3xl leading-[0.95] sm:text-4xl lg:text-5xl">
-                  DIESEL DELIVERY <br />
-                  <span style={{ background: accent, color: accentText, padding: "0 0.08em" }}>BREAKS IN 2027.</span>
-                </h2>
-                <p className="font-mono text-sm leading-relaxed opacity-75 lg:col-span-2">
-                  EU ICE bans hit 18 city centres by 2027. Same-day expectations are now baseline. Diesel TCO is up 34%
-                  YoY. The economics of last-mile have already inverted — and incumbents are stuck on three-year refresh
-                  cycles.
-                </p>
-              </div>
-            </div>
-          );
-
-        if (s.id === "product")
-          return (
-            <div key="product" className="border-t border-current/10 px-5 py-12 sm:px-10 sm:py-16">
-              <div className="font-mono text-[10px] tracking-wider opacity-60">§02 / PRODUCT</div>
-              <h2 className="mt-3 font-display text-3xl leading-[0.95] sm:text-4xl lg:text-5xl">
-                ONE STACK.{" "}
-                <span style={{ background: accent, color: accentText, padding: "0 0.08em" }}>SIX MOVING PARTS.</span>
-              </h2>
-              <div className="mt-8 grid gap-px border border-current/20 bg-current/10 sm:grid-cols-2 lg:grid-cols-3">
-                {landingFeatures.map((f) => (
-                  <div key={f.title} className="p-5" style={{ background: theme.bg }}>
-                    <div className="flex items-center justify-between">
-                      <span className="border px-2 py-0.5 font-mono text-[9px] tracking-wider" style={{ borderColor: theme.fg }}>
-                        {f.kicker}
-                      </span>
-                      <span className="font-mono text-[9px] opacity-50">→</span>
-                    </div>
-                    <div className="mt-4 font-display text-xl">{f.title}</div>
-                    <p className="mt-2 font-mono text-[11px] leading-relaxed opacity-70">{f.body}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-
-        if (s.id === "metrics")
-          return (
-            <div
-              key="metrics"
-              className="border-t border-current/10 px-5 py-12 sm:px-10 sm:py-16"
-              style={{ background: "#0a0a0a", color: "#fff" }}
-            >
-              <div className="font-mono text-[10px] tracking-wider text-white/50">§03 / TRACTION</div>
-              <h2 className="mt-3 font-display text-3xl leading-[0.95] sm:text-4xl">
-                THE NUMBERS <span style={{ background: accent, color: "#0a0a0a", padding: "0 0.08em" }}>WE SHIP.</span>
-              </h2>
-              <div className="mt-7 grid grid-cols-2 gap-px border border-white/20 bg-white/15 lg:grid-cols-4">
-                {landingMetrics.map((m) => (
-                  <div key={m.l} className="bg-black p-5">
-                    <div className="font-display text-5xl" style={{ color: accent }}>
-                      {m.v}
-                    </div>
-                    <div className="mt-2 font-mono text-[10px] tracking-wider text-white/60">{m.l}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-
-        if (s.id === "quote")
-          return (
-            <div key="quote" className="border-t border-current/10 px-5 py-12 sm:px-10 sm:py-16">
-              <div className="font-mono text-[10px] tracking-wider opacity-60">§04 / FROM AN OPERATOR</div>
-              <div className="mt-4 font-display text-3xl leading-[0.95] sm:text-4xl lg:text-5xl">&ldquo;{landingQuote.body}&rdquo;</div>
-              <div className="mt-5 font-mono text-xs">
-                <span style={{ background: accent, color: accentText, padding: "0 0.25em" }}>{landingQuote.author}</span>
-                <span className="ml-2 opacity-60">· {landingQuote.role}</span>
-              </div>
-            </div>
-          );
-
-        if (s.id === "pricing")
-          return (
-            <div key="pricing" className="border-t border-current/10 px-5 py-12 sm:px-10 sm:py-16">
-              <div className="font-mono text-[10px] tracking-wider opacity-60">§05 / PRICING</div>
-              <h2 className="mt-3 font-display text-3xl leading-[0.95] sm:text-4xl">
-                PAY PER FLEET.{" "}
-                <span style={{ background: accent, color: accentText, padding: "0 0.08em" }}>NO LOCK-IN.</span>
-              </h2>
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                {[
-                  { p: "PILOT", v: "€2,400", t: "/MO · 1 VEHICLE" },
-                  { p: "FLEET", v: "€11,800", t: "/MO · 10 VEHICLES · ★ POPULAR" },
-                  { p: "ENTERPRISE", v: "CUSTOM", t: "100+ VEHICLES · SLA" },
-                ].map((tier, i) => (
-                  <div
-                    key={tier.p}
-                    className="border-2 p-5"
-                    style={{
-                      borderColor: theme.fg,
-                      background: i === 1 ? theme.fg : "transparent",
-                      color: i === 1 ? theme.bg : theme.fg,
-                    }}
-                  >
-                    <div className="font-display text-2xl">{tier.p}</div>
-                    <div className="mt-3 font-display text-3xl">{tier.v}</div>
-                    <div className="mt-2 font-mono text-[10px] tracking-wider opacity-70">{tier.t}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-
-        if (s.id === "cta")
-          return (
-            <div key="cta" className="px-5 py-14 sm:px-10 sm:py-20" style={{ background: accent, color: accentText }}>
-              <div className="font-mono text-[10px] tracking-wider opacity-65">§06 / CALL TO ACTION</div>
-              <h2 className="mt-3 font-display text-4xl leading-[0.92] sm:text-5xl lg:text-7xl">
-                BOOK A 30-MIN <br /> PILOT CALL.
-              </h2>
-              <p className="mt-5 max-w-xl font-mono text-sm leading-relaxed opacity-80">
-                No deck. No slides. We map your three highest-volume routes against a Cargobyte fleet, then send you the
-                cost diff in writing.
-              </p>
-              <button
-                type="button"
-                className="mt-8 border-2 px-7 py-3.5 font-mono text-xs tracking-wider"
-                style={{ borderColor: accentText, color: accentText }}
-              >
-                REQUEST PILOT MAPPING →
-              </button>
-            </div>
-          );
-
-        return null;
-      })}
-
-      <div className="border-t-2 border-current px-5 py-4 text-center font-mono text-[9px] tracking-wider opacity-60">
-        © 2026 CARGOBYTE MOBILITY · MADE WITH IDEA DEBATER
-      </div>
-    </div>
-  );
-}
+const DEFAULT_ACCENT: Record<TemplateId, string> = {
+    editorial: "#ffe600",
+    warm: "#fb923c",
+    tech: "#7c3aed",
+    brutalist: "#ffe600",
+};
 
 export default function LandingBuilderPage() {
-  const [themeId, setThemeId] = useState("editorial");
-  const [heroId, setHeroId] = useState("cost");
-  const [device, setDevice] = useState("desktop");
-  const [accent, setAccent] = useState("#7dd3fc");
-  const [accentInput, setAccentInput] = useState("#7dd3fc");
-  const [editingHero, setEditingHero] = useState<HeroEdit | null>(null);
-  const [sections, setSections] = useState<SectionRow[]>(() => landingSections.map((s) => ({ ...s, enabled: true })));
+    const [templateId, setTemplateId] = useState<TemplateId | null>(null);
+    const [copy, setCopy] = useState<LandingCopy | null>(null);
+    const [images, setImages] = useState<LandingImageRef[]>([]);
+    const [accent, setAccent] = useState<string>(DEFAULT_ACCENT.editorial);
+    const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+    const [loading, setLoading] = useState(false);
+    const [phase, setPhase] = useState<"idle" | "copy" | "images">("idle");
+    const [hasSession, setHasSession] = useState<boolean | null>(null);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const theme = landingThemes.find((t) => t.id === themeId) ?? landingThemes[0];
-  const baseHero = landingHeroVariants.find((h) => h.id === heroId) ?? landingHeroVariants[0];
-  const hero = editingHero ? { ...baseHero, ...editingHero } : baseHero;
+    useEffect(() => {
+        // Detect session client-side
+        const s = loadSession();
+        setHasSession(!!s);
+    }, []);
 
-  const toggleSection = (id: string, required: boolean) => {
-    if (required) return;
-    setSections((prev) => prev.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)));
-  };
+    const generate = useCallback(async (chosen: TemplateId) => {
+        const session = loadSession();
+        if (!session) {
+            setErrorMsg("Validate an idea first — that's the source of your landing copy.");
+            return;
+        }
+        setLoading(true);
+        setPhase("copy");
+        setErrorMsg(null);
+        try {
+            const copyRes = await fetch("/api/landing-copy", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    topic: session.setup.topic,
+                    position: session.setup.position,
+                    context: session.setup.context,
+                    templateId: chosen,
+                    dashboardData: session.dashboardData,
+                }),
+            });
+            if (!copyRes.ok) throw new Error("Copy generation failed.");
+            const copyJson = (await copyRes.json()) as LandingCopy;
+            if (!copyJson || (copyJson as unknown as { error?: string }).error) {
+                throw new Error("AI returned an unexpected response.");
+            }
+            setCopy(copyJson);
 
-  const moveSection = (idx: number, delta: number) => {
-    setSections((prev) => {
-      const next = [...prev];
-      const target = idx + delta;
-      if (target < 0 || target >= next.length) return prev;
-      [next[idx], next[target]] = [next[target], next[idx]];
-      return next;
-    });
-  };
+            setPhase("images");
+            const imgQuery = copyJson.imageQuery || session.setup.topic;
+            const imgRes = await fetch(
+                `/api/landing-preview-images?topic=${encodeURIComponent(imgQuery)}&position=${encodeURIComponent(session.setup.position || "")}`,
+            );
+            const imgJson = (await imgRes.json().catch(() => ({}))) as { images?: LandingImageRef[] };
+            setImages(imgJson.images ?? []);
 
-  const applyAccent = (hex: string) => {
-    const valid = /^#[0-9a-fA-F]{6}$/.test(hex);
-    if (valid) {
-      setAccent(hex);
-      setAccentInput(hex);
-    } else {
-      toast.error("INVALID HEX — USE #RRGGBB");
-    }
-  };
+            setTemplateId(chosen);
+            setAccent(DEFAULT_ACCENT[chosen]);
+            toast.success("LANDING POPULATED · READY TO SHIP");
+        } catch (err) {
+            setErrorMsg(err instanceof Error ? err.message : "Generation failed.");
+        } finally {
+            setLoading(false);
+            setPhase("idle");
+        }
+    }, []);
 
-  const triggerExport = (target: (typeof exportTargets)[number]) => {
-    if (target.tier === "STARTER") {
-      toast.success(`EXPORTING TO ${target.label}...`, { duration: 1600 });
-    } else {
-      toast.message(`UPGRADE TO ${target.tier} TO UNLOCK ${target.label}`, { duration: 1800 });
-    }
-  };
+    const reset = () => {
+        setTemplateId(null);
+        setCopy(null);
+        setImages([]);
+        setErrorMsg(null);
+    };
 
-  return (
-    <div data-testid="landing-builder-page" className="min-h-screen bg-[var(--paper)] text-black">
-      <StudioTopNav />
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          style: {
-            background: "#0a0a0a",
-            color: "#fff",
-            border: "1px solid #fff",
-            borderRadius: 0,
-            fontFamily: "JetBrains Mono, monospace",
-            fontSize: 11,
-          },
-        }}
-      />
-      <TickerTape />
+    const TemplateComponent = templateId ? TEMPLATE_COMPONENTS[templateId] : null;
 
-      <section className="relative overflow-hidden border-b border-black bg-[var(--bone)] py-14">
-        <div className="absolute inset-0 bg-grid opacity-100" />
-        <div className="relative mx-auto max-w-[1480px] px-6 lg:px-10">
-          <div className="font-mono text-[10px] tracking-wider text-neutral-500">§B / LANDING PAGE BUILDER</div>
-          <div className="mt-3 grid gap-8 lg:grid-cols-12">
-            <h1 className="font-display text-[52px] leading-[0.9] sm:text-[72px] lg:col-span-8 lg:text-[96px]">
-              SHIP A LANDING. <br />
-              <span className="hl-strip">IN 12 SECONDS.</span>
-            </h1>
-            <p className="max-w-md self-end font-mono text-sm leading-relaxed text-neutral-600 lg:col-span-4">
-              Reorder sections. Edit copy inline. Pick an accent. Then push to Figma, Framer or Webflow with one click.
-            </p>
-          </div>
-        </div>
-      </section>
+    const phaseLabel = useMemo(() => {
+        if (phase === "copy") return "Writing copy for your idea… (~20s)";
+        if (phase === "images") return "Pulling on-brand stock imagery…";
+        return "";
+    }, [phase]);
 
-      <section className="border-b border-black bg-[var(--paper)] py-10">
-        <div className="mx-auto max-w-[1480px] px-6 lg:px-10">
-          <div className="grid gap-6 lg:grid-cols-12">
-            <aside className="space-y-6 lg:col-span-3">
-              <div className="border-2 border-black bg-white">
-                <div className="flex items-center justify-between border-b-2 border-black bg-black px-4 py-2">
-                  <span className="font-mono text-[10px] tracking-wider text-white/70">HERO COPY</span>
-                  <button
-                    type="button"
-                    data-testid="edit-hero-toggle"
-                    onClick={() =>
-                      setEditingHero(
-                        editingHero ? null : { title: baseHero.title, sub: baseHero.sub, kicker: baseHero.kicker }
-                      )
-                    }
-                    className="inline-flex items-center gap-1 border border-white/30 px-2 py-0.5 font-mono text-[9px] tracking-wider text-white hover:bg-white hover:text-black"
-                  >
-                    {editingHero ? <X className="h-3 w-3" /> : <Pencil className="h-3 w-3" />}
-                    {editingHero ? "CLOSE" : "EDIT"}
-                  </button>
-                </div>
-                {!editingHero ? (
-                  <div className="space-y-2 p-3">
-                    {landingHeroVariants.map((h) => (
-                      <button
-                        key={h.id}
-                        type="button"
-                        data-testid={`hero-variant-${h.id}`}
-                        onClick={() => setHeroId(h.id)}
-                        className={`block w-full border border-black px-3 py-2 text-left transition ${
-                          heroId === h.id ? "bg-[var(--hi)]" : "bg-white hover:bg-[var(--hi-soft)]"
-                        }`}
-                      >
-                        <div className="font-mono text-[9px] tracking-wider text-neutral-500">{h.kicker}</div>
-                        <div className="mt-1 font-display text-sm leading-tight">{h.title}</div>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-3 p-3">
-                    <div>
-                      <div className="mb-1 font-mono text-[9px] tracking-wider text-neutral-500">KICKER</div>
-                      <input
-                        data-testid="edit-kicker"
-                        value={editingHero.kicker}
-                        onChange={(e) => setEditingHero({ ...editingHero, kicker: e.target.value })}
-                        className="block w-full border border-black bg-[var(--paper)] px-2 py-1.5 font-mono text-[11px] focus:bg-white focus:outline-none"
-                      />
+    return (
+        <div data-testid="landing-builder-page" className="min-h-screen bg-[var(--paper)] text-black">
+            <StudioTopNav />
+            <Toaster
+                position="bottom-right"
+                toastOptions={{
+                    style: {
+                        background: "#0a0a0a",
+                        color: "#fff",
+                        border: "1px solid #fff",
+                        borderRadius: 0,
+                        fontFamily: "JetBrains Mono, monospace",
+                        fontSize: 11,
+                    },
+                }}
+            />
+            <TickerTape />
+
+            {/* HERO */}
+            <section className="relative overflow-hidden border-b border-black bg-[var(--bone)] py-14">
+                <div className="absolute inset-0 bg-grid opacity-100" />
+                <div className="relative mx-auto max-w-[1480px] px-6 lg:px-10">
+                    <div className="font-mono text-[10px] tracking-wider text-neutral-500">§B / LANDING PAGE BUILDER · AI</div>
+                    <div className="mt-3 grid gap-8 lg:grid-cols-12">
+                        <h1 className="font-display text-[52px] leading-[1.35] sm:text-[72px] lg:col-span-8 lg:text-[96px]">
+                            PICK A LOOK. <br />
+                            <span className="hl-strip">WE WRITE THE COPY.</span>
+                        </h1>
+                        <p className="max-w-md self-end font-mono text-sm leading-relaxed text-neutral-600 lg:col-span-4">
+                            Four production-ready templates. We auto-fill every section with copy tuned to your idea and pull
+                            on-brand stock imagery. Edit the accent, swap device, export.
+                        </p>
                     </div>
-                    <div>
-                      <div className="mb-1 font-mono text-[9px] tracking-wider text-neutral-500">HEADLINE</div>
-                      <textarea
-                        data-testid="edit-title"
-                        rows={3}
-                        value={editingHero.title}
-                        onChange={(e) => setEditingHero({ ...editingHero, title: e.target.value })}
-                        className="block w-full resize-none border border-black bg-[var(--paper)] px-2 py-1.5 font-display text-sm leading-tight focus:bg-white focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <div className="mb-1 font-mono text-[9px] tracking-wider text-neutral-500">SUB-COPY</div>
-                      <textarea
-                        data-testid="edit-sub"
-                        rows={4}
-                        value={editingHero.sub}
-                        onChange={(e) => setEditingHero({ ...editingHero, sub: e.target.value })}
-                        className="block w-full resize-none border border-black bg-[var(--paper)] px-2 py-1.5 font-mono text-[11px] leading-relaxed focus:bg-white focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
+                </div>
+            </section>
 
-              <div className="border-2 border-black bg-white">
-                <div className="border-b-2 border-black bg-black px-4 py-2 font-mono text-[10px] tracking-wider text-white/70">
-                  THEME
-                </div>
-                <div className="space-y-2 p-3">
-                  {landingThemes.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      data-testid={`theme-${t.id}`}
-                      onClick={() => setThemeId(t.id)}
-                      className={`flex w-full items-center justify-between border border-black px-3 py-2 transition ${
-                        themeId === t.id ? "bg-[var(--hi)]" : "bg-white hover:bg-[var(--hi-soft)]"
-                      }`}
-                    >
-                      <span className="font-display text-sm">{t.label}</span>
-                      <span className="flex items-center gap-1">
-                        <span className="h-4 w-4 border border-black" style={{ background: t.bg }} />
-                        <span className="h-4 w-4 border border-black" style={{ background: t.fg }} />
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-2 border-black bg-white">
-                <div className="flex items-center justify-between border-b-2 border-black bg-black px-4 py-2 font-mono text-[10px] tracking-wider text-white/70">
-                  <span className="inline-flex items-center gap-1">
-                    <Palette className="h-3 w-3" />
-                    ACCENT
-                  </span>
-                  <span className="text-white/40">CUSTOM HEX</span>
-                </div>
-                <div className="p-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    {PRESET_ACCENTS.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        data-testid={`accent-${c.replace("#", "")}`}
-                        onClick={() => applyAccent(c)}
-                        className={`h-8 w-8 border-2 transition ${
-                          accent.toLowerCase() === c.toLowerCase()
-                            ? "border-black shadow-brutal-sm"
-                            : "border-black/30 hover:border-black"
-                        }`}
-                        style={{ background: c }}
-                      />
-                    ))}
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <input
-                      data-testid="accent-input"
-                      value={accentInput}
-                      onChange={(e) => setAccentInput(e.target.value)}
-                      onBlur={() => applyAccent(accentInput)}
-                      onKeyDown={(e) => e.key === "Enter" && applyAccent(accentInput)}
-                      className="block w-full border border-black bg-[var(--paper)] px-2 py-1.5 font-mono text-[11px] uppercase focus:bg-white focus:outline-none"
-                      placeholder="#7DD3FC"
-                    />
-                    <input
-                      type="color"
-                      data-testid="accent-color-picker"
-                      value={accent}
-                      onChange={(e) => applyAccent(e.target.value)}
-                      className="h-9 w-9 cursor-pointer border-2 border-black bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-2 border-black bg-white">
-                <div className="border-b-2 border-black bg-black px-4 py-2 font-mono text-[10px] tracking-wider text-white/70">
-                  SECTIONS · REORDER & TOGGLE
-                </div>
-                <ul>
-                  {sections.map((s, idx) => (
-                    <li key={s.id} className="border-b border-black/10 last:border-b-0">
-                      <div className="flex items-center gap-2 px-3 py-2.5">
-                        <span className="w-6 font-mono text-[10px] tracking-wider text-neutral-400">
-                          {String(idx + 1).padStart(2, "0")}
-                        </span>
-                        <span
-                          className={`flex-1 font-mono text-[11px] tracking-wider ${
-                            s.enabled ? "text-black" : "text-neutral-400 line-through"
-                          }`}
-                        >
-                          {s.label}
-                        </span>
-                        {s.required && (
-                          <span className="border border-black px-1 py-0.5 font-mono text-[8px]">REQ</span>
+            {/* STEP 1 — TEMPLATE GALLERY (when no template chosen) */}
+            {!templateId && (
+                <section className="border-b border-black bg-[var(--paper)] py-14" data-testid="template-gallery">
+                    <div className="mx-auto max-w-[1480px] px-6 lg:px-10">
+                        {hasSession === false && (
+                            <div className="mb-8 border-2 border-black bg-[var(--hi-soft)] p-5">
+                                <div className="font-mono text-[10px] tracking-wider text-black/60">NO SESSION FOUND</div>
+                                <div className="mt-2 font-display text-2xl">Validate an idea first.</div>
+                                <p className="mt-2 max-w-2xl font-mono text-xs leading-relaxed text-black/65">
+                                    The landing builder uses your validation report to write copy. Run an idea through the panel,
+                                    then come back here — every headline, feature, metric and CTA will be specific to your idea.
+                                </p>
+                                <Link
+                                    href="/"
+                                    data-testid="cta-validate-first"
+                                    className="mt-4 inline-flex items-center gap-2 border-2 border-black bg-[var(--hi)] px-4 py-2 font-mono text-[11px] tracking-wider hover:-translate-y-0.5 hover:shadow-[3px_3px_0_0_#000] transition-all"
+                                >
+                                    VALIDATE AN IDEA <ArrowRight className="h-3.5 w-3.5" />
+                                </Link>
+                            </div>
                         )}
-                        <button
-                          type="button"
-                          data-testid={`section-up-${s.id}`}
-                          onClick={() => moveSection(idx, -1)}
-                          disabled={idx === 0}
-                          className="border border-black/20 p-1 transition hover:border-black disabled:opacity-30"
-                        >
-                          <ArrowUp className="h-3 w-3" />
-                        </button>
-                        <button
-                          type="button"
-                          data-testid={`section-down-${s.id}`}
-                          onClick={() => moveSection(idx, 1)}
-                          disabled={idx === sections.length - 1}
-                          className="border border-black/20 p-1 transition hover:border-black disabled:opacity-30"
-                        >
-                          <ArrowDown className="h-3 w-3" />
-                        </button>
-                        <button
-                          type="button"
-                          data-testid={`section-toggle-${s.id}`}
-                          onClick={() => toggleSection(s.id, s.required)}
-                          disabled={s.required}
-                          className="border border-black/20 p-1 transition hover:border-black disabled:opacity-30"
-                        >
-                          {s.enabled ? (
-                            <Eye className="h-3 w-3" />
-                          ) : (
-                            <EyeOff className="h-3 w-3 text-neutral-400" />
-                          )}
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </aside>
 
-            <div className="lg:col-span-9">
-              <div className="flex items-center justify-between border-2 border-b-0 border-black bg-black px-4 py-2">
-                <div className="flex items-center gap-3 font-mono text-[10px] tracking-wider text-white/60">
-                  <Sparkles className="h-3.5 w-3.5" style={{ color: accent }} />
-                  LIVE PREVIEW · {theme.label} · {hero.id?.toUpperCase() || "CUSTOM"}
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="font-mono text-[10px] tracking-wider text-white/40">
-                    ACCENT <span className="text-white">{accent.toUpperCase()}</span>
-                  </div>
-                  <div className="flex border border-white/30">
-                    <button
-                      type="button"
-                      data-testid="device-desktop"
-                      onClick={() => setDevice("desktop")}
-                      className={`px-3 py-1 ${device === "desktop" ? "bg-white text-black" : "text-white/60"}`}
-                    >
-                      <Monitor className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      data-testid="device-mobile"
-                      onClick={() => setDevice("mobile")}
-                      className={`px-3 py-1 ${device === "mobile" ? "bg-white text-black" : "text-white/60"}`}
-                    >
-                      <Smartphone className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="max-h-[1600px] overflow-y-auto border-2 border-black bg-black/5 p-3">
-                <PreviewFrame theme={theme} hero={hero} sections={sections} device={device} accent={accent} />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+                        <div className="mb-8 flex items-end justify-between">
+                            <div>
+                                <div className="font-mono text-[10px] tracking-wider text-neutral-500">§B1 / CHOOSE A TEMPLATE</div>
+                                <h2 className="mt-2 font-display text-3xl lg:text-4xl">Four templates. One click.</h2>
+                            </div>
+                            {hasSession && (
+                                <div className="font-mono text-[10px] tracking-wider text-neutral-500">
+                                    Session ready · {loadSession()?.setup.topic.slice(0, 60)}…
+                                </div>
+                            )}
+                        </div>
 
-      <section className="border-b border-black bg-black py-16 text-white">
-        <div className="mx-auto max-w-[1480px] px-6 lg:px-10">
-          <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <div className="font-mono text-[10px] tracking-wider text-white/50">§B2 / EXPORT BAY</div>
-              <h2 className="mt-3 font-display text-[44px] leading-[0.92] lg:text-[64px]">
-                ONE-CLICK <span className="bg-[var(--hi)] px-1 text-black">SHIP.</span>
-              </h2>
-              <p className="mt-4 max-w-xl font-mono text-sm leading-relaxed text-white/55">
-                Push the live preview to Figma, Framer or Webflow with all sections, accent token and copy intact.
-                Tier-gated.
-              </p>
-            </div>
-            <button
-              type="button"
-              data-testid="download-react"
-              className="inline-flex items-center gap-2 border-2 border-white bg-white px-5 py-3 font-mono text-xs tracking-wider text-black shadow-brutal-inv hover-lift"
-            >
-              <Download className="h-3.5 w-3.5" />
-              DOWNLOAD REACT + TAILWIND
-            </button>
-          </div>
+                        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                            {TEMPLATE_GALLERY.map((t) => (
+                                <button
+                                    key={t.id}
+                                    type="button"
+                                    data-testid={`pick-template-${t.id}`}
+                                    disabled={loading || hasSession === false}
+                                    onClick={() => generate(t.id)}
+                                    className="group relative flex flex-col border-2 border-black bg-white text-left shadow-[6px_6px_0_0_#000] transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[10px_10px_0_0_#000] disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {/* preview pane */}
+                                    <div className="relative h-44 overflow-hidden border-b-2 border-black">
+                                        <TemplatePreviewSwatch id={t.id} swatches={t.swatches} />
+                                    </div>
+                                    <div className="flex-1 p-5">
+                                        <div className="font-mono text-[10px] tracking-widest text-neutral-500">{`0${TEMPLATE_GALLERY.indexOf(t) + 1}`} / TEMPLATE</div>
+                                        <div className="mt-1 font-display text-2xl">{t.label}</div>
+                                        <p className="mt-2 font-mono text-[11px] leading-relaxed text-neutral-600">{t.tagline}</p>
+                                        <div className="mt-3 inline-block border border-black px-2 py-0.5 font-mono text-[9px] tracking-wider">
+                                            BEST FOR: {t.bestFor.toUpperCase()}
+                                        </div>
+                                    </div>
+                                    <div
+                                        className="flex items-center justify-between border-t-2 border-black bg-black px-5 py-3 font-mono text-[11px] tracking-widest text-white transition-colors group-hover:bg-[var(--hi)] group-hover:text-black"
+                                    >
+                                        <span>PICK THIS</span>
+                                        <ArrowRight className="h-3.5 w-3.5" />
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
 
-          <div className="grid grid-cols-1 gap-px border-2 border-white bg-white/15 sm:grid-cols-2 lg:grid-cols-3">
-            {exportTargets.map((t, i) => {
-              const locked = t.tier !== "STARTER";
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  data-testid={`landing-export-${t.id}`}
-                  onClick={() => triggerExport(t)}
-                  className="group relative flex items-stretch gap-4 bg-black p-5 text-left transition hover:bg-white hover:text-black"
-                >
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-current font-display text-lg">
-                    {String(i + 1).padStart(2, "0")}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-display text-base">{t.label}</span>
-                      {locked ? (
-                        <span className="inline-flex items-center gap-1 border border-current px-2 py-0.5 font-mono text-[9px]">
-                          <Lock className="h-2.5 w-2.5" />
-                          {t.tier}
-                        </span>
-                      ) : (
-                        <span className="border border-[var(--c-green)] bg-[var(--c-green)] px-2 py-0.5 font-mono text-[9px] text-black">
-                          FREE
-                        </span>
-                      )}
+                        {loading && (
+                            <div className="mt-10 flex items-center justify-center gap-3 border-2 border-black bg-[var(--hi-soft)] p-5 font-mono text-[11px] tracking-wider" data-testid="generation-status">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                {phaseLabel}
+                            </div>
+                        )}
+
+                        {errorMsg && (
+                            <div className="mt-6 border-2 border-[var(--c-red)] bg-rose-50 p-4 font-mono text-[11px] text-[var(--c-red)]" data-testid="generation-error">
+                                ERROR: {errorMsg}
+                            </div>
+                        )}
                     </div>
-                    <div className="mt-2 font-mono text-[11px] leading-relaxed opacity-60 group-hover:opacity-80">
-                      {t.note}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+                </section>
+            )}
 
-      <TickerTape />
-      <Footer />
-    </div>
-  );
+            {/* STEP 2 — POPULATED PREVIEW WITH LIGHT CONTROLS */}
+            {templateId && copy && TemplateComponent && (
+                <section className="border-b border-black bg-[var(--paper)] py-8" data-testid="populated-preview">
+                    <div className="mx-auto max-w-[1480px] px-6 lg:px-10">
+                        {/* Control bar */}
+                        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-2 border-black bg-black px-4 py-3 text-white">
+                            <div className="flex flex-wrap items-center gap-4">
+                                <button
+                                    type="button"
+                                    onClick={reset}
+                                    data-testid="back-to-gallery"
+                                    className="inline-flex items-center gap-2 border border-white/30 px-3 py-1.5 font-mono text-[10px] tracking-widest hover:bg-white hover:text-black"
+                                >
+                                    <ArrowLeft className="h-3 w-3" /> BACK
+                                </button>
+                                <div className="font-mono text-[10px] tracking-widest text-white/60">
+                                    <Sparkles className="mr-2 inline h-3 w-3" style={{ color: accent }} />
+                                    {TEMPLATE_GALLERY.find((t) => t.id === templateId)?.label}
+                                </div>
+                                <div className="hidden font-mono text-[10px] tracking-widest text-white/40 sm:block">
+                                    {copy.brand.name.toUpperCase()} · {copy.brand.tagline}
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                {/* Accent presets */}
+                                <div className="flex items-center gap-1.5 border border-white/20 bg-white/5 px-2 py-1">
+                                    <Palette className="h-3 w-3 text-white/60" />
+                                    {PRESET_ACCENTS.map((c) => (
+                                        <button
+                                            key={c}
+                                            type="button"
+                                            data-testid={`accent-${c.slice(1)}`}
+                                            onClick={() => setAccent(c)}
+                                            className={`h-5 w-5 border transition ${accent === c ? "border-white scale-110" : "border-white/20"}`}
+                                            style={{ background: c }}
+                                            aria-label={`accent ${c}`}
+                                        />
+                                    ))}
+                                </div>
+                                {/* Regenerate */}
+                                <button
+                                    type="button"
+                                    onClick={() => generate(templateId)}
+                                    disabled={loading}
+                                    data-testid="regen-copy"
+                                    className="inline-flex items-center gap-2 border border-white/30 px-3 py-1.5 font-mono text-[10px] tracking-widest hover:bg-white hover:text-black disabled:opacity-50"
+                                >
+                                    <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} /> REGEN
+                                </button>
+                                {/* Device toggle */}
+                                <div className="flex border border-white/30">
+                                    <button
+                                        type="button"
+                                        onClick={() => setDevice("desktop")}
+                                        data-testid="device-desktop"
+                                        className={`px-3 py-1.5 ${device === "desktop" ? "bg-white text-black" : "text-white/60 hover:text-white"}`}
+                                    >
+                                        <Monitor className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setDevice("mobile")}
+                                        data-testid="device-mobile"
+                                        className={`px-3 py-1.5 ${device === "mobile" ? "bg-white text-black" : "text-white/60 hover:text-white"}`}
+                                    >
+                                        <Smartphone className="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const html = `<!doctype html><html><head><meta charset="utf-8"/><title>${copy.seo.title}</title><meta name="description" content="${copy.seo.description}"/></head><body><pre style="white-space:pre-wrap;font-family:monospace;padding:24px">${JSON.stringify(copy, null, 2)}</pre></body></html>`;
+                                        const blob = new Blob([html], { type: "text/html" });
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
+                                        a.href = url;
+                                        a.download = `${copy.brand.name.toLowerCase().replace(/\s+/g, "-")}-landing.html`;
+                                        a.click();
+                                        URL.revokeObjectURL(url);
+                                        toast.success("LANDING EXPORTED · .HTML");
+                                    }}
+                                    data-testid="export-html"
+                                    className="inline-flex items-center gap-2 border-2 border-white bg-[var(--hi)] px-3 py-1.5 font-mono text-[10px] tracking-widest text-black hover:bg-white"
+                                >
+                                    <Download className="h-3 w-3" /> EXPORT
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Preview frame */}
+                        <div className="max-h-[2400px] overflow-y-auto border-2 border-black bg-black/5 p-3">
+                            <div className={`mx-auto border-2 border-black transition-all ${device === "mobile" ? "max-w-[420px]" : "w-full"}`} data-testid="landing-preview-frame">
+                                <TemplateComponent copy={copy} images={images} accent={accent} device={device} />
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            )}
+
+            <TickerTape />
+            <Footer />
+        </div>
+    );
+}
+
+/** Tiny preview swatch that hints each template's vibe in the gallery card. */
+function TemplatePreviewSwatch({ id, swatches }: { id: TemplateId; swatches: [string, string, string] }) {
+    if (id === "editorial") {
+        return (
+            <div className="h-full w-full p-4" style={{ background: "#f4efe3" }}>
+                <div className="h-1.5 w-12 bg-black/60" />
+                <div className="mt-3 font-serif text-2xl italic leading-none text-black">Quiet.<br />Confident.</div>
+                <div className="mt-3 h-1 w-20" style={{ background: swatches[2] }} />
+                <div className="mt-2 h-1 w-16 bg-black/40" />
+            </div>
+        );
+    }
+    if (id === "warm") {
+        return (
+            <div className="grid h-full w-full grid-cols-3 gap-2 p-3" style={{ background: "#fff7ed" }}>
+                <div className="rounded-xl" style={{ background: "#fde68a" }} />
+                <div className="rounded-xl" style={{ background: "#fbcfe8" }} />
+                <div className="rounded-xl" style={{ background: "#bae6fd" }} />
+                <div className="col-span-3 rounded-xl bg-black/85 p-2 text-[10px] text-white">Start free →</div>
+            </div>
+        );
+    }
+    if (id === "tech") {
+        return (
+            <div className="relative h-full w-full overflow-hidden" style={{ background: "#0b0d12" }}>
+                <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 200px 100px at 50% 30%, rgba(124,58,237,0.4), transparent 70%)" }} />
+                <div className="relative p-4">
+                    <div className="font-mono text-[9px] tracking-widest text-white/45">{"// V2.0"}</div>
+                    <div className="mt-2 text-sm font-semibold text-white">Built for speed.</div>
+                    <div className="mt-1 text-xs" style={{ background: "linear-gradient(135deg, #22d3ee, #c084fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Ship dark.</div>
+                </div>
+            </div>
+        );
+    }
+    return (
+        <div className="h-full w-full p-3" style={{ background: "#fefce8" }}>
+            <div className="inline-block border-2 border-black px-1.5 text-[9px] font-bold uppercase">NEW</div>
+            <div className="mt-2 font-black uppercase leading-[1.35] tracking-tighter text-black" style={{ fontSize: 28 }}>
+                BUILT<br />
+                <span style={{ background: "#ffe600", padding: "0 0.06em" }}>LOUD.</span>
+            </div>
+            <div className="mt-2 inline-block border-2 border-black bg-black px-2 py-0.5 text-[9px] font-bold uppercase text-[#fefce8] shadow-[3px_3px_0_0_#000]">GO →</div>
+        </div>
+    );
 }

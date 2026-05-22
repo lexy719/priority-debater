@@ -14,15 +14,11 @@ import { useResultsDashboard } from "@/context/results-dashboard-context";
 export default function ResultsEnhancements() {
     const { idea, overallScore, live } = useResultsDashboard();
     const [progress, setProgress] = useState(0);
-    const [showSticky, setShowSticky] = useState(false);
-    const [revealing, setRevealing] = useState(true);
+    const [revealActive, setRevealActive] = useState(true);
 
     useEffect(() => {
-        if (!live) {
-            setRevealing(false);
-            return;
-        }
-        const t = setTimeout(() => setRevealing(false), 1600);
+        if (!live) return;
+        const t = setTimeout(() => setRevealActive(false), 1600);
         return () => clearTimeout(t);
     }, [live]);
 
@@ -32,7 +28,6 @@ export default function ResultsEnhancements() {
             const max = h.scrollHeight - h.clientHeight;
             const y = h.scrollTop || document.body.scrollTop;
             setProgress(max > 0 ? Math.min(100, (y / max) * 100) : 0);
-            setShowSticky(y > 520);
         };
         onScroll();
         window.addEventListener("scroll", onScroll, { passive: true });
@@ -51,29 +46,8 @@ export default function ResultsEnhancements() {
                 style={{ width: `${progress}%` }}
             />
 
-            {/* Sticky mini-score */}
-            {live && (
-                <div
-                    data-testid="sticky-mini-score"
-                    className={`fixed right-4 top-20 z-[55] hidden items-center gap-3 border-2 border-black bg-white px-4 py-2 shadow-[4px_4px_0_0_#000] transition-all duration-300 md:flex ${
-                        showSticky ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0 pointer-events-none"
-                    }`}
-                    aria-hidden={!showSticky}
-                >
-                    <span className="font-mono text-[10px] tracking-wider text-black/60">SCORE</span>
-                    <span className="font-display text-2xl leading-none text-black">{overallScore.score}</span>
-                    <span className="font-mono text-[10px] tracking-wider text-black/40">/ 100</span>
-                    <span
-                        className="ml-2 border border-black px-2 py-0.5 font-mono text-[10px] tracking-wider"
-                        style={{ color: verdictColor }}
-                    >
-                        {idea.verdict}
-                    </span>
-                </div>
-            )}
-
             {/* Cinematic verdict reveal */}
-            {revealing && live && (
+            {revealActive && live && (
                 <div
                     data-testid="verdict-reveal"
                     className="fixed inset-0 z-[100] flex items-center justify-center bg-black animate-[verdictFade_1.6s_ease-out_forwards] pointer-events-none"

@@ -54,7 +54,7 @@ export default function RevenueSection() {
                 <div className="mb-12 grid gap-8 lg:grid-cols-12">
                     <div className="lg:col-span-7">
                         <div className="font-mono text-[10px] tracking-wider text-neutral-500">{dashboardUi.revenue.eyebrow}</div>
-                        <h2 className="mt-3 font-display text-[48px] leading-[0.92] sm:text-[64px] lg:text-[80px]">
+                        <h2 className="mt-3 font-display text-[48px] leading-[1.35] pt-2 sm:text-[64px] lg:text-[80px]">
                             {hasRevenue ? (
                                 <>
                                     <span className="hl-strip">{revenueHeadline}</span> ARR <br />
@@ -109,7 +109,7 @@ export default function RevenueSection() {
                                 ) : (
                                     <ChartMount>
                                         <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                                            <BarChart data={revenueProjection} margin={{ top: 16, right: 12, bottom: 0, left: 4 }}>
+                                            <BarChart data={revenueProjection} margin={{ top: 16, right: 32, bottom: 0, left: 4 }}>
                                                 <CartesianGrid stroke="#0a0a0a" strokeOpacity={0.08} vertical={false} />
                                                 <XAxis
                                                     dataKey="year"

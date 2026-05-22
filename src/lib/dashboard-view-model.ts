@@ -345,6 +345,15 @@ export type DashboardViewModel = {
   yourIdeaStrapline: string;
   reportTabs: ReportTabVm[];
   dashboardUi: DashboardUiVm;
+  /** Rubric rows that compose the headline score (present only when structured data is available). */
+  rubricBreakdown?: {
+    key: string;
+    label: string;
+    weight: number;
+    score: number;
+    contribution: number;
+    reason: string;
+  }[];
 };
 
 function formatUtc(ts: number): string {
@@ -1065,5 +1074,6 @@ function buildFromStructured(session: ValidationSession, d: DashboardData): Dash
     yourIdeaStrapline: safeStr(d.oneLineThesis, session.setup.position?.slice(0, 140) || "Positioning from your validation brief."),
     reportTabs,
     dashboardUi,
+    rubricBreakdown: Array.isArray(d.rubricBreakdown) ? d.rubricBreakdown : undefined,
   };
 }

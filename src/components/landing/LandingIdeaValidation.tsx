@@ -24,6 +24,7 @@ export function LandingIdeaValidation() {
   const router = useRouter();
   const [idea, setIdea] = useState("");
   const [pending, setPending] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "panel" | "dashboard">("idle");
   const [error, setError] = useState<string | null>(null);
 
   const len = idea.trim().length;
@@ -32,7 +33,8 @@ export function LandingIdeaValidation() {
   const run = useCallback(async () => {
     if (!canRun) return;
     setError(null);
-      setPending(true);
+    setPending(true);
+    setPhase("panel");
     try {
       const setup = buildValidateDebateSetupFromSingleIdea(idea);
       let scoreReconciliation: ValidationSession["scoreReconciliation"];
@@ -56,6 +58,30 @@ export function LandingIdeaValidation() {
         ...(scoreReconciliation ? { scoreReconciliation } : {}),
       };
       sessionBase.ideaCategory = ideaCategoryFromSetup(sessionBase);
+
+      // Fetch structured dashboard data so charts/sections populate from THIS idea.
+      setPhase("dashboard");
+      try {
+        const res = await fetch("/api/dashboard-data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            topic: setup.topic,
+            position: setup.position,
+            context: setup.context,
+            markdown,
+          }),
+        });
+        if (res.ok) {
+          const dashboardData = await res.json();
+          if (dashboardData && typeof dashboardData === "object" && !dashboardData.error) {
+            sessionBase.dashboardData = dashboardData;
+          }
+        }
+      } catch {
+        // Non-fatal: results page falls back to markdown parsing.
+      }
+
       saveSession(sessionBase);
       clearPanelFlowPersist();
       router.push("/results");
@@ -63,6 +89,7 @@ export function LandingIdeaValidation() {
       setError(err instanceof Error ? err.message : "Could not generate a verdict.");
     } finally {
       setPending(false);
+      setPhase("idle");
     }
   }, [canRun, idea, router]);
 
@@ -100,16 +127,22 @@ export function LandingIdeaValidation() {
       )}
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[12px] leading-relaxed text-[--ink-2]">
-          {canRun
-            ? "Ready — five personas will tear this apart and you’ll land on a scored dossier."
-            : `Add at least ${MIN_CHARS} characters so the panel has enough context.`}
+        <p className="text-[12px] leading-relaxed text-[--ink-2]" data-testid="run-status">
+          {pending
+            ? phase === "panel"
+              ? "Five personas are tearing your pitch apart… (~20s)"
+              : phase === "dashboard"
+                ? "Structuring the dossier — charts, segments, competitors… (~15s)"
+                : "Generating…"
+            : canRun
+              ? "Ready — five personas will tear this apart and you’ll land on a scored dossier."
+              : `Add at least ${MIN_CHARS} characters so the panel has enough context.`}
         </p>
-        <Button type="button" size="lg" disabled={!canRun} onClick={run} className="w-full shrink-0 sm:w-auto">
+        <Button type="button" size="lg" disabled={!canRun} onClick={run} className="w-full shrink-0 sm:w-auto" data-testid="run-validation-btn">
           {pending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Generating…
+              {phase === "panel" ? "Panel debating…" : phase === "dashboard" ? "Building dossier…" : "Generating…"}
             </>
           ) : (
             <>

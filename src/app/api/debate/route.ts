@@ -2267,8 +2267,8 @@ Be direct, specific, and actionable. Give them one concrete thing they could do 
                   Promise.resolve(extractPrimaryScores(fullText)),
                 ]);
 
-                if (blindResult && primaryScores) {
-                  const reconciliation = reconcileScores(primaryScores, blindResult);
+                if (blindResult) {
+                  const reconciliation = reconcileScores(primaryScores ?? blindResult, blindResult);
                   // Send reconciliation as a special SSE event the client can parse
                   controller.enqueue(
                     encoder.encode(

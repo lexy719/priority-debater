@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { scoreIdeaV2, toLegacyBlindScores } from "@/lib/agents/idea-scoring-v2";
 
 /**
  * Blind scoring pipeline — a second model independently scores the idea
@@ -62,6 +63,12 @@ export async function getBlindScores(
 ): Promise<BlindScores | null> {
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) return null;
+
+  try {
+    return toLegacyBlindScores(await scoreIdeaV2({ topic, position, context }));
+  } catch {
+    // Fall back to the legacy prompt only if v2 fails.
+  }
 
   const userPrompt = [
     `**Startup idea:** "${topic}"`,
@@ -162,12 +169,6 @@ export function reconcileScores(
   primary: BlindScores,
   blind: BlindScores,
 ): ScoringReconciliation {
-  const PRIMARY_WEIGHT = 0.6;
-  const BLIND_WEIGHT = 0.4;
-
-  const blend = (p: number, b: number): number =>
-    Math.round(p * PRIMARY_WEIGHT + b * BLIND_WEIGHT);
-
   const fields: (keyof Omit<BlindScores, "viability">)[] = [
     "problemSolutionFit",
     "marketOpportunity",
@@ -182,15 +183,13 @@ export function reconcileScores(
   let maxDelta = 0;
 
   for (const f of fields) {
-    final[f] = blend(primary[f], blind[f]);
+    final[f] = blind[f];
     const d = Math.abs(primary[f] - blind[f]);
     deltas[f] = d;
     if (d > maxDelta) maxDelta = d;
   }
 
-  // Viability = mean of reconciled category scores
-  const catValues = fields.map((f) => final[f]);
-  final.viability = Math.round(catValues.reduce((a, b) => a + b, 0) / catValues.length);
+  final.viability = blind.viability;
 
   const viabDelta = Math.abs(primary.viability - blind.viability);
   deltas.viability = viabDelta;

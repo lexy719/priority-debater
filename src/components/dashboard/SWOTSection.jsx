@@ -46,7 +46,7 @@ export default function SWOTSection() {
                 <div className="mb-12 grid gap-8 lg:grid-cols-12">
                     <div className="lg:col-span-7">
                         <div className="font-mono text-[10px] tracking-wider text-neutral-500">{dashboardUi.swot.eyebrow}</div>
-                        <h2 className="mt-3 font-display text-[48px] leading-[0.92] sm:text-[64px] lg:text-[80px]">
+                        <h2 className="mt-3 font-display text-[48px] leading-[1.35] sm:text-[64px] lg:text-[80px]">
                             STRENGTHS. <br />
                             <span className="hl-strip-dark">WEAKNESSES.</span> <br />
                             BOTH ON RECORD.

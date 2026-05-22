@@ -67,6 +67,15 @@ export interface DashboardData {
     teamExecution: number;
     timingTrends: number;
   };
+  /** The 6 weighted rubric rows that compose the headline score, with reasoning per row. */
+  rubricBreakdown: {
+    key: string;
+    label: string;
+    weight: number;       // weight % (sums to 100)
+    score: number;        // 0-100
+    contribution: number; // (score * weight) / 100, rounded to 1dp
+    reason: string;       // ≤18-word justification
+  }[];
   market: {
     tam: string; sam: string; som: string;
     cagrPct: number;

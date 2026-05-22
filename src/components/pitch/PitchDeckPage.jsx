@@ -29,7 +29,7 @@ function Slide({ s, theme, project, footerByline }) {
 
       <div className="col-span-12 mt-8 grid grid-cols-12 gap-8">
         <div className="col-span-12 lg:col-span-8">
-          <h2 className="font-display text-[44px] leading-[0.92] sm:text-[64px] lg:text-[88px]">
+          <h2 className="font-display text-[44px] leading-[1.35] sm:text-[64px] lg:text-[88px]">
             {s.title.split(" ").map((w, i, arr) => {
               if (i === arr.length - 1) {
                 return (
@@ -88,11 +88,15 @@ export default function PitchDeckPage({
 }) {
   const [idx, setIdx] = useState(0);
   const [theme, setTheme] = useState("paper");
-  const slide = deck[idx] ?? deck[0];
+  const safeIdx = Math.min(idx, Math.max(0, deck.length - 1));
+  const slide = deck[safeIdx] ?? deck[0];
 
   useEffect(() => {
-    setIdx((i) => Math.min(i, Math.max(0, deck.length - 1)));
-  }, [deck]);
+    const max = Math.max(0, deck.length - 1);
+    if (idx <= max) return;
+    const t = setTimeout(() => setIdx(max), 0);
+    return () => clearTimeout(t);
+  }, [deck.length, idx]);
 
   const go = (delta) => {
     setIdx((prev) => Math.max(0, Math.min(deck.length - 1, prev + delta)));
@@ -108,7 +112,7 @@ export default function PitchDeckPage({
           <div className="grid gap-8 lg:grid-cols-12">
             <div className="lg:col-span-8">
               <div className="font-mono text-[10px] tracking-wider text-white/50">§C / PITCH DECK BUILDER</div>
-              <h1 className="mt-3 font-display text-[52px] leading-[0.9] sm:text-[72px] lg:text-[88px]">
+              <h1 className="mt-3 font-display text-[52px] leading-[1.35] sm:text-[72px] lg:text-[88px]">
                 10 SLIDES. <br />
                 <span className="bg-[var(--hi)] px-1 text-black">ZERO FILLER.</span>
               </h1>

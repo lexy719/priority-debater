@@ -30,7 +30,7 @@ export default function MarketSection() {
                 <div className="mb-12 grid gap-8 lg:grid-cols-12">
                     <div className="lg:col-span-7">
                         <div className="font-mono text-[10px] tracking-wider text-neutral-500">{dashboardUi.market.eyebrow}</div>
-                        <h2 className="mt-3 font-display text-[48px] leading-[0.92] sm:text-[64px] lg:text-[80px]">
+                        <h2 className="mt-3 font-display text-[clamp(36px,5vw,64px)] leading-[1.35]">
                             THE MARKET <br />
                             <span className="hl-strip">DOESN&apos;T LIE.</span>
                         </h2>
@@ -42,13 +42,13 @@ export default function MarketSection() {
 
                 <div className="relative border-2 border-black bg-white p-6 shadow-brutal lg:p-10">
                     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-                        <div>
+                        <div className="min-w-0 flex-1">
                             <div className="font-mono text-[10px] tracking-wider text-neutral-500">
                                 MARKET GROWTH PROJECTION
                             </div>
-                            <div className="mt-1 font-display text-2xl">{dashboardUi.market.chartSubhead}</div>
+                            <div className="mt-1 font-display text-xl truncate">{dashboardUi.market.chartSubhead}</div>
                         </div>
-                        <div className="flex items-center gap-2 border border-black px-3 py-1.5 font-mono text-[11px]">
+                        <div className="flex items-center gap-2 border border-black px-3 py-1.5 font-mono text-[11px] whitespace-nowrap">
                             <TrendingUp className="h-3.5 w-3.5" />
                             {marketCagrLabel}
                         </div>
@@ -63,7 +63,7 @@ export default function MarketSection() {
                         ) : (
                             <ChartMount>
                                 <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                                    <AreaChart data={marketGrowth} margin={{ top: 12, right: 12, bottom: 0, left: 0 }}>
+                                    <AreaChart data={marketGrowth} margin={{ top: 12, right: 32, bottom: 0, left: 0 }}>
                                         <defs>
                                             <linearGradient id="tamFill" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="0%" stopColor="#0a0a0a" stopOpacity={0.9} />

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Navbar from "@/components/dashboard/Navbar";
+import StudioTopNav from "@/components/studio/StudioTopNav";
 import TickerTape from "@/components/dashboard/TickerTape";
 import ScoreHero from "@/components/dashboard/ScoreHero";
 import MetricsStrip from "@/components/dashboard/MetricsStrip";
@@ -17,6 +17,8 @@ import PersonaVerdicts from "@/components/dashboard/PersonaVerdicts";
 import Footer from "@/components/dashboard/Footer";
 import ResultsEnhancements from "@/components/dashboard/ResultsEnhancements";
 import RevealOnScroll from "@/components/dashboard/RevealOnScroll";
+import ScoreMath from "@/components/dashboard/ScoreMath";
+import ScoreCardV2 from "@/components/score/ScoreCardV2";
 import { ResultsDashboardProvider, useResultsDashboard } from "@/context/results-dashboard-context";
 import { loadSessionWithStatus } from "@/lib/session";
 import type { ValidationSession } from "@/lib/types";
@@ -95,11 +97,13 @@ export default function ResultsPage() {
   const [active, setActive] = useState("market");
   const [session, setSession] = useState<ValidationSession | null>(null);
   const [ready, setReady] = useState(false);
+  const [showV2Score, setShowV2Score] = useState(false);
 
   useEffect(() => {
     queueMicrotask(() => {
       const r = loadSessionWithStatus();
       setSession(r.status === "loaded" ? r.session : null);
+      setShowV2Score(new URLSearchParams(window.location.search).get("v2") === "1");
       setReady(true);
     });
   }, []);
@@ -116,10 +120,32 @@ export default function ResultsPage() {
     <ResultsDashboardProvider session={session}>
       <div data-testid="idea-validation-page" className="results-dashboard min-h-screen bg-[var(--paper)] text-black">
         <ResultsEnhancements />
-        <Navbar />
+        <StudioTopNav />
         <TickerTape />
         <ScoreHero />
         <TickerTape dark />
+        <RevealOnScroll>
+          <ScoreMath />
+        </RevealOnScroll>
+        {showV2Score && session?.setup && (
+          <RevealOnScroll>
+            <section
+              data-testid="score-v2-comparison"
+              className="border-b border-black bg-[var(--paper)] px-6 py-12 lg:px-10 lg:py-14"
+            >
+              <div className="mx-auto max-w-[1480px]">
+                <div className="mb-5 font-mono text-[10px] tracking-wider text-black/55">
+                  S02B / SPECIALISED SCORING V2
+                </div>
+                <ScoreCardV2
+                  topic={session.setup.topic}
+                  position={session.setup.position}
+                  context={session.setup.context}
+                />
+              </div>
+            </section>
+          </RevealOnScroll>
+        )}
         <RevealOnScroll>
           <MetricsStrip />
         </RevealOnScroll>

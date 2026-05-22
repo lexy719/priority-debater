@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useResultsDashboard } from "@/context/results-dashboard-context";
 import ChartMount from "@/components/dashboard/ChartMount";
 import DashboardChartTooltip from "@/components/dashboard/DashboardChartTooltip";
@@ -20,6 +21,20 @@ export default function CompetitionSection() {
     const { competitors, competitorScatter, competitionIntro, idea, yourTractionScore, yourIdeaStrapline, dashboardUi } =
         useResultsDashboard();
 
+    // Calculate your position on the scatter plot (memoized to prevent DOM issues)
+    const positionText = useMemo(() => {
+        const yourPosition = competitorScatter.find(p => p.you);
+        if (!yourPosition) return "YOU SIT TOP-RIGHT.";
+        
+        const x = yourPosition.x; // Autonomy (0-100)
+        const y = yourPosition.y; // Traction (0-100)
+        
+        const horizontal = x >= 50 ? "RIGHT" : "LEFT";
+        const vertical = y >= 50 ? "TOP" : "BOTTOM";
+        
+        return `YOU SIT ${vertical}-${horizontal}.`;
+    }, [competitorScatter]);
+
     return (
         <section
             id="competition"
@@ -31,9 +46,9 @@ export default function CompetitionSection() {
                 <div className="mb-12 grid gap-8 lg:grid-cols-12">
                     <div className="lg:col-span-7">
                         <div className="font-mono text-[10px] tracking-wider text-neutral-500">{dashboardUi.competition.eyebrow}</div>
-                        <h2 className="mt-3 font-display text-[48px] leading-[0.92] sm:text-[64px] lg:text-[80px]">
+                        <h2 className="mt-3 font-display text-[48px] leading-[1.35] sm:text-[64px] lg:text-[80px]">
                             {competitors.length || 0} NAMED. <br />
-                            <span className="hl-strip-dark">YOU SIT TOP-RIGHT.</span>
+                            <span className="hl-strip-dark">{positionText}</span>
                         </h2>
                     </div>
                     <div className="lg:col-span-5 lg:pt-6">
@@ -51,7 +66,7 @@ export default function CompetitionSection() {
                             <div className="mt-4 h-[360px]">
                                 <ChartMount>
                                     <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                                        <ScatterChart margin={{ top: 16, right: 16, bottom: 16, left: 0 }}>
+                                        <ScatterChart margin={{ top: 16, right: 32, bottom: 16, left: 0 }}>
                                             <CartesianGrid stroke="#0a0a0a" strokeOpacity={0.08} />
                                             <XAxis
                                                 type="number"

@@ -61,7 +61,7 @@ export default function ScoreHero() {
                             ◆ STRESS-TEST COMPLETE
                         </div>
 
-                        <h1 className="font-display text-[42px] leading-[0.95] tracking-tight sm:text-[58px] lg:text-[76px]">
+                        <h1 className="font-display text-[42px] leading-[1.35] tracking-tight sm:text-[58px] lg:text-[76px]">
                             &ldquo;{idea.title}&rdquo;
                         </h1>
 
@@ -121,7 +121,7 @@ export default function ScoreHero() {
                             <div className="mt-6 h-24 w-full">
                                 <ChartMount>
                                 <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                                    <LineChart data={overallScore.history}>
+                                    <LineChart data={overallScore.history} margin={{ top: 4, right: 12, bottom: 4, left: 4 }}>
                                         <defs>
                                             <linearGradient id="scoreLine" x1="0" y1="0" x2="1" y2="0">
                                                 <stop offset="0%" stopColor="#7dd3fc" stopOpacity={0.3} />

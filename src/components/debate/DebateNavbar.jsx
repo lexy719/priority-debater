@@ -14,7 +14,7 @@ export default function DebateNavbar({ round, total, shieldsTotal, maxShields })
                 <button
                     type="button"
                     data-testid="exit-debate"
-                    onClick={() => router.push("/")}
+                    onClick={() => router.push("/results")}
                     className="flex items-center gap-3"
                 >
                     <div className="flex h-10 w-10 items-center justify-center border border-black bg-black text-white font-mono text-sm font-bold">
@@ -41,7 +41,7 @@ export default function DebateNavbar({ round, total, shieldsTotal, maxShields })
                 <div className="flex items-center gap-3">
                     <button
                         data-testid="back-to-report"
-                        onClick={() => router.push("/")}
+                        onClick={() => router.push("/results")}
                         className="hidden items-center gap-2 border border-black bg-white px-4 py-2 font-mono text-xs tracking-wider shadow-brutal-sm hover-lift sm:flex"
                     >
                         <ArrowLeft className="h-3 w-3" />

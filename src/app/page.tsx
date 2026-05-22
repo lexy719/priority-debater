@@ -315,7 +315,7 @@ function Hero() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.6, ease: "easeOut" }}
-            className="font-sans text-[clamp(48px,8vw,90px)] font-black uppercase leading-[0.9] tracking-tight"
+            className="font-sans text-[clamp(48px,8vw,90px)] font-black uppercase leading-[1.35] tracking-tight"
           >
             Debate Your
             <br />
@@ -398,7 +398,7 @@ function CapabilitiesGrid() {
             <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-[--ink-2]">
               02 / Capabilities
             </div>
-            <h2 className="mt-4 font-sans text-[clamp(36px,5vw,64px)] font-black uppercase leading-[0.95] tracking-tight">
+            <h2 className="mt-4 font-sans text-[clamp(36px,5vw,64px)] font-black uppercase leading-[1.35] tracking-tight">
               Every Angle.
               <br />
               Every Objection.
@@ -541,7 +541,7 @@ function WhereItBreaks() {
             <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#ef4444]">
               04 / Risk Analysis
             </div>
-            <h2 className="mt-5 font-sans text-[clamp(36px,5vw,64px)] font-black uppercase leading-[0.95] tracking-tight text-white">
+            <h2 className="mt-5 font-sans text-[clamp(36px,5vw,64px)] font-black uppercase leading-[1.35] tracking-tight text-white">
               Where It
               <br />
               <span className="bg-[#ef4444] px-2 py-1 text-black">Breaks.</span>
@@ -643,7 +643,7 @@ function WhereItBreaks() {
             <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#ef4444]">
               04.5 / Output
             </div>
-            <h2 className="mt-5 font-sans text-[clamp(30px,4vw,52px)] font-black uppercase leading-[0.95] tracking-tight text-white">
+            <h2 className="mt-5 font-sans text-[clamp(30px,4vw,52px)] font-black uppercase leading-[1.35] tracking-tight text-white">
               What ships
               <br />
               <span className="bg-[#ef4444] px-2 py-1 text-black">In the envelope.</span>
@@ -697,7 +697,7 @@ function KineticStory() {
             <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[--ink-2]">
               03 / The Engine
             </div>
-            <h2 className="mt-5 font-sans text-[clamp(36px,5vw,64px)] font-black uppercase leading-[0.95] tracking-tight">
+            <h2 className="mt-5 font-sans text-[clamp(36px,5vw,64px)] font-black uppercase leading-[1.35] tracking-tight">
               A Decision Room
               <br />
               <span className="bg-[#4b9be3] px-2 py-1 text-[--ink-0]">With A Pulse.</span>
@@ -754,7 +754,7 @@ function DecisionCockpit() {
             <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[--bg]/60">
               03.5 / Sample
             </div>
-            <h2 className="mt-4 font-sans text-[clamp(36px,5vw,64px)] font-black uppercase leading-[0.95] tracking-tight text-[--bg]">
+            <h2 className="mt-4 font-sans text-[clamp(36px,5vw,64px)] font-black uppercase leading-[1.35] tracking-tight text-[--bg]">
               A Real Report,
               <br />
               In Cold Metrics.
@@ -814,7 +814,7 @@ function Deliverables() {
             <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[--ink-2]">
               05 / What You Get
             </div>
-            <h2 className="mt-5 font-sans text-[clamp(36px,5vw,64px)] font-black uppercase leading-[0.95] tracking-tight">
+            <h2 className="mt-5 font-sans text-[clamp(36px,5vw,64px)] font-black uppercase leading-[1.35] tracking-tight">
               Not A Chat.
               <br />
               <span className="bg-[#4b9be3] px-2 py-1 text-[--ink-0]">A Decision Packet.</span>
@@ -883,7 +883,7 @@ function PremiumFeatures() {
               <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-[--bg]/60">
                 Beyond validation
               </div>
-              <h2 className="mt-5 max-w-[640px] font-serif text-[clamp(38px,5.5vw,72px)] leading-[0.95] tracking-[-0.04em] text-[--bg]">
+              <h2 className="mt-5 max-w-[640px] font-serif text-[clamp(38px,5.5vw,72px)] leading-[1.35] tracking-[-0.04em] text-[--bg]">
                 Don&apos;t just validate it. Ship it.
               </h2>
             </div>
@@ -965,7 +965,7 @@ function LaunchComparison() {
               The Alternative
             </span>
           </div>
-          <h2 className="font-sans text-[clamp(42px,6.2vw,86px)] font-black uppercase leading-[0.92] tracking-tight text-[--bg]">
+          <h2 className="font-sans text-[clamp(42px,6.2vw,86px)] font-black uppercase leading-[1.35] tracking-tight text-[--bg]">
             Built to disagree.
           </h2>
           <p className="mt-6 text-[18px] leading-[1.75] text-[--bg]/70 max-w-[640px] mx-auto">
@@ -1053,7 +1053,7 @@ function Pricing() {
             <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-[--ink-2]">
               04 / Pricing
             </div>
-            <h2 className="mt-4 font-sans text-[clamp(36px,5vw,64px)] font-black uppercase leading-[0.95] tracking-tight">
+            <h2 className="mt-4 font-sans text-[clamp(36px,5vw,64px)] font-black uppercase leading-[1.35] tracking-tight">
               Fair. Blunt.
               <br />
               <span className="bg-[#4b9be3] px-2 py-1 text-[--ink-0]">Cheaper Than A Consultant.</span>
@@ -1159,7 +1159,7 @@ function FinalCta() {
                 <Clock3 className="h-4 w-4" />
                 Four minutes to clarity
               </div>
-              <h2 className="mt-4 max-w-[700px] font-sans text-[clamp(32px,5vw,56px)] font-black uppercase leading-[0.95] tracking-tight text-[--ink-0]">
+              <h2 className="mt-4 max-w-[700px] font-sans text-[clamp(32px,5vw,56px)] font-black uppercase leading-[1.35] tracking-tight text-[--ink-0]">
                 The Best Time To Hear The Hard Truth Is Before Launch.
               </h2>
             </div>

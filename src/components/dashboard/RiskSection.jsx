@@ -30,7 +30,7 @@ export default function RiskSection() {
                 <div className="mb-12 flex flex-wrap items-end justify-between gap-6">
                     <div>
                         <div className="font-mono text-[10px] tracking-wider text-white/50">{dashboardUi.risk.eyebrow}</div>
-                        <h2 className="mt-3 font-display text-[48px] leading-[0.92] sm:text-[64px] lg:text-[80px]">
+                        <h2 className="mt-3 font-display text-[48px] leading-[1.35] sm:text-[64px] lg:text-[80px]">
                             {dashboardUi.risk.headline1} <br />
                             <span className="bg-[var(--c-red)] px-1 text-white">{dashboardUi.risk.headlineAccent}</span>
                         </h2>
