@@ -153,7 +153,12 @@ const PersonaRows = [
   },
 ];
 
-const ScoreBar = ({ score, color = "#0a0a0a" }) => (
+type ScoreBarProps = {
+  score: number;
+  color?: string;
+};
+
+const ScoreBar: React.FC<ScoreBarProps> = ({ score, color = "#0a0a0a" }) => (
   <div className="score-bar">
     {Array.from({ length: 10 }).map((_, idx) => (
       <span
@@ -387,7 +392,15 @@ const DebateCard = () => (
   </div>
 );
 
-const PersonaRow = ({ tag, color, name, role, score }) => (
+type PersonaRowProps = {
+  tag: string;
+  color: string;
+  name: string;
+  role: string;
+  score: number;
+};
+
+const PersonaRow: React.FC<PersonaRowProps> = ({ tag, color, name, role, score }) => (
   <div className="persona-row">
     <div className="persona-avatar" style={{ background: color, color: color === '#0a0a0a' ? '#fff' : '#0a0a0a' }}>
       {tag}
