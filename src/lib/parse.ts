@@ -49,6 +49,7 @@ function splitMarkdownListItems(text: string): string[] {
 /** Exported for API repair pass — must match validation report `###` lines exactly */
 export const VALIDATION_SECTION_MARKERS = [
   { marker: "### Viability Score", label: "Viability score" },
+  { marker: "### Context Confidence", label: "Context confidence" },
   { marker: "### Category Scores", label: "Category scores" },
   { marker: "### Problem-Solution Fit", label: "Problem–solution fit" },
   { marker: "### Financial Projections", label: "Financial projections" },

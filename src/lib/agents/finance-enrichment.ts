@@ -2,25 +2,28 @@ import {
   FINANCE_ANALYST_ROLE,
   FINANCIAL_OUTPUT_CONTRACT,
 } from "@/lib/agents/finance-analyst";
+import { buildDiligenceContextPrompt } from "@/lib/agents/diligence-context";
+import { auditFinanceSanity, insertFinanceSanityCheck } from "@/lib/agents/finance-sanity";
 import { revenueProjectionFromFinancialRows } from "@/lib/chart-data";
 import { extractDashboardData } from "@/lib/parse";
 import type { DebateSetup } from "@/lib/types";
 import type OpenAI from "openai";
 
-export const FINANCE_PASS_SYSTEM_PROMPT = `You are **The Finance Analyst** — a dedicated second-pass specialist on startup validation reports.
+export const FINANCE_PASS_SYSTEM_PROMPT = `You are **The Finance Analyst** - a dedicated second-pass specialist on startup validation reports.
 
 ${FINANCE_ANALYST_ROLE}
 
 You receive a draft report. Your ONLY job is to output three replacement sections with numbers that are:
-- Internally consistent (customers × ARPU × 12 ≈ ARR, LTV math shown, burn × runway ≈ funding)
+- Internally consistent (customers x ARPU x 12 ~= ARR, LTV math shown, burn x runway ~= funding)
 - Aligned with the idea's business model and market sizing from the draft
 - Formatted exactly for the parser contract below
+- Conservative enough that a skeptical CFO would not cut Year 3 revenue by half immediately
 
-Output **ONLY** these sections — no preamble, no other headers:
+Output **ONLY** these sections - no preamble, no other headers:
 
 ${FINANCIAL_OUTPUT_CONTRACT}`;
 
-export function buildFinancePassUserPrompt(setup: DebateSetup, report: string): string {
+export function buildFinancePassUserPrompt(setup: DebateSetup, report: string, diligenceContext = ""): string {
   const excerpt = report.length > 18_000 ? report.slice(-18_000) : report;
   return `Rewrite the **financial block** for this validation report. Your output will **replace** the existing ### Financial Projections, ### Unit Economics, and ### Break-Even Analysis sections.
 
@@ -30,7 +33,10 @@ export function buildFinancePassUserPrompt(setup: DebateSetup, report: string): 
 ${setup.position}
 
 ${setup.context ? `**Context:**\n${setup.context}\n` : ""}
-Use pricing, TAM/SAM/SOM, and business model from the draft below. Do **not** change category scores or viability — only financial sections.
+Use pricing, TAM/SAM/SOM, and business model from the draft below. Do **not** change category scores or viability - only financial sections.
+${diligenceContext ? `\n${diligenceContext}\n` : ""}
+
+Ruthless finance instruction: if the draft sounds optimistic, lower the customer counts, ARR, LTV:CAC, and break-even speed. Never preserve a rosy number just because it appears in the draft.
 
 --- DRAFT REPORT (for context) ---
 ${excerpt}`;
@@ -64,7 +70,7 @@ export function mergeFinancialSectionsIntoReport(report: string, financeBlock: s
   return `${report}\n\n${trimmed}`;
 }
 
-/** True when charts would be empty or ARR series is too thin — always run pass for validate anyway. */
+/** True when charts would be empty or ARR series is too thin - always run pass for validate anyway. */
 export function financialChartsUnderSpecified(report: string): boolean {
   const dm = extractDashboardData(report);
   const bundle = revenueProjectionFromFinancialRows(dm.financialProjections);
@@ -81,11 +87,12 @@ export async function runFinanceEnrichmentPass(
   report: string,
   seed: number,
 ): Promise<string | null> {
+  const diligenceContext = await buildDiligenceContextPrompt(setup);
   const completion = await openai.chat.completions.create({
     model: "gpt-4.1",
     messages: [
       { role: "system", content: FINANCE_PASS_SYSTEM_PROMPT },
-      { role: "user", content: buildFinancePassUserPrompt(setup, report) },
+      { role: "user", content: buildFinancePassUserPrompt(setup, report, diligenceContext) },
     ],
     temperature: 0.1,
     seed,
@@ -96,5 +103,37 @@ export async function runFinanceEnrichmentPass(
   if (!financeBlock) return null;
 
   const merged = mergeFinancialSectionsIntoReport(report, financeBlock);
-  return merged === report ? null : merged;
+  if (merged === report) return null;
+
+  const audit = auditFinanceSanity(setup, merged);
+  if (!audit.passed) {
+    const repair = await openai.chat.completions.create({
+      model: "gpt-4.1",
+      messages: [
+        { role: "system", content: FINANCE_PASS_SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: `${buildFinancePassUserPrompt(setup, merged, diligenceContext)}
+
+--- DETERMINISTIC FINANCE AUDIT FAILURES ---
+${audit.repairBrief}
+
+Rewrite the three finance sections again. You must fix every FAIL by changing the underlying numbers, not by explaining them away.`,
+        },
+      ],
+      temperature: 0.05,
+      seed: seed + 1,
+      max_completion_tokens: 2800,
+    });
+    const repairedBlock = repair.choices[0]?.message?.content?.trim();
+    if (repairedBlock) {
+      const repaired = mergeFinancialSectionsIntoReport(merged, repairedBlock);
+      if (repaired !== merged) {
+        const repairedAudit = auditFinanceSanity(setup, repaired);
+        return insertFinanceSanityCheck(repaired, repairedAudit);
+      }
+    }
+  }
+
+  return insertFinanceSanityCheck(merged, audit);
 }

@@ -10,8 +10,8 @@
 
 :root {
   /* Canvas — high-end paper finish */
-  --bg:               #f4f3ef;
-  --bg-paper:         #f4f3ef;
+  --bg:               #f0ebe3;
+  --bg-paper:         #f0ebe3;
   --bg-black:         #000000;
   --bg-deep:          #0a0a0a;
   --bg-elevated:      #ffffff;
@@ -79,6 +79,7 @@
 @theme inline {
   --color-bg:               var(--bg);
   --color-paper:            var(--bg-paper);
+  --color-paper-2:          #e8e4dc;
   --color-black:            var(--bg-black);
   --color-ink:              var(--ink-0);
   --color-ink-muted:        var(--ink-1);
@@ -87,10 +88,30 @@
   --color-line-white:       var(--line-white);
   --color-accent:           var(--accent);
   --color-on-accent:        var(--on-accent);
-  
-  --font-anton: var(--app-font-display);
-  --font-sans:  var(--app-font-sans);
-  --font-mono:  var(--app-font-mono);
+
+  /* Lovable signal colors */
+  --color-signal-red:       #ef4444;
+  --color-signal-blue:      #3b82f6;
+  --color-signal-green:     #22c55e;
+  --color-signal-amber:     #f59e0b;
+  --color-signal-yellow:    #fbbf24;
+
+  /* Shadcn-style semantic tokens */
+  --color-background:       var(--bg-paper);
+  --color-foreground:       var(--ink-0);
+  --color-card:             #ffffff;
+  --color-card-foreground:  var(--ink-0);
+  --color-muted:            #e8e4dc;
+  --color-muted-foreground: #737373;
+  --color-primary:          var(--ink-0);
+  --color-primary-foreground: var(--bg-paper);
+  --color-input:            rgba(0, 0, 0, 0.15);
+
+  --font-anton:   var(--app-font-display);
+  --font-display: var(--app-font-display);
+  --font-sans:    var(--app-font-sans);
+  --font-mono:    var(--app-font-mono);
+  --font-serif:   Georgia, 'Times New Roman', serif;
 
   --radius-sm:   var(--radius);
   --radius-md:   var(--radius);
@@ -104,6 +125,7 @@
   --animate-accordion-up:   accordion-up 0.2s ease-out;
   --animate-spotlight:      spotlight 2s ease 0.35s 1 forwards;
   --animate-marquee:        marquee 60s linear infinite;
+  --animate-blink:          blink 1s step-end infinite;
 
   @keyframes accordion-down {
     from { height: 0; }
@@ -120,6 +142,10 @@
   @keyframes marquee {
     from { transform: translateX(0); }
     to   { transform: translateX(-50%); }
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0; }
   }
 }
 
@@ -160,10 +186,23 @@ body {
   background-image:
     linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
+  background-size: 48px 48px;
   background-position: center top;
   background-attachment: fixed;
 }
+
+.app-page-shell.bg-card { background-color: var(--color-card); }
+.bg-paper-2 { background-color: var(--color-paper-2); }
+.bg-signal-red { background-color: var(--color-signal-red); }
+.bg-signal-blue { background-color: var(--color-signal-blue); }
+.bg-signal-green { background-color: var(--color-signal-green); }
+.bg-signal-amber { background-color: var(--color-signal-amber); }
+.bg-signal-yellow { background-color: var(--color-signal-yellow); }
+.text-signal-red { color: var(--color-signal-red); }
+.text-signal-blue { color: var(--color-signal-blue); }
+.text-signal-green { color: var(--color-signal-green); }
+.text-signal-amber { color: var(--color-signal-amber); }
+.text-signal-yellow { color: var(--color-signal-yellow); }
 
 .app-page-shell-dark {
   background-color: var(--bg-black);
@@ -177,7 +216,7 @@ body {
 
 @media (max-width: 900px) {
   .app-page-shell {
-    background-size: 40px 40px;
+    background-size: 48px 48px;
     background-attachment: scroll;
   }
 }
@@ -197,6 +236,50 @@ body {
   letter-spacing: -0.01em;
   line-height: 1.35;
   text-transform: uppercase;
+}
+
+.font-serif {
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+/* Lovable highlight spans */
+.hl-red {
+  background: #ef4444;
+  color: #fff;
+  padding: 0.02em 0.15em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.hl-blue {
+  background: #3b82f6;
+  color: #fff;
+  padding: 0.02em 0.15em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.hl-yellow {
+  background: #fbbf24;
+  color: #000;
+  padding: 0.02em 0.15em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Lovable grid-paper backgrounds */
+.grid-paper {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.grid-paper-dark {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
 }
 
 .font-mono {

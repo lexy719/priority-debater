@@ -15,7 +15,7 @@ The Context includes "${REFINEMENTS_CONTEXT_MARKER}". Everything after that line
 
   return `
 **SCORING LENS - EMERGENT V2:**
-Use the specialised v2 scoring logic. The old harsh calibration is retired.
+Use the specialised v2 scoring logic with evidence-grade skepticism. The validator should be ruthless about what was actually provided, while clearly separating "the idea is weak" from "the submitted context is too thin to evaluate confidently."
 
 Measure the idea across eight independent dimensions:
 1. Problem Severity, 20% - pain frequency, urgency, willingness to pay now.
@@ -25,14 +25,21 @@ Measure the idea across eight independent dimensions:
 5. Competitive Advantage / Moat, 15% - clone-resistance over 24 months.
 6. Distribution Potential, 10% - how the company reaches buyers.
 7. Innovation / Novelty, 5% - whether this materially changes something.
-8. Founder Fit, 5% - unfair founder advantages; if absent, score 50 as neutral.
+8. Founder Fit, 5% - unfair founder advantages; if absent, mark as unknown/evidence-limited rather than treating it as a real advantage.
 
 **NON-NEGOTIABLE V2 RULES:**
 - Do not collapse everything into one number. Weak moat does not nuke an otherwise strong idea.
-- Do not punish text-only pitches for not mentioning a team. Missing founder context is neutral.
-- Do not anchor on "most ideas land 35-62"; that rule is gone.
+- Most thin-context, unvalidated submissions land 35-62 overall because evidence is missing, not because the underlying idea is necessarily bad. Say this clearly.
+- 70+ requires specific buyer, pricing, acquisition path, and differentiation evidence. 85+ requires explicit traction, proprietary access, or unusually strong proof.
+- Every report must include a confidence/completeness interpretation: low-context scores are provisional and should name the missing details that could materially change the result.
+- Missing founder context is a risk signal. Team & Execution may be feasible, but Founder Fit / unfair advantage should be treated as weak unless stated.
 - Execution Feasibility is about whether the build/GTM is feasible, not a biography score.
-- If no moat is stated, Competitive Advantage can still reach 60. Better-than-incumbent execution is a temporary moat.
+- If no moat is stated, Competitive Edge is capped at 50. "Better execution" is a hypothesis, not a moat.
+- Cap Problem-Solution Fit at 60 without a named ICP and painful buying trigger.
+- Cap Business Model at 55 without explicit pricing, budget owner, and expected gross margin.
+- Cap Market Opportunity at 60 when TAM/SAM/SOM is top-down only or the reachable wedge is unclear.
+- Cap Team & Execution at 60 when the pitch gives no team, unfair access, or distribution proof.
+- A single category below 45 should normally force CAUTION or NO-GO. Two categories below 45 should normally force NO-GO or PIVOT.
 - Use five recommendation buckets: proceed, proceed cautiously, refine, pivot, reject.
 - Every dimension should name the top gap that would move the number.
 ${refinements}
@@ -56,11 +63,11 @@ The markdown report still has six visible category lines. Map v2 into those line
 Headline "### Viability Score: [V]/100" should reflect the v2 weighted composite, not the arithmetic mean of six legacy categories. If the six legacy rows do not average to V, add a short **Score bridge:** explaining that v2 separates idea quality, execution difficulty, and founder advantage.
 
 **GUIDANCE STYLE:**
-- Be direct, but do not be reflexively discouraging.
+- Be direct and adversarial about evidence quality, not dismissive about potential. The founder should leave knowing whether the idea is weak or simply under-described.
 - Ambitious-but-valid ideas can score strong while still showing high execution difficulty.
 - Avoid generic "talk to customers"; name the buyer, channel, falsifying signal, and timebox.
 - In Competitive Landscape and Lean Canvas, answer why this can win and why incumbents may not immediately own it.
-- Financial estimates must be deterministic and grounded in stated pricing, target market size, and standard benchmarks.
+- Financial estimates must be deterministic, conservative, and grounded in stated pricing, acquisition capacity, sales cycle, target market size, and standard benchmarks.
 
 For each category score, the narrative must visibly support the number.
 `.trim();

@@ -22,9 +22,11 @@ import {
 } from "@/lib/landing-templates";
 import { formatLogoBriefForKitPrompt, sanitizeLogoBrief } from "@/lib/logo-brief";
 import { buildValidationReportPrompt } from "@/lib/agents/build-validation-report-prompt";
+import { recordValidationLearning } from "@/lib/agents/agent-memory";
+import { buildDiligenceContextPrompt } from "@/lib/agents/diligence-context";
 import { runFinanceEnrichmentPass } from "@/lib/agents/finance-enrichment";
 import { buildValidationRepairSystemPrompt } from "@/lib/agents/validation-repair";
-import { REFINEMENTS_CONTEXT_MARKER, setupContextHasRefinements } from "@/lib/scoring-scale";
+import { REFINEMENTS_CONTEXT_MARKER } from "@/lib/scoring-scale";
 import {
   formatPersonalityForModel,
   VALID_PANEL_SLUG_SET,
@@ -2163,6 +2165,8 @@ Be direct, specific, and actionable. Give them one concrete thing they could do 
           try {
             let promptForModel = openingPrompt;
             if (setup.template === "validate") {
+              const diligenceContext = await buildDiligenceContextPrompt(setup);
+              promptForModel = `${promptForModel}\n\n${diligenceContext}\n\nUse this structured diligence context as the shared operating state across scoring, finance, market, competition, and final judgment. Apply binding score caps unless the founder text or web evidence directly resolves the gap. Do not copy prior facts into this idea unless they genuinely apply.`;
               try {
                 const researchResponse = await openai.responses.create({
                   model: "gpt-4.1-mini",
@@ -2181,7 +2185,7 @@ Be direct, specific, and actionable. Give them one concrete thing they could do 
                 });
                 const webResearch = researchResponse.output_text?.trim();
                 if (webResearch) {
-                  promptForModel = `${openingPrompt}\n\n### Web Research Context\n${webResearch}\n\nUse this context where relevant, and keep any source URLs visible in Research Notes.`;
+                  promptForModel = `${promptForModel}\n\n### Web Research Context\n${webResearch}\n\nUse this context where relevant, and keep any source URLs visible in Research Notes.`;
                 }
               } catch (researchErr) {
                 console.warn("Validation web research unavailable:", researchErr);
@@ -2279,6 +2283,14 @@ Be direct, specific, and actionable. Give them one concrete thing they could do 
               } catch (blindErr) {
                 // Blind scoring failed — non-fatal, primary scores stand
                 console.warn("Blind scoring pass failed:", blindErr);
+              }
+            }
+
+            if (setup.template === "validate" && fullText.length > 500) {
+              try {
+                await recordValidationLearning(setup, fullText);
+              } catch (memoryErr) {
+                console.warn("Agent memory write failed:", memoryErr);
               }
             }
 

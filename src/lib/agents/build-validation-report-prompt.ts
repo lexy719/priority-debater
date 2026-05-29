@@ -38,8 +38,14 @@ Generate a complete analysis with these EXACT section headers (the parser depend
 ### Research Notes
 - [If Web Research Context is provided: 3-5 concise bullets with source URLs for current market/competitor/timing facts. If not provided: "No live web research available; assumptions are labeled in the sections below."]
 
+### Context Confidence
+- **Confidence level:** [LOW / MEDIUM / HIGH based on Structured Diligence Context, not optimism]
+- **Why:** [Say whether this is a thin-context, partial-context, or high-context evaluation]
+- **Missing context that could move the score:** [2-4 concrete details: ICP, pricing, traction, distribution, moat, founder edge]
+- **Interpretation:** [If context is thin, explicitly say: "This is an evidence-limited score, not a final judgment on the idea's potential."]
+
 ### Viability Score: [X]/100
-[GO / CAUTION / NO-GO. **Must** align with the lowest category scores: if any category is below 45, you cannot call this GO without a **Score bridge:** that explains why the headline still merits GO. **NO-GO** is allowed and sometimes required when the idea is uninvestable as stated.]
+[GO / CAUTION / NO-GO. **Must** align with the lowest category scores and Context Confidence: if any category is below 45, you cannot call this GO without a **Score bridge:** that explains why the headline still merits GO. If context confidence is LOW, explicitly call the score provisional/evidence-limited. **NO-GO** is allowed when the idea is uninvestable as stated; **CAUTION - insufficient context** is preferred when the idea might be good but the submission lacks enough detail.]
 
 ### Category Scores
 - Problem-Solution Fit: [X]/100

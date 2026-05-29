@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { buildDiligenceContextPrompt } from "@/lib/agents/diligence-context";
 import type { BlindScores } from "@/lib/blind-scorer";
 
 export type Band = "weak" | "interesting" | "viable" | "strong" | "exceptional";
@@ -92,9 +93,12 @@ Grade an early-stage idea on eight independent weighted dimensions, plus three d
 
 Core calibration:
 - Do not collapse everything into one number. Weak moat must not nuke an otherwise strong idea.
-- Do not punish text-only pitches for not mentioning a team. If founder context is absent, Founder Fit is 50: unknown and neutral.
-- Do not anchor on "most ideas land 35-62". Score each dimension on its own band, then weight-aggregate.
+- Be ruthless about evidence provided, not dismissive about hidden potential. Most thin-context ideas land 35-62 overall because there is not enough information to evaluate, not because the idea is necessarily bad.
+- 70+ requires concrete buyer, pricing, channel, and wedge evidence. 85+ requires explicit traction or proprietary advantage.
+- Use confidence and evidenceLevel honestly: thin context means low confidence/thin evidence and the headlineRationale must say the score is evidence-limited.
+- If founder context is absent, Founder Fit is 45: unknown is a risk, not a free pass.
 - Call out the single biggest gap per dimension.
+- Cap scores when evidence is missing: no named ICP caps Problem Severity at 60; no pricing or buyer budget caps Monetization at 55; no explicit channel caps Distribution at 55; no stated moat caps Competitive Advantage at 50; no execution/team proof caps Execution Feasibility at 60 and Founder Fit at 45. Treat these as evidence caps, not final proof the idea cannot be good.
 - Use web search only for category-level facts: TAM, growth, named incumbents, typical pricing, regulatory tailwinds/headwinds, and standard channels.
 - Never invent founder-specific facts: traction, LOIs, signed customers, team credentials, advisors, funding, or revenue only count when the founder explicitly states them.
 - Execution Feasibility and Founder Fit are founder-only dimensions. Do not mark them enriched.
@@ -111,10 +115,10 @@ Dimensions:
 2. market_size, 15%: TAM/SAM/SOM and growth direction.
 3. monetization, 15%: pricing power, repeatability, unit economics.
 4. execution_feasibility, 15%: can a competent team build and ship it?
-5. competitive_advantage, 15%: clone-resistance over 24 months. If no moat is stated, cap this dimension at 60, not 50. Better-than-incumbent execution can be a temporary moat.
+5. competitive_advantage, 15%: clone-resistance over 24 months. If no moat is stated, cap this dimension at 50. Better-than-incumbent execution alone is not a durable moat.
 6. distribution, 10%: how the company reaches buyers.
 7. innovation, 5%: whether the approach materially changes something.
-8. founder_fit, 5%: unfair founder advantages. If absent, score 50.
+8. founder_fit, 5%: unfair founder advantages. If absent, score 45.
 
 Decoupled signals:
 - ideaQuality: 0-100, whether a top-1% operator could make this work. Base this mostly on problem, market, monetization, moat, and innovation.
@@ -125,8 +129,9 @@ Recommendation tiers:
 - proceed: overall >= 85, or overall >= 70 with executionDifficulty < 80.
 - proceed-cautiously: overall >= 70 with executionDifficulty >= 80, or 60-70 viable.
 - refine: overall 50-70 with one or two weak dimensions.
-- pivot: overall 30-50.
+- pivot: overall 30-50, or any core dimension under 35 unless a clear bridge exists.
 - reject: overall < 30.
+- Never recommend proceed when Competitive Advantage or Monetization is under 45. Use refine/caution even if the weighted score is high.
 
 Output exact JSON shape:
 {
@@ -174,6 +179,7 @@ Rules:
 - "why" and "topGap" must be specific to the idea, not boilerplate.
 - overall = round(sum(score_i * weight_i) / 100).
 - assumptions should include sourceUrl when live search was used for that claim.
+- If the Structured Diligence Context says confidence is low or level is thin, set confidence to low, evidenceLevel to thin, and make oneAskFromFounder request the missing detail most likely to change the score.
 - Return JSON only.`;
 
 function clampText(value: unknown, max: number): string {
@@ -253,6 +259,21 @@ export function bandToRecommendation(band: Band, executionDifficulty: number): R
   return "pivot";
 }
 
+function recommendationForScore(
+  overall: number,
+  executionDifficulty: number,
+  dimensions: DimensionScore[],
+): Recommendation {
+  const get = (id: DimensionId) => dimensions.find((dim) => dim.id === id)?.score ?? 50;
+  const moat = get("competitive_advantage");
+  const monetization = get("monetization");
+  const problem = get("problem_severity");
+  if (overall < 30) return "reject";
+  if (Math.min(problem, monetization, moat) < 35) return "pivot";
+  if (moat < 45 || monetization < 45) return "refine";
+  return bandToRecommendation(scoreToBand(overall), executionDifficulty);
+}
+
 export async function scoreIdeaV2(input: ScoreInput): Promise<IdeaScoreV2> {
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) throw new Error("OPENAI_API_KEY is not configured.");
@@ -262,10 +283,12 @@ export async function scoreIdeaV2(input: ScoreInput): Promise<IdeaScoreV2> {
   const context = clampText(input.context, 4000);
   if (!topic) throw new Error("Missing topic.");
 
+  const diligenceContext = await buildDiligenceContextPrompt({ topic, position, context });
   const userPrompt = [
     `Idea: ${topic}`,
     position ? `Why the founder believes it works:\n${position}` : "No position provided. Research the category, but do not invent founder facts.",
     context ? `Additional context:\n${context}` : "No context provided. Founder-specific facts are unknown and neutral.",
+    diligenceContext,
     "Score this idea now. Return only the JSON object.",
   ].join("\n\n");
 
@@ -345,7 +368,7 @@ export function parseAndRepairIdeaScoreV2(
 
   const dimensions: DimensionScore[] = DIMENSION_IDS.map((id) => {
     const source = byId.get(id) ?? {};
-    const score = clampInt(source.score, 0, 100, id === "founder_fit" ? 50 : 55);
+    const score = clampInt(source.score, 0, 100, id === "founder_fit" ? 45 : 55);
     const enriched = FOUNDER_ONLY.has(id) ? false : Boolean(source.enriched);
     return {
       id,
@@ -388,12 +411,7 @@ export function parseAndRepairIdeaScoreV2(
   ) as IdeaScoreV2["founderAdvantageNeeded"];
 
   const band = scoreToBand(overall);
-  const recommendationRaw = String(parsed.recommendation ?? "");
-  const recommendation = (
-    ["proceed", "proceed-cautiously", "refine", "pivot", "reject"].includes(recommendationRaw)
-      ? recommendationRaw
-      : bandToRecommendation(band, executionDifficulty)
-  ) as Recommendation;
+  const recommendation = recommendationForScore(overall, executionDifficulty, dimensions);
 
   const readArray = (value: unknown, maxItems: number, maxChars: number): string[] =>
     Array.isArray(value)

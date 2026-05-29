@@ -11,6 +11,7 @@ export function getTemplateSource(id: LandingTemplateId): string | null {
   switch (id) {
     case "saas-nova":
       return SAAS_NOVA_TEMPLATE;
+    
     case "editorial-aurora":
       return EDITORIAL_AURORA_TEMPLATE;
     case "bento-prism":

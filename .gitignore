@@ -43,6 +43,7 @@ next-dev.err.log*
 next-env.d.ts
 .claude/
 .cursor/
+.agent-memory/
 
 *storybook.log
 storybook-static

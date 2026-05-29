@@ -149,6 +149,55 @@ export default function LandingBuilderPage() {
                 </div>
             </section>
 
+            <section id="validate" className="relative overflow-hidden border-b border-black bg-[#f8f4ed] py-14">
+                <div className="absolute inset-0 bg-grid opacity-80" />
+                <div className="relative mx-auto max-w-[1480px] px-6 lg:px-10">
+                    <div className="grid gap-10 lg:grid-cols-[1.1fr_0.95fr] items-start">
+                        <div>
+                            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-black/70 mb-4">— 02 · Input</div>
+                            <h2 className="font-display text-[42px] leading-[1.05] sm:text-[52px] lg:text-[64px]">
+                                Drop the<br />
+                                pitch. The<br />
+                                panel handles<br />
+                                the rest.
+                            </h2>
+                            <p className="mt-6 max-w-xl text-base leading-relaxed text-black/80">
+                                Tell us what you are building, who pays, and why now. We turn it into a structured stress test the panel can argue with.
+                            </p>
+                            <ul className="mt-6 space-y-2 text-sm leading-relaxed text-black/75">
+                                <li>✓ Auto-extracts wedge, ICP, GTM</li>
+                                <li>✓ Forces evidence on every claim</li>
+                                <li>✓ No “great idea!” — ever</li>
+                            </ul>
+                        </div>
+                        <div className="rounded-[32px] border border-black bg-white p-6 shadow-[10px_10px_0_0_rgba(0,0,0,0.08)]">
+                            <div className="mb-4 flex items-center justify-between text-sm uppercase tracking-[0.22em] text-black/70">
+                                <span>Idea Validation</span>
+                                <span>0 / 120+</span>
+                            </div>
+                            <textarea
+                                className="min-h-[280px] w-full resize-none rounded-[18px] border border-black/10 bg-[var(--paper)] p-5 text-sm leading-relaxed text-black placeholder:text-black/40 focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                                placeholder="Pitch your idea in one shot: what you are building, who pays, the pain, why now, and what is hard. We need enough signal to argue — aim for at least a few dense paragraphs."
+                            />
+                            <div className="mt-5 border-t border-black/10 pt-4">
+                                <div className="mb-3 text-[10px] uppercase tracking-[0.22em] text-black/60">
+                                    Add at least 120 characters so we have enough context.
+                                </div>
+                                <button className="inline-flex items-center gap-2 rounded-full bg-black px-6 py-3 text-[11px] uppercase tracking-[0.32em] text-white transition hover:-translate-y-0.5">
+                                    Run Validation
+                                    <ArrowRight className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="mt-8 flex flex-wrap gap-3 text-[11px] uppercase tracking-[0.22em] text-black/60">
+                        {['120s avg', 'no card required', 'claude sonnet 4.5', 'pdf export'].map((tag) => (
+                            <span key={tag} className="rounded-full border border-black/10 bg-white px-3 py-1">{tag}</span>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
             {/* STEP 1 — TEMPLATE GALLERY (when no template chosen) */}
             {!templateId && (
                 <section className="border-b border-black bg-[var(--paper)] py-14" data-testid="template-gallery">

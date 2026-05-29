@@ -116,7 +116,7 @@ export function LandingIdeaValidation() {
         value={idea}
         onChange={(e) => setIdea(e.target.value)}
         rows={6}
-        placeholder="Pitch your idea in one shot: what you are building, who pays, the pain, why now, and what is hard. The panel needs enough signal to argue — aim for at least a few dense paragraphs."
+        placeholder="Pitch your idea in one shot: what you are building, who pays, the pain, why now, and what is hard. We need enough signal to argue — aim for at least a few dense paragraphs."
         className="min-h-[160px] w-full resize-y border-2 border-[--line] bg-[--surface-2]/55 px-4 py-3 font-sans text-[15px] leading-[1.55] text-[--ink-0] outline-none transition placeholder:text-[--ink-3] focus:border-[--ink-0] focus:bg-[--bg]"
       />
 
@@ -136,7 +136,7 @@ export function LandingIdeaValidation() {
                 : "Generating…"
             : canRun
               ? "Ready — five personas will tear this apart and you’ll land on a scored dossier."
-              : `Add at least ${MIN_CHARS} characters so the panel has enough context.`}
+              : `Add at least ${MIN_CHARS} characters so we have enough context.`}
         </p>
         <Button type="button" size="lg" disabled={!canRun} onClick={run} className="w-full shrink-0 sm:w-auto" data-testid="run-validation-btn">
           {pending ? (
