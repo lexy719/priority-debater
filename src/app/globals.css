@@ -282,6 +282,35 @@ body {
   background-size: 40px 40px;
 }
 
+section {
+  position: relative;
+}
+
+section:not(.grid-paper):not(.grid-paper-dark)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.85;
+}
+
+section.bg-ink:not(.grid-paper-dark):not(.grid-paper)::before,
+section.bg-black:not(.grid-paper-dark):not(.grid-paper)::before,
+section.bg-signal-red:not(.grid-paper-dark):not(.grid-paper)::before,
+section.bg-signal-blue:not(.grid-paper-dark):not(.grid-paper)::before,
+section.bg-signal-green:not(.grid-paper-dark):not(.grid-paper)::before,
+section.bg-signal-amber:not(.grid-paper-dark):not(.grid-paper)::before,
+section.bg-signal-yellow:not(.grid-paper-dark):not(.grid-paper)::before {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  opacity: 0.7;
+}
+
 .font-mono {
   font-family: 'JetBrains Mono', monospace;
 }
@@ -678,4 +707,133 @@ html.has-custom-cursor * {
   text-underline-offset: 3px;
   text-decoration-thickness: 1px;
   text-decoration-color: rgba(155, 182, 255, 0.45);
+}
+
+/* =============================================================
+   Chamber design language (lovable port — /results + /debate)
+   Raw vars live at :root so utilities resolve everywhere;
+   .chamber-scope re-tints accent to the coral-red report accent.
+   ============================================================= */
+
+:root {
+  --surface:          #fbfaf6;
+  --surface-2:        #e8e4dc;
+  --border-strong:    #000000;
+  --danger:           #e23a2e;
+  --warn:             #d98a06;
+  --success:          #119464;
+  --data:             #2563eb;
+  --data-foreground:  #f5f4f0;
+  --ink-foreground:   #f5f4f0;
+  --accent-foreground: #000000; /* root accent is sky — black on top */
+}
+
+@theme inline {
+  --color-surface:           var(--surface);
+  --color-surface-2:         var(--surface-2);
+  --color-border:            var(--line);
+  --color-border-strong:     var(--border-strong);
+  --color-danger:            var(--danger);
+  --color-warn:              var(--warn);
+  --color-success:           var(--success);
+  --color-data:              var(--data);
+  --color-data-foreground:   var(--data-foreground);
+  --color-ink-foreground:    var(--ink-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+}
+
+.chamber-scope {
+  --accent: #e23a2e;            /* coral-red report accent */
+  --accent-foreground: #fdfcf9;
+  font-family: var(--app-font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Big editorial display type (Archivo Black stand-in → Anton) */
+.text-display {
+  font-family: var(--app-font-display);
+  text-transform: uppercase;
+  letter-spacing: -0.015em;
+  line-height: 1.02;
+}
+
+/* Dark "ink" band grid */
+.grid-bg-ink {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Card aliases — newspaper/ink language with tinted info cards */
+.ip-card         { background: var(--surface); border: 1px solid var(--line); }
+.ip-card-tint    { background: color-mix(in oklab, var(--accent) 8%, var(--surface)); border: 1px solid var(--line); }
+.ip-card-success { background: color-mix(in oklab, var(--success) 10%, var(--surface)); border: 1px solid var(--success); }
+.ip-card-danger  { background: color-mix(in oklab, var(--danger) 8%, var(--surface));  border: 1px solid var(--danger); }
+.ip-card-warn    { background: color-mix(in oklab, var(--warn) 12%, var(--surface));   border: 1px solid var(--warn); }
+
+.ip-chip    { width: 2rem; height: 2rem; display: grid; place-items: center; border: 1px solid var(--line); background: var(--surface); color: var(--ink-0); flex-shrink: 0; }
+.ip-chip-lg { width: 2.5rem; height: 2.5rem; }
+
+.ip-pill         { display: inline-flex; align-items: center; padding: 2px 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; border: 1px solid var(--line); background: var(--surface); color: var(--ink-0); }
+.ip-pill-muted   { background: var(--surface-2); color: var(--ink-2); border-color: var(--line); }
+.ip-pill-warn    { color: var(--warn);    border-color: var(--warn);    background: color-mix(in oklab, var(--warn) 10%, var(--surface)); }
+.ip-pill-success { color: var(--success); border-color: var(--success); background: color-mix(in oklab, var(--success) 10%, var(--surface)); }
+.ip-pill-danger  { color: var(--danger);  border-color: var(--danger);  background: color-mix(in oklab, var(--danger) 8%, var(--surface)); }
+
+.ip-section-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-2); }
+
+/* Score Lab range sliders */
+.chamber-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.chamber-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--ink-0);
+  border: 2px solid var(--ink-0);
+  cursor: grab;
+}
+.chamber-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--ink-0);
+  border: 2px solid var(--ink-0);
+  cursor: grab;
+}
+.chamber-range:active::-webkit-slider-thumb { cursor: grabbing; }
+
+/* Tribunal speaking equalizer bars */
+@keyframes chamber-eq {
+  0%, 100% { height: 25%; }
+  50%      { height: 100%; }
+}
+.chamber-eq { height: 25%; animation: chamber-eq 0.6s ease-in-out infinite; }
+
+/* Survival score pulse — re-triggers via React key on every change */
+@keyframes chamber-pop {
+  0%   { transform: scale(1.12); filter: brightness(1.6); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+.chamber-pop { animation: chamber-pop 450ms cubic-bezier(0.22, 1, 0.36, 1); transform-origin: left bottom; }
+
+/* Chamber ticker scroll */
+@keyframes chamber-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-33.333%); }
+}
+.chamber-ticker-track { animation: chamber-scroll 60s linear infinite; will-change: transform; }
+.chamber-ticker:hover .chamber-ticker-track { animation-play-state: paused; }
+
+/* Print: court record / report export */
+@media print {
+  .chamber-scope .print\:hidden { display: none !important; }
+  .chamber-scope { background: #fff !important; }
 }

@@ -61,3 +61,32 @@ export function updateSessionMessages(messages: ValidationSession["messages"]): 
   if (!session) return;
   saveSession({ ...session, messages });
 }
+
+const DEBATE_KEY = "priority-debater-chamber-transcript";
+
+/**
+ * Persist a rendered Chamber debate transcript so the /results synthesis can
+ * fold "what the panel actually challenged" into the dossier. Stored against
+ * the idea so a stale transcript from another idea is never reused.
+ */
+export function saveDebateTranscript(idea: string, transcript: string, survival: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(DEBATE_KEY, JSON.stringify({ idea: idea.trim(), transcript, survival, savedAt: Date.now() }));
+  } catch {
+    // ignore
+  }
+}
+
+export function loadDebateTranscript(idea: string): { transcript: string; survival: number } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(DEBATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { idea?: string; transcript?: string; survival?: number };
+    if (!parsed.transcript || parsed.idea?.trim() !== idea.trim()) return null;
+    return { transcript: parsed.transcript, survival: typeof parsed.survival === "number" ? parsed.survival : 0 };
+  } catch {
+    return null;
+  }
+}

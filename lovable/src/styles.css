@@ -1,0 +1,123 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: "Archivo Black", "Inter", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+  --color-success: var(--success);
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
+  --color-data: var(--data);
+  --color-data-foreground: var(--data-foreground);
+  --color-primary: var(--ink);
+  --color-primary-foreground: var(--ink-foreground);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--foreground);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--foreground);
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: var(--ink-foreground);
+  --color-input: var(--border);
+  --color-ring: var(--accent);
+
+  --radius-sm: 0px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+}
+
+:root {
+  /* Warmer cream "paper" base — matches landing */
+  --background: oklch(0.925 0.022 78);
+  --foreground: oklch(0.14 0.012 250);
+  --surface: oklch(0.985 0.008 80);
+  --surface-2: oklch(0.88 0.025 75);
+  --border: oklch(0.14 0.012 250);
+  --border-strong: oklch(0.10 0.012 250);
+  --muted: oklch(0.88 0.020 75);
+  --muted-foreground: oklch(0.38 0.012 250);
+  --accent: oklch(0.66 0.22 28);             /* coral-red highlight */
+  --accent-foreground: oklch(0.985 0.005 250);
+  --data: oklch(0.66 0.18 240);              /* blue used for charts */
+  --data-foreground: oklch(0.12 0.01 250);
+  --danger: oklch(0.66 0.25 28);
+  --warn: oklch(0.78 0.17 75);
+  --success: oklch(0.62 0.16 150);
+  --ink: oklch(0.14 0.012 250);              /* dark hero stripe */
+  --ink-foreground: oklch(0.96 0.005 250);
+  --radius: 2px;
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body { background: var(--color-background); color: var(--color-foreground); font-family: var(--font-mono); }
+}
+
+@layer utilities {
+  /* light/paper grid — dark hairlines on cream */
+  .grid-bg {
+    background-image:
+      linear-gradient(to right, oklch(0 0 0 / 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0 0 0 / 0.07) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .grid-bg-fine {
+    background-image:
+      linear-gradient(to right, oklch(0 0 0 / 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0 0 0 / 0.04) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+  .grid-bg-ink {
+    background-image:
+      linear-gradient(to right, oklch(1 0 0 / 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(1 0 0 / 0.06) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .bg-ink { background-color: var(--ink); color: var(--ink-foreground); }
+  .text-ink { color: var(--ink); }
+  .text-ink-foreground { color: var(--ink-foreground); }
+  .border-ink { border-color: var(--ink); }
+  .text-data { color: var(--data); }
+  .bg-data { background-color: var(--data); color: var(--data-foreground); }
+  .text-display { font-family: var(--font-display); letter-spacing: -0.02em; line-height: 0.92; }
+  .text-mono { font-family: var(--font-mono); }
+  /* landing-style highlighter pills */
+  .hl-red { background-color: var(--accent); color: var(--accent-foreground); padding: 0 .35em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .hl-blue { background-color: var(--data); color: var(--data-foreground); padding: 0 .35em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+
+  /* Card aliases keep the newspaper/ink language but allow tinted info cards */
+  .ip-card { background: var(--surface); border: 1px solid var(--border); }
+  .ip-card-tint    { background: color-mix(in oklab, var(--accent) 8%, var(--surface)); border: 1px solid var(--border); }
+  .ip-card-success { background: color-mix(in oklab, var(--success) 10%, var(--surface)); border: 1px solid var(--success); }
+  .ip-card-danger  { background: color-mix(in oklab, var(--danger) 8%, var(--surface));  border: 1px solid var(--danger); }
+  .ip-card-warn    { background: color-mix(in oklab, var(--warn) 12%, var(--surface));   border: 1px solid var(--warn); }
+
+  .ip-chip { width: 2rem; height: 2rem; display: grid; place-items: center; border: 1px solid var(--border); background: var(--surface); color: var(--foreground); flex-shrink: 0; }
+  .ip-chip-lg { width: 2.5rem; height: 2.5rem; }
+
+  .ip-pill { display: inline-flex; align-items: center; padding: 2px 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; border: 1px solid var(--border); background: var(--surface); color: var(--foreground); }
+  .ip-pill-muted   { background: var(--muted); color: var(--muted-foreground); border-color: var(--border); }
+  .ip-pill-warn    { color: var(--warn);    border-color: var(--warn); background: color-mix(in oklab, var(--warn) 10%, var(--surface)); }
+  .ip-pill-success { color: var(--success); border-color: var(--success); background: color-mix(in oklab, var(--success) 10%, var(--surface)); }
+  .ip-pill-danger  { color: var(--danger);  border-color: var(--danger); background: color-mix(in oklab, var(--danger) 8%, var(--surface)); }
+
+  .ip-section-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted-foreground); }
+}
