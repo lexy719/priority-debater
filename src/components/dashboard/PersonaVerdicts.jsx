@@ -113,7 +113,7 @@ export default function PersonaVerdicts() {
                     </div>
                     <div className="col-span-12 lg:col-span-3 lg:text-right">
                         <Link
-                            href="/results/debate"
+                            href="/debate"
                             data-testid="open-debate-panel"
                             className="inline-flex items-center border border-white bg-white px-4 py-2 font-mono text-xs tracking-wider text-black shadow-brutal-inv transition hover:bg-[var(--hi)]"
                         >

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Anton, JetBrains_Mono } from "next/font/google";
 import { SmoothScroll } from "@/components/v2/smooth-scroll";
 import { Cursor } from "@/components/v2/cursor";
+import { CreditsProvider } from "@/components/credits/CreditsProvider";
 import "./globals.css";
 
 const sans = Inter({
@@ -71,10 +72,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${sans.variable} ${mono.variable} ${display.variable} antialiased`}>
-        <SmoothScroll>
-          <Cursor />
-          {children}
-        </SmoothScroll>
+        <CreditsProvider>
+          <SmoothScroll>
+            <Cursor />
+            {children}
+          </SmoothScroll>
+        </CreditsProvider>
       </body>
     </html>
   );

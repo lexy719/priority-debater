@@ -9,6 +9,7 @@
  * credits. Delete or ignore once the live pipeline is funded.
  */
 
+import { notFound } from "next/navigation";
 import ResultsChamber from "@/components/chamber/ResultsChamber";
 import { DEFAULT_REPORT, type Report } from "@/components/chamber/report";
 
@@ -39,6 +40,7 @@ const PREVIEW_REPORT: Report = {
 const PREVIEW_IDEA = DEFAULT_REPORT.meta.idea.replace(/^"|"$/g, "");
 
 export default function ResultsTestPage() {
+  if (process.env.NODE_ENV === "production") notFound();
   return (
     <ResultsChamber
       report={PREVIEW_REPORT}

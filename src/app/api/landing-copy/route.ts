@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { LandingCopy, TemplateId } from "@/lib/landing-template-types";
+import { guardAndSpend, guardFailResponse, refund } from "@/lib/credits/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -110,8 +111,11 @@ function tryParseJson(raw: string): unknown {
 }
 
 export async function POST(req: Request) {
+    const guard = await guardAndSpend("landing");
+    if (!guard.ok) return guardFailResponse(guard);
     try {
         if (!process.env.OPENAI_API_KEY) {
+            await refund("landing");
             return new Response(JSON.stringify({ error: "AI not configured" }), { status: 500 });
         }
         const body = await req.json() as {
@@ -125,6 +129,7 @@ export async function POST(req: Request) {
             ? body.templateId
             : "editorial") as TemplateId;
         if (!topic) {
+            await refund("landing");
             return new Response(JSON.stringify({ error: "topic required" }), { status: 400 });
         }
 
@@ -143,12 +148,14 @@ export async function POST(req: Request) {
         const raw = completion.choices[0]?.message?.content ?? "";
         const parsed = tryParseJson(raw);
         if (!parsed || typeof parsed !== "object") {
+            await refund("landing");
             return new Response(JSON.stringify({ error: "AI returned invalid JSON" }), { status: 502 });
         }
         return new Response(JSON.stringify(parsed as LandingCopy), {
             headers: { "Content-Type": "application/json" },
         });
     } catch (e) {
+        await refund("landing");
         const msg = e instanceof Error ? e.message : "unknown error";
         return new Response(JSON.stringify({ error: msg }), { status: 500 });
     }

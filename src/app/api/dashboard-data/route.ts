@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { DashboardData } from "@/lib/types";
+import { requireAuth, guardFailResponse } from "@/lib/credits/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -487,6 +488,8 @@ function weakestDim(cats: Record<RubricKey, { score: number }>): string {
 
 // ─── Route ────────────────────────────────────────────────────────────────
 export async function POST(req: Request) {
+    const auth = await requireAuth();
+    if (!auth.ok) return guardFailResponse(auth);
     try {
         if (!process.env.OPENAI_API_KEY) {
             return new Response(JSON.stringify({ error: "AI not configured" }), { status: 500 });

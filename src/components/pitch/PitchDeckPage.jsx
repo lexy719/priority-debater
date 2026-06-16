@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import StudioTopNav from "@/components/studio/StudioTopNav";
+import { SiteNav } from "@/components/SiteNav";
 import TickerTape from "@/components/dashboard/TickerTape";
 import Footer from "@/components/dashboard/Footer";
 import { ChevronLeft, ChevronRight, Download, Play, Maximize2 } from "lucide-react";
@@ -104,7 +104,7 @@ export default function PitchDeckPage({
 
   return (
     <div data-testid="pitch-deck-page" className="min-h-screen bg-[var(--paper)] text-black">
-      <StudioTopNav />
+      <SiteNav subtitle="v1.0 / 2026 — Pitch Deck" />
       <TickerTape />
 
       <section className="border-b border-black bg-black py-12 text-white">

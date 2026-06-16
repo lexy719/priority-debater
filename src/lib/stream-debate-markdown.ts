@@ -30,7 +30,11 @@ export async function streamDebateMarkdown(
   });
 
   if (!response.ok) {
-    throw new Error(await messageFromFailedResponse(response));
+    // Surface the HTTP status so callers can route 401 → login and 402 → the
+    // out-of-credits modal (server-enforced credits live in /api/debate).
+    const err = new Error(await messageFromFailedResponse(response)) as Error & { status?: number };
+    err.status = response.status;
+    throw err;
   }
 
   const reader = response.body?.getReader();

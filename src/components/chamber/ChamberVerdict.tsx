@@ -28,7 +28,20 @@ const HUE_VAR: Record<VerdictPersona["hue"], string> = {
   danger: "var(--danger)", data: "var(--data)", warn: "var(--warn)", success: "var(--success)", accent: "var(--accent)",
 };
 
-function rulingFor(p: VerdictPersona): { ruling: Ruling; tone: string } {
+/**
+ * A persona's final ruling is read from the REAL defence scores they handed out
+ * (1-3 per exchange they judged) — not from pressure, which used to be partly
+ * random. If they never judged a defence (founder never answered them), we fall
+ * back to their residual pressure so the seat still rules on something.
+ */
+function rulingFor(p: VerdictPersona, scores?: number[]): { ruling: Ruling; tone: string } {
+  if (scores && scores.length > 0) {
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    if (avg >= 2.5) return { ruling: "CONVINCED", tone: "var(--success)" };
+    if (avg >= 2.0) return { ruling: "SKEPTICAL", tone: "var(--warn)" };
+    if (avg >= 1.5) return { ruling: "UNCONVINCED", tone: "var(--accent)" };
+    return { ruling: "HOSTILE", tone: "var(--danger)" };
+  }
   if (p.pressure <= 35) return { ruling: "CONVINCED", tone: "var(--success)" };
   if (p.pressure <= 55) return { ruling: "SKEPTICAL", tone: "var(--warn)" };
   if (p.pressure <= 75) return { ruling: "UNCONVINCED", tone: "var(--accent)" };
@@ -82,10 +95,11 @@ function overallVerdict(survival: number): { word: string; tone: string; blurb: 
 }
 
 export default function ChamberVerdict({
-  idea, survival, round, totalRounds, personas, transcript, onClose, onReset,
+  idea, survival, round, totalRounds, personas, transcript, scores, onClose, onReset,
 }: {
   idea: string; survival: number; round: number; totalRounds: number;
-  personas: VerdictPersona[]; transcript: VerdictTurn[]; onClose: () => void; onReset: () => void;
+  personas: VerdictPersona[]; transcript: VerdictTurn[]; scores?: Record<string, number[]>;
+  onClose: () => void; onReset: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -94,10 +108,10 @@ export default function ChamberVerdict({
   const overall = overallVerdict(survival);
   const rulings = useMemo(
     () => personas.map((p) => {
-      const { ruling, tone } = rulingFor(p);
+      const { ruling, tone } = rulingFor(p, scores?.[p.id]);
       return { p, ruling, tone, line: lineFor(p, ruling, transcript) };
     }),
-    [personas, transcript],
+    [personas, transcript, scores],
   );
   const convinced = rulings.filter((r) => r.ruling === "CONVINCED").length;
   const kills = transcript.filter((t) => t.severity === "kill").length;

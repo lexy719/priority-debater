@@ -28,6 +28,8 @@
 
 import OpenAI from "openai";
 import { CHAMBER_AGENTS, isChamberId } from "@/lib/chamber-personas";
+import { formatGrounding, sanitizeGrounding } from "@/lib/chamber-grounding";
+import { requireAuth, guardFailResponse } from "@/lib/credits/server";
 
 export const maxDuration = 60;
 
@@ -48,13 +50,16 @@ function renderHistory(history: HistoryItem[]): string {
 }
 
 export async function POST(request: Request) {
+  // Within an already-paid debate session — require login, don't charge again.
+  const auth = await requireAuth();
+  if (!auth.ok) return guardFailResponse(auth);
   try {
     const key = process.env.OPENAI_API_KEY?.trim();
     if (!key) return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
 
     const body = (await request.json()) as {
       idea?: string; speakerId?: string; nextSpeakerId?: string;
-      challenge?: string; flaw?: string; defence?: string; history?: HistoryItem[];
+      challenge?: string; flaw?: string; defence?: string; history?: HistoryItem[]; grounding?: unknown;
     };
 
     const idea = clamp(body.idea, 600);
@@ -62,6 +67,7 @@ export async function POST(request: Request) {
     const flaw = clamp(body.flaw, 240);
     const defence = clamp(body.defence, 1400);
     const history = Array.isArray(body.history) ? body.history.slice(-8) : [];
+    const grounding = formatGrounding(sanitizeGrounding(body.grounding));
 
     if (!isChamberId(body.speakerId) || !isChamberId(body.nextSpeakerId)) {
       return Response.json({ error: "Invalid persona id." }, { status: 400 });
@@ -84,6 +90,7 @@ export async function POST(request: Request) {
         {
           role: "user",
           content: `Idea under review: ${idea}
+${grounding}
 
 Recent exchanges in the chamber:
 ${transcript}
@@ -124,6 +131,7 @@ Return EXACTLY this JSON:
         {
           role: "user",
           content: `Idea under review: ${idea}
+${grounding}
 
 Recent exchanges in the chamber (most recent last):
 ${transcript}

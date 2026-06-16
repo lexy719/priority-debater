@@ -6,6 +6,7 @@ import {
   validateDebateUserMessage,
   validateStartupIdeaFields,
 } from "@/lib/contentModeration";
+import { guardAndSpend, guardFailResponse, requireAuth } from "@/lib/credits/server";
 import { classifyIdeaCategory } from "@/lib/idea-category";
 import { fetchLandingPageImages } from "@/lib/landing-images";
 import { getLayoutVariantInstructions, pickLayoutVariant } from "@/lib/landing-layout";
@@ -501,6 +502,16 @@ export async function POST(request: Request) {
       /** Structured logo preferences for \`logo-brand-kit\` + client prompt parity */
       logoBrief?: unknown;
     };
+
+    // Credit gate: the full validation run ("start") is the metered "validation"
+    // action; every other action requires login but isn't charged here.
+    if (body.action === "start") {
+      const guard = await guardAndSpend("validation");
+      if (!guard.ok) return guardFailResponse(guard);
+    } else {
+      const auth = await requireAuth();
+      if (!auth.ok) return guardFailResponse(auth);
+    }
 
     const {
       action,

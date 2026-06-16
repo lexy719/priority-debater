@@ -2,19 +2,20 @@ import { Eyebrow } from "./primitives";
 
 const faqs = [
   { q: "Is this really useful before I have a product?", a: "Yes — it's built for the pre-product stage. The panel pressure-tests the assumptions you'd otherwise discover during a failed seed round." },
-  { q: "How adversarial is 'adversarial', exactly?", a: "About as friendly as a Tier-1 partner meeting on a Monday. Five voices, each scoring against their own thesis, with no consensus mandate." },
-  { q: "What model is behind the panel?", a: "Claude Sonnet 4.5 with a structured persona harness, evidence prompts, and a forced scoring schema. No vibes-based responses." },
-  { q: "Can I export the report?", a: "Every session ships as a PDF dossier — score model, persona arguments, risk radar, and proof sprint included." },
-  { q: "What happens to my pitch?", a: "Stored encrypted, scoped to your account. We never train on it. Delete with one click." },
+  { q: "How adversarial is 'adversarial', exactly?", a: "About as friendly as a Tier-1 partner meeting on a Monday. Five separate agents, each with its own system prompt, attack axis and scoring bias — no consensus mandate." },
+  { q: "How is the score calculated?", a: "A dedicated scoring engine grades eight weighted dimensions against anchored rubrics, enriched with live web search where it helps. The headline is the deterministic weighted sum — the narrative can never change the number." },
+  { q: "Is any of the data faked?", a: "No. If there's no validated idea on file, the report shows an honest empty state — no placeholder scores, no invented charts. Sources are cited when web search is used, and assumptions are labeled as assumptions." },
+  { q: "Can I share or export the report?", a: "Every dossier gets a stable share link and a downloadable scorecard image. Debate sessions export as Markdown or a verdict card." },
+  { q: "What happens to my pitch?", a: "It lives in your browser session and powers your report. We don't train on it." },
 ];
 
 export function Faq() {
   return (
     <section id="faq" className="border-b border-ink/15 bg-paper grid-paper">
-      <div className="mx-auto max-w-[1400px] px-6 py-24 lg:px-10 lg:py-32">
+      <div className="mx-auto max-w-[1120px] px-6 py-24 lg:px-10 lg:py-32">
         <div className="grid gap-12 lg:grid-cols-12">
           <div className="lg:col-span-5">
-            <Eyebrow index="06" label="/ Common Objections" className="mb-8" />
+            <Eyebrow index="— 07" label="Common Objections" className="mb-8" />
             <h2 className="font-display text-[clamp(2.5rem,5.5vw,4.5rem)] leading-[0.95] tracking-[-0.02em] text-ink">
               The panel <br /> debates <br /> <span className="hl-yellow">itself, too.</span>
             </h2>

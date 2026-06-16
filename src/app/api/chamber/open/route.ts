@@ -12,7 +12,9 @@
  */
 
 import OpenAI from "openai";
+import { guardAndSpend, guardFailResponse, refund } from "@/lib/credits/server";
 import { CHAMBER_AGENTS, CHAMBER_IDS, type ChamberAgent } from "@/lib/chamber-personas";
+import { formatGrounding, sanitizeGrounding } from "@/lib/chamber-grounding";
 
 export const maxDuration = 60;
 
@@ -22,7 +24,7 @@ function clamp(v: unknown, max: number): string {
   return String(v ?? "").slice(0, max).trim();
 }
 
-async function openForAgent(openai: OpenAI, agent: ChamberAgent, idea: string): Promise<Seat | null> {
+async function openForAgent(openai: OpenAI, agent: ChamberAgent, idea: string, grounding: string): Promise<Seat | null> {
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
@@ -37,6 +39,7 @@ async function openForAgent(openai: OpenAI, agent: ChamberAgent, idea: string): 
 """
 ${idea}
 """
+${grounding}
 
 Prepare your seat. Return EXACTLY this JSON:
 {
@@ -66,30 +69,38 @@ Prepare your seat. Return EXACTLY this JSON:
 }
 
 export async function POST(request: Request) {
+  // Entering the chamber is the metered "debate" action (charged once, here;
+  // respond/ask within the session are free).
+  const guard = await guardAndSpend("debate");
+  if (!guard.ok) return guardFailResponse(guard);
   try {
     const key = process.env.OPENAI_API_KEY?.trim();
-    if (!key) return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
+    if (!key) { await refund("debate"); return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 }); }
 
-    const body = (await request.json()) as { idea?: string };
+    const body = (await request.json()) as { idea?: string; grounding?: unknown };
     const idea = clamp(body.idea, 600);
-    if (!idea) return Response.json({ error: "Missing idea." }, { status: 400 });
+    if (!idea) { await refund("debate"); return Response.json({ error: "Missing idea." }, { status: 400 }); }
+
+    const grounding = formatGrounding(sanitizeGrounding(body.grounding));
 
     const openai = new OpenAI({ apiKey: key });
 
     // One independent agent per seat, all in parallel.
     const results = await Promise.all(
-      CHAMBER_IDS.map(async (id) => [id, await openForAgent(openai, CHAMBER_AGENTS[id], idea)] as const),
+      CHAMBER_IDS.map(async (id) => [id, await openForAgent(openai, CHAMBER_AGENTS[id], idea, grounding)] as const),
     );
 
     const seats: Record<string, Seat> = {};
     for (const [id, seat] of results) if (seat) seats[id] = seat;
 
     if (Object.keys(seats).length === 0) {
+      await refund("debate");
       return Response.json({ error: "All agents failed to arm." }, { status: 502 });
     }
-    return Response.json({ seats });
+    return Response.json({ seats, balance: guard.balance });
   } catch (e) {
     console.error("chamber/open error:", e);
+    await refund("debate");
     return Response.json({ error: "Failed to arm the chamber." }, { status: 500 });
   }
 }

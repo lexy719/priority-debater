@@ -21,17 +21,22 @@ import { loadSession, loadDebateTranscript } from "@/lib/session";
 
 const REPORT_CACHE_KEY = "priority-debater-chamber-report-v2";
 
+/** Normalize so trivial whitespace/case edits to the same idea still hit cache. */
+function reportCacheKey(idea: string): string {
+  return idea.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 function readReportCache(idea: string): { id?: string; report: Report } | null {
   try {
     const raw = localStorage.getItem(REPORT_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed?.idea === idea ? { id: parsed.id, report: parsed.report as Report } : null;
+    return parsed?.key === reportCacheKey(idea) ? { id: parsed.id, report: parsed.report as Report } : null;
   } catch { return null; }
 }
 
 function writeReportCache(idea: string, id: string, report: Report) {
-  try { localStorage.setItem(REPORT_CACHE_KEY, JSON.stringify({ idea, id, report, savedAt: Date.now() })); } catch {}
+  try { localStorage.setItem(REPORT_CACHE_KEY, JSON.stringify({ key: reportCacheKey(idea), idea, id, report, savedAt: Date.now() })); } catch {}
 }
 
 type State =

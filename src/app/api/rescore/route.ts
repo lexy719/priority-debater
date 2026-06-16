@@ -13,6 +13,7 @@
 
 import { scoreIdeaV2 } from "@/lib/agents/idea-scoring-v2";
 import { REFINEMENTS_CONTEXT_MARKER } from "@/lib/scoring-scale";
+import { guardAndSpend, guardFailResponse, refund } from "@/lib/credits/server";
 
 export const maxDuration = 90;
 
@@ -21,9 +22,11 @@ function clampStr(v: unknown, max: number): string {
 }
 
 export async function POST(request: Request) {
+  const guard = await guardAndSpend("rescore");
+  if (!guard.ok) return guardFailResponse(guard);
   try {
     const key = process.env.OPENAI_API_KEY?.trim();
-    if (!key) return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
+    if (!key) { await refund("rescore"); return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 }); }
 
     const body = (await request.json()) as {
       idea?: string; position?: string; context?: string; evidence?: string; dimensionLabel?: string;

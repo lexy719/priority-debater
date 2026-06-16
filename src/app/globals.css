@@ -351,6 +351,30 @@ section.bg-signal-yellow:not(.grid-paper-dark):not(.grid-paper)::before {
   box-shadow: 6px 6px 0 0 #fff;
 }
 
+/* =============================================================
+   Emergent flow utilities (ported names used by the
+   Brand/Launch/Campaign/Landing/Ship pages). Additive only.
+   ============================================================= */
+
+.font-body { font-family: var(--app-font-sans); }
+
+.shadow-hard    { box-shadow: 6px 6px 0 0 #000; }
+.shadow-hard-sm { box-shadow: 4px 4px 0 0 #000; }
+.shadow-hard-red { box-shadow: 6px 6px 0 0 var(--c-red); }
+
+.grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+.grid-bg-dark {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
 @keyframes ticker {
   from { transform: translateX(0%); }
   to { transform: translateX(-50%); }

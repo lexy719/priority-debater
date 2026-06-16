@@ -1,14 +1,17 @@
 "use client";
 
 /**
- * useTribunalVoice — gives each Chamber agent a distinct synthesized voice via
- * the browser SpeechSynthesis API. No network, no API key, works offline. This
- * is what makes the tribunal feel ALIVE: the adversary's kill-shot is spoken in
- * a low, deliberate cadence; the investor is clipped and cold; the mentor warm.
+ * useTribunalVoice — gives each Chamber agent a distinct voice.
  *
- * Voice availability varies by OS/browser, so we score the available voices and
- * assign the best distinct match per persona, then shape pitch/rate per persona
- * to differentiate even when only one system voice exists.
+ * Two tiers, automatic:
+ *  1. HD — ElevenLabs via POST /api/tts (real, characterful voices). Used when
+ *     ELEVENLABS_API_KEY is configured server-side.
+ *  2. Fallback — the browser SpeechSynthesis API (offline, no key, robotic but
+ *     always available). Used when /api/tts signals 503 { fallback: true }.
+ *
+ * The caller never has to know which tier is live; speak() resolves it per turn
+ * and the page is never silent because a key is missing. Once /api/tts returns
+ * a fallback signal we stop hitting the network for the rest of the session.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -52,6 +55,10 @@ export function useTribunalVoice(enabled: boolean) {
   const [speaking, setSpeaking] = useState(false);
   const [speakingId, setSpeakingId] = useState<ChamberPersonaId | null>(null);
   const assignment = useRef<Record<string, SpeechSynthesisVoice | undefined>>({});
+  // HD (ElevenLabs) playback state.
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hdUnavailable = useRef(false); // flips true after first fallback signal
+  const reqId = useRef(0); // guards against overlapping/stale HD requests
 
   useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -85,14 +92,22 @@ export function useTribunalVoice(enabled: boolean) {
   }, [voices]);
 
   const stop = useCallback(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
+    reqId.current += 1; // invalidate any in-flight HD request
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
     setSpeaking(false);
     setSpeakingId(null);
   }, []);
 
-  const speak = useCallback((personaId: ChamberPersonaId, text: string) => {
-    if (!enabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  /** Tier 2 — browser SpeechSynthesis. Always available, no key, no network. */
+  const speakBrowser = useCallback((personaId: ChamberPersonaId, text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const synth = window.speechSynthesis;
     synth.cancel();
     const profile = PROFILES[personaId];
@@ -109,7 +124,48 @@ export function useTribunalVoice(enabled: boolean) {
     u.onend = () => { setSpeaking(false); setSpeakingId(null); };
     u.onerror = () => { setSpeaking(false); setSpeakingId(null); };
     synth.speak(u);
-  }, [enabled]);
+  }, []);
+
+  /** Tier 1 — ElevenLabs HD, with automatic fallback to the browser voice. */
+  const speak = useCallback((personaId: ChamberPersonaId, text: string) => {
+    if (!enabled || typeof window === "undefined") return;
+    stop();
+    const id = ++reqId.current;
+
+    // Once HD has signalled it's unavailable, don't keep hitting the network.
+    if (hdUnavailable.current) { speakBrowser(personaId, text); return; }
+
+    setSpeaking(true);
+    setSpeakingId(personaId);
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ personaId, text }),
+        });
+        if (id !== reqId.current) return; // a newer turn superseded this one
+        if (!res.ok || !res.headers.get("content-type")?.includes("audio")) {
+          hdUnavailable.current = true; // 503 fallback (or no key) — switch tiers
+          speakBrowser(personaId, text);
+          return;
+        }
+        const blob = await res.blob();
+        if (id !== reqId.current) return;
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onended = () => { URL.revokeObjectURL(url); if (id === reqId.current) { setSpeaking(false); setSpeakingId(null); } };
+        audio.onerror = () => { URL.revokeObjectURL(url); if (id === reqId.current) speakBrowser(personaId, text); };
+        await audio.play();
+      } catch {
+        if (id !== reqId.current) return;
+        hdUnavailable.current = true;
+        speakBrowser(personaId, text);
+      }
+    })();
+  }, [enabled, stop, speakBrowser]);
 
   // Stop any speech when voice is turned off or the component unmounts.
   useEffect(() => { if (!enabled) stop(); }, [enabled, stop]);

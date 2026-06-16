@@ -1,6 +1,10 @@
 import { scoreIdeaV2 } from "@/lib/agents/idea-scoring-v2";
+import { requireAuth, guardFailResponse } from "@/lib/credits/server";
 
 export async function POST(request: Request) {
+  const auth = await requireAuth();
+  if (!auth.ok) return guardFailResponse(auth);
+
   let body: { topic?: string; position?: string; context?: string };
 
   try {

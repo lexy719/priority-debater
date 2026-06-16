@@ -1,189 +1,134 @@
-import { ArrowRight, ArrowUpRight, Star } from "lucide-react";
-import { Dot, Eyebrow, Tag } from "./primitives";
+import { ArrowRight, ArrowUpRight, Activity } from "lucide-react";
 
-const personas = [
-  { code: "INV", label: "The Investor", sub: "Capital Efficiency", score: 6, tone: "bg-ink" },
-  { code: "CUS", label: "The Customer", sub: "Willingness to pay", score: 5, tone: "bg-signal-red" },
-  { code: "OPR", label: "The Operator", sub: "Execution risk", score: 7, tone: "bg-signal-blue" },
-  { code: "ADV", label: "The Adversary", sub: "Competitive moat", score: 4, tone: "bg-signal-green" },
-  { code: "MNT", label: "The Mentor", sub: "Founder-market fit", score: 8, tone: "bg-signal-amber" },
+const ROWS = [
+  { code: "INV", name: "The Investor", score: 5.4, color: "var(--c-red)", chipInk: false },
+  { code: "CUS", name: "The Customer", score: 7.1, color: "var(--c-blue)", chipInk: false },
+  { code: "OPS", name: "The Operator", score: 6.2, color: "var(--c-green)", chipInk: true },
+  { code: "ADV", name: "The Adversary", score: 4.0, color: "var(--c-yellow)", chipInk: true },
+  { code: "MEN", name: "The Mentor", score: 6.8, color: "rgba(245,244,240,0.55)", chipInk: false },
 ];
 
-function ScoreBar({ value, tone }: { value: number; tone: string }) {
+function SegBar({ value, color }: { value: number; color: string }) {
+  const total = 14;
+  const filled = Math.round((value / 10) * total);
   return (
-    <div className="flex gap-[3px]">
-      {Array.from({ length: 10 }).map((_, i) => (
+    <div className="flex gap-[2px]">
+      {Array.from({ length: total }).map((_, i) => (
         <span
           key={i}
-          className={`h-3 w-2.5 ${i < value ? tone : "bg-ink/10"}`}
+          className="h-3 flex-1"
+          style={{ background: i < filled ? color : "rgba(255,255,255,0.10)" }}
         />
       ))}
     </div>
   );
 }
 
+const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
 export function Hero() {
   return (
     <section id="top" className="relative overflow-hidden border-b border-ink/15 bg-paper grid-paper">
-      <div className="mx-auto max-w-[1400px] px-6 pt-10 pb-20 lg:px-10 lg:pt-14 lg:pb-28">
-        {/* meta row */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-10">
-          <div className="flex flex-wrap items-center gap-6 font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-            <span className="flex items-center gap-2">
-              <Dot color="red" />
-              <span className="text-ink">Stress-Test Mode</span>
-            </span>
-            <span className="text-ink/30">/</span>
-            <span>1,534 ideas debated · 7d</span>
-            <span className="text-ink/30">/</span>
-            <span className="text-signal-red">89% brutal</span>
-          </div>
-          <Tag tone="red">
-            <Dot color="red" /> Live · 18:55
-          </Tag>
-        </div>
-        <div className="grid gap-14 lg:grid-cols-12 lg:gap-10">
+      <div className="mx-auto max-w-[1120px] px-6 pt-12 pb-16 lg:px-8 lg:pt-16 lg:pb-20">
+        <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-10">
           {/* Left */}
           <div className="lg:col-span-7">
-            <Eyebrow index="— 01" label="Verdict Engine" className="mb-8" />
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="bg-ink px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-paper">
+                Stress-test mode
+              </span>
+              <span className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-ink/70">
+                <span className="h-1.5 w-1.5 rounded-full bg-signal-green" /> Verdict engine online
+              </span>
+            </div>
 
-            <h1 className="font-display text-[clamp(3.25rem,8vw,7.5rem)] leading-[0.92] tracking-[-0.03em] text-ink">
+            <h1 className="mt-6 font-display text-[clamp(2.75rem,6vw,5.75rem)] leading-[0.85] tracking-[-0.01em] text-ink">
               Debate your <br />
               startup idea <br />
               until it <br />
               <span className="hl-red">breaks</span>
-              <span className="text-signal-red">.</span>
+              <span className="text-signal-red">_</span>
             </h1>
 
-            <p className="mt-10 max-w-xl text-lg leading-relaxed text-ink/80">
+            <p className="mt-8 max-w-lg text-base leading-relaxed text-ink/75">
               Five ruthless AI advisors. One investor-grade report. Zero sugar-coating.
-            </p>
-            <p className="mt-3 max-w-xl text-lg leading-relaxed text-ink/70">
+              <br />
               Find out if your idea survives the panel — <strong className="text-ink">in 120 seconds.</strong>
             </p>
 
-            <div className="mt-10 flex flex-wrap items-center gap-4">
+            <div className="mt-9 flex flex-wrap items-center gap-3.5">
               <a
-                id="validate"
-                href="#input"
-                className="group inline-flex items-center gap-3 border border-ink bg-ink px-6 py-4 font-mono text-xs uppercase tracking-[0.2em] text-paper transition-all hover:bg-signal-red hover:border-signal-red"
+                href="#validate"
+                className="group inline-flex items-center gap-3 bg-signal-red px-6 py-4 font-mono text-xs font-bold uppercase tracking-[0.2em] text-paper transition-colors hover:bg-ink"
               >
                 Validate my idea
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </a>
               <a
-                href="#sample"
-                className="group inline-flex items-center gap-3 border border-ink px-6 py-4 font-mono text-xs uppercase tracking-[0.2em] text-ink transition-colors hover:bg-ink hover:text-paper"
+                href="#chamber"
+                className="group inline-flex items-center gap-3 border-2 border-ink px-6 py-4 font-mono text-xs font-bold uppercase tracking-[0.2em] text-ink shadow-[5px_5px_0_0_var(--color-ink)] transition-all hover:-translate-x-0.5 hover:-translate-y-0.5"
               >
-                See a real debate
+                See the Chamber
                 <ArrowUpRight className="h-4 w-4" />
               </a>
-              <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                No card · 120s
-              </span>
-</div>
+            </div>
 
-            <div className="mt-14 flex flex-wrap items-center gap-6">
-              <div className="flex -space-x-1">
-                {[
-                  { i: "JM", c: "bg-signal-yellow" },
-                  { i: "RK", c: "bg-signal-red text-paper" },
-                  { i: "SN", c: "bg-signal-blue" },
-                  { i: "AT", c: "bg-signal-green" },
-                  { i: "LP", c: "bg-signal-amber" },
-                ].map((p) => (
-                  <span
-                    key={p.i}
-                    className={`grid h-7 w-7 place-items-center border border-ink font-mono text-[10px] ${p.c}`}
-                  >
-                    {p.i}
-                  </span>
-                ))}
-              </div>
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                Used by <span className="hl-blue text-ink">3,400+ founders</span>
-                <br />
-                YC F24 · Antler · On Deck · Indie Hackers
-              </p>
-              <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                <Star className="h-3 w-3 fill-signal-amber stroke-signal-amber" />
-                Claude Sonnet 4.5
-              </span>
+            <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              <span>5 agents</span>
+              <span className="text-ink/25">·</span>
+              <span>7 rounds</span>
+              <span className="text-ink/25">·</span>
+              <span>120s synthesis</span>
+              <span className="text-ink/25">·</span>
+              <span className="text-signal-green">No card required</span>
             </div>
           </div>
 
-          {/* Right — Debate room card */}
-          <div className="relative lg:col-span-5">
-            <div className="relative border border-ink bg-card p-6 shadow-[8px_8px_0_0_var(--color-ink)]">
-              <div className="flex items-center justify-between border-b border-ink/15 pb-3 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                <span className="flex items-center gap-2 text-signal-red">
-                  <Dot color="red" /> Debate room · Live · 00:42
+          {/* Right — PANEL_VERDICT.JSON artifact */}
+          <div className="lg:col-span-5">
+            <div className="border border-ink bg-[#0c0c0c] text-paper shadow-[0_24px_70px_-24px_rgba(0,0,0,0.55)]">
+              {/* header */}
+              <div className="flex items-center justify-between border-b border-paper/10 px-4 py-3">
+                <span className="flex items-center gap-2 font-mono text-[11px] text-paper/85">
+                  <Activity className="h-3.5 w-3.5 text-signal-green" /> PANEL_VERDICT.JSON
                 </span>
-                <span>Session #4127</span>
+                <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.22em] text-signal-green">
+                  <span className="h-1.5 w-1.5 rounded-full bg-signal-green" /> Live
+                </span>
               </div>
 
-              <div className="pt-5">
-                <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                  Pitch
-                </div>
-                <p className="mt-2 font-serif text-lg leading-snug text-ink">
-                  "A copilot for product ops teams that auto-writes PRDs from Linear + Notion + Slack."
-                </p>
+              {/* pitch quote */}
+              <div className="border-b border-paper/10 px-4 py-3 font-mono text-[11px] leading-relaxed text-paper/45">
+                <span className="text-signal-green">&gt;</span> &quot;A copilot for product ops teams that
+                auto-writes PRDs from Linear + Notion + Slack.&quot;
               </div>
 
-              <div className="my-5 h-px w-full bg-ink/10" />
-
-              <ul className="space-y-3.5">
-                {personas.map((p) => (
-                  <li key={p.code} className="grid grid-cols-[28px_1fr_auto] items-center gap-3">
-                    <span className="grid h-6 w-7 place-items-center border border-ink/20 bg-paper font-mono text-[9px] uppercase tracking-wider text-ink">
-                      {p.code}
+              {/* rows */}
+              <div className="space-y-3 px-4 py-4">
+                {ROWS.map((r) => (
+                  <div key={r.code} className="grid grid-cols-[34px_84px_1fr_24px] items-center gap-3">
+                    <span
+                      className="py-0.5 text-center font-mono text-[8px] font-bold uppercase tracking-wider"
+                      style={{ background: r.color, color: r.chipInk ? "#000" : "#f5f4f0" }}
+                    >
+                      {r.code}
                     </span>
-                    <div className="leading-tight">
-                      <div className="text-sm font-medium text-ink">{p.label}</div>
-                      <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
-                        {p.sub}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <ScoreBar value={p.score} tone={p.tone} />
-                      <span className="font-mono text-[10px] text-muted-foreground">
-                        {p.score}/10
-                      </span>
-                    </div>
-                  </li>
+                    <span className="truncate font-mono text-[11px] text-paper/85">{r.name}</span>
+                    <SegBar value={r.score} color={r.color} />
+                    <span className="text-right font-mono text-[11px] text-paper/70">{fmt(r.score)}</span>
+                  </div>
                 ))}
-              </ul>
-
-              <div className="mt-6 border border-ink/15 bg-paper-2 p-4">
-                <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-signal-red">
-                  Objection · Customer
-                </div>
-                <p className="mt-2 font-mono text-xs leading-relaxed text-ink">
-                  Why would a Series A buyer pay $42/seat when Linear is $8 and ships weekly?
-                </p>
               </div>
 
-              <div className="mt-5 grid grid-cols-3 gap-0 border border-ink/15">
-                <div className="border-r border-ink/15 p-3">
-                  <div className="-rotate-2 inline-block border border-ink/30 bg-paper px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-                    Evidence-first · No vibes
-                  </div>
-                  <div className="mt-2 font-display text-base text-ink">CONDITIONAL</div>
+              {/* verdict footer */}
+              <div className="flex items-end justify-between border-t border-paper/10 px-4 py-4">
+                <div>
+                  <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-paper/40">Synthesis verdict</div>
+                  <div className="mt-1 font-display text-3xl uppercase tracking-wide text-paper">Conditional</div>
                 </div>
-                <div className="border-r border-ink/15 p-3">
-                  <div className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-                    Score
-                  </div>
-                  <div className="mt-2 font-display text-2xl text-ink">
-                    6.0<span className="ml-1 font-mono text-xs text-muted-foreground">/10</span>
-                  </div>
-                </div>
-                <div className="p-3">
-                  <div className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-                    Risk
-                  </div>
-                  <div className="mt-2 font-display text-xl text-signal-red">HIGH</div>
+                <div className="text-right">
+                  <div className="font-display text-5xl leading-none text-signal-red">6.0</div>
+                  <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.2em] text-signal-red">High risk</div>
                 </div>
               </div>
             </div>

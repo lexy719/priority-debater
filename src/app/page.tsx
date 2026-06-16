@@ -1,19 +1,24 @@
 "use client";
 
+/**
+ * Home — the funnel: Hero → working validator → Chamber showcase → Dossier
+ * showcase → How it works → honest pricing → FAQ → CTA. Every CTA routes to a
+ * real surface; nothing on this page is decorative-only anymore.
+ */
+
 import { motion, useScroll, useSpring } from "framer-motion";
-import { Nav } from "@/components/Nav";
-import { Input } from "@/components/Input";
+import { SiteNav } from "@/components/SiteNav";
 import { Hero } from "@/components/Hero";
-import { Stats } from "@/components/Stats";
-import { Capabilities } from "@/components/Capabilities";
 import { Ticker } from "@/components/Ticker";
-import { RiskBreaks } from "@/components/RiskBreaks";
-import { Engine } from "@/components/Engine";
-import { Packet } from "@/components/Packet";
-import { Compare } from "@/components/Compare";
+import { ValidateNow } from "@/components/home/ValidateNow";
+import { TribunalShowcase } from "@/components/home/TribunalShowcase";
+import { DossierShowcase } from "@/components/home/DossierShowcase";
+import { HowItWorks } from "@/components/home/HowItWorks";
+import { FlowShowcase } from "@/components/home/FlowShowcase";
 import { Pricing } from "@/components/Pricing";
 import { Faq } from "@/components/Faq";
 import { Cta, Footer } from "@/components/Cta";
+import { Reveal } from "@/components/motion/Reveal";
 
 export default function LandingPage() {
   const { scrollYProgress } = useScroll();
@@ -25,19 +30,17 @@ export default function LandingPage() {
         className="fixed left-0 top-0 z-[60] h-[3px] origin-left bg-[--accent]"
         style={{ scaleX: progress, width: "100%" }}
       />
-      <Ticker />
-      <Nav />
+      <SiteNav />
       <Hero />
-      <Stats />
-      <Input />
-      <Capabilities />
-      <Engine />
-      <RiskBreaks />
-      <Packet />
-      <Compare />
-      <Pricing />
-      <Faq />
-      <Cta />
+      <Ticker />
+      <Reveal><ValidateNow /></Reveal>
+      <Reveal><TribunalShowcase /></Reveal>
+      <Reveal><DossierShowcase /></Reveal>
+      <Reveal><HowItWorks /></Reveal>
+      <Reveal><FlowShowcase /></Reveal>
+      <Reveal><Pricing /></Reveal>
+      <Reveal><Faq /></Reveal>
+      <Reveal><Cta /></Reveal>
       <Footer />
     </main>
   );

@@ -8,6 +8,7 @@
  */
 
 import Link from "next/link";
+import { SiteNav } from "@/components/SiteNav";
 import {
   Activity, TrendingUp, AlertTriangle, Target, DollarSign,
   Route as RouteIcon, Users, Zap, Lock, ArrowRight, RefreshCw,
@@ -164,24 +165,5 @@ function IdleTicker() {
 }
 
 function TopBar() {
-  return (
-    <div className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-40">
-      <div className="mx-auto max-w-[1480px] px-4 md:px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="size-9 border border-border-strong grid place-items-center font-display text-lg">PD</div>
-          <div>
-            <div className="font-display text-sm tracking-wider">PRIORITY DEBATER</div>
-            <div className="text-[10px] text-muted-foreground tracking-widest">REPORT · NO DATA</div>
-          </div>
-        </div>
-        <div className="hidden md:flex items-center gap-2 text-[10px] tracking-widest">
-          <span className="text-foreground font-bold">REPORT</span>
-          <span>·</span><Link href="/debate" className="text-muted-foreground hover:text-foreground">DEBATE</Link>
-          <span>·</span><Link href="/brand" className="text-muted-foreground hover:text-foreground">BRAND</Link>
-          <span>·</span><Link href="/landing" className="text-muted-foreground hover:text-foreground">LANDING</Link>
-        </div>
-        <Link href="/" className="px-3 py-2 bg-accent text-accent-foreground text-[10px] tracking-widest font-bold hover:opacity-90">+ RUN VALIDATION</Link>
-      </div>
-    </div>
-  );
+  return <SiteNav subtitle="Report · No data" />;
 }

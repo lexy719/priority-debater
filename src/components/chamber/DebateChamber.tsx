@@ -4,18 +4,26 @@ import Link from "next/link";
 import type * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertTriangle, Shield, Flame, Mic, Activity, Skull,
-  ArrowRight, Clock, Send, X, ChevronRight, Eye,
-  Crosshair, Radio, Quote, Zap, RotateCcw, Download, Copy, Pause, Play,
+  AlertTriangle, Shield,
+  ArrowRight, Send, X, ChevronRight,
+  Quote, RotateCcw, Download, Copy, Pause, Play,
   Loader2, Wrench,
 } from "lucide-react";
 import { loadSession, saveDebateTranscript } from "@/lib/session";
+import { groundingFromDashboard, type ChamberGrounding } from "@/lib/chamber-grounding";
 import { useTribunalVoice } from "@/components/chamber/useTribunalVoice";
 import ChamberVerdict, { type VerdictPersona, type VerdictTurn } from "@/components/chamber/ChamberVerdict";
+import { JourneyStepper } from "@/components/flow/JourneyStepper";
+import { SiteNav } from "@/components/SiteNav";
+import { OutOfCreditsModal } from "@/components/credits/OutOfCreditsModal";
+import { useRouter } from "next/navigation";
+import { useCreditsState } from "@/components/credits/CreditsProvider";
+import { CREDIT_COSTS } from "@/lib/credits/costs";
 import type { ChamberPersonaId } from "@/lib/chamber-personas";
 import { Volume2, VolumeX, Gavel } from "lucide-react";
 
 /* ============================= TYPES & SEEDS ============================= */
+// Credit-gated entry: the Chamber stays locked until the founder spends to unlock.
 
 type Hue = "danger" | "data" | "warn" | "success" | "accent";
 
@@ -37,7 +45,7 @@ type Turn = {
   id: number;
   who: string; // persona id or "you"
   role?: string;
-  type: "attack" | "rebuttal" | "defense" | "concession" | "verdict" | "shield";
+  type: "attack" | "rebuttal" | "defense" | "concession" | "verdict" | "shield" | "question";
   severity?: "kill" | "warn" | "insight";
   body: string;
   ts: string;
@@ -76,6 +84,35 @@ const IDLE_PERSONAS: Persona[] = SEED_PERSONAS.map((p) => ({
 const TOTAL_ROUNDS = 7;
 const SHIELDS_TOTAL = 5;
 const ROUND_SECONDS = 120;
+
+/**
+ * Seed the opening survival score from the AUDITED report, not a fixed 7.5.
+ * A weak idea walks into the chamber already bleeding; a strong one starts ahead.
+ * Falls back to 7.5 when no validated score is on file.
+ */
+function seededSurvival(score?: number): number {
+  if (typeof score !== "number" || !Number.isFinite(score)) return 7.5;
+  return Math.max(2, Math.min(9.5, +(score / 10).toFixed(1)));
+}
+
+/**
+ * Deterministic opening pressure per seat — NO randomness. Pressure is the
+ * inverse of the audited score (weaker idea → harder room), nudged by how
+ * lethal each persona's axis is. This keeps the final verdict honest: a
+ * persona's pressure only ever moves from a real exchange after this.
+ */
+function seededPressure(p: Persona, score?: number): number {
+  const base = typeof score === "number" && Number.isFinite(score)
+    ? Math.max(20, Math.min(85, Math.round(95 - score)))
+    : 50;
+  const bias = p.hue === "danger" ? 12 : p.hue === "warn" ? 6 : p.hue === "accent" ? -8 : 0;
+  return Math.max(15, Math.min(92, base + bias));
+}
+function seededKillshot(p: Persona, score?: number): number {
+  const pressure = seededPressure(p, score);
+  const bias = p.hue === "danger" ? 18 : p.hue === "warn" ? 8 : 0;
+  return Math.max(0, Math.min(70, Math.round(pressure * 0.45) + bias));
+}
 
 const ATTACK_TEMPLATES: Record<string, (idea: string) => { body: string; severity: Turn["severity"] }> = {
   vk: (idea) => ({ severity: "warn",
@@ -116,20 +153,26 @@ type ApiStatus = "idle" | "loading" | "live" | "offline";
 
 const TAILORED_CACHE_KEY = "priority-debater-chamber-session-v2";
 
+/** Normalize so trivial whitespace/case edits to the same idea still hit cache. */
+function cacheKeyFor(idea: string): string {
+  return idea.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 function readTailoredCache(idea: string): TailoredMap | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(TAILORED_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed?.idea === idea ? (parsed.map as TailoredMap) : null;
+    return parsed?.key === cacheKeyFor(idea) ? (parsed.map as TailoredMap) : null;
   } catch { return null; }
 }
 
 function writeTailoredCache(idea: string, map: TailoredMap) {
   if (typeof window === "undefined") return;
-  try { localStorage.setItem(TAILORED_CACHE_KEY, JSON.stringify({ idea, map, savedAt: Date.now() })); } catch {}
+  try { localStorage.setItem(TAILORED_CACHE_KEY, JSON.stringify({ key: cacheKeyFor(idea), map, savedAt: Date.now() })); } catch {}
 }
+
 
 /** Map an /api/chamber/open payload onto chamber seats. */
 function tailoredFromPayload(payload: unknown): TailoredMap {
@@ -166,14 +209,12 @@ function fmtClock(totalSec: number) {
   const s = Math.max(0, totalSec % 60);
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
-function fmtElapsed(sec: number) {
-  const m = Math.floor(sec / 60); const s = sec % 60;
-  return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
-}
 
 /* ============================= PAGE ============================= */
 
 export default function DebateChamber() {
+  const router = useRouter();
+  const { state: creditsState, refresh: refreshCredits } = useCreditsState();
   const [ideaDraft, setIdeaDraft] = useState("");
   const [idea, setIdea] = useState("");
   const [sessionActive, setSessionActive] = useState(false);
@@ -191,6 +232,8 @@ export default function DebateChamber() {
   const [elapsed, setElapsed] = useState(0);
   const [dossierId, setDossierId] = useState<string | null>(null);
   const [showVerdict, setShowVerdict] = useState(false);
+  // Credit gate — set when the founder tries to enter without enough credits.
+  const [creditGate, setCreditGate] = useState<{ balance: number } | null>(null);
 
   // Live engine state
   const [tailored, setTailored] = useState<TailoredMap>({});
@@ -198,6 +241,16 @@ export default function DebateChamber() {
   const [apiStatus, setApiStatus] = useState<ApiStatus>("idle");
   const [evaluating, setEvaluating] = useState(false);
   const [lastEval, setLastEval] = useState<EvalResult | null>(null);
+
+  // Grounding from the audited report — feeds the agents real competitors/risks/score.
+  const [grounding, setGrounding] = useState<ChamberGrounding | null>(null);
+  // Real defence scores per persona (1-3), keyed by seat id — drives the honest final ruling.
+  const [personaScores, setPersonaScores] = useState<Record<string, number[]>>({});
+  // Two-way mode: founder can interrogate a panellist instead of only defending.
+  const [composerMode, setComposerMode] = useState<"defend" | "ask">("defend");
+  const [asking, setAsking] = useState(false);
+  // Pause the round clock while the founder is actively typing (no punitive timeouts mid-thought).
+  const [composerFocused, setComposerFocused] = useState(false);
 
   // The tribunal SPEAKS — distinct synthesized voice per agent (offline, no API).
   const [voiceOn, setVoiceOn] = useState(true);
@@ -207,7 +260,7 @@ export default function DebateChamber() {
   const transcriptRef = useRef<HTMLDivElement>(null);
 
   /** Arm all five persona agents for this idea (cached per idea). */
-  const fetchTailored = useCallback(async (ideaText: string): Promise<TailoredMap | null> => {
+  const fetchTailored = useCallback(async (ideaText: string, ground: ChamberGrounding | null): Promise<TailoredMap | null> => {
     const cached = readTailoredCache(ideaText);
     if (cached) { setTailored(cached); setTailoredUsed({}); setApiStatus("live"); return cached; }
     setApiStatus("loading");
@@ -215,7 +268,7 @@ export default function DebateChamber() {
       const res = await fetch("/api/chamber/open", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea: ideaText }),
+        body: JSON.stringify({ idea: ideaText, grounding: ground ?? undefined }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const map = tailoredFromPayload(await res.json());
@@ -233,22 +286,29 @@ export default function DebateChamber() {
 
   /** Begin a real session for an idea: reset state, arm the agents, open fire. */
   const startSession = useCallback(async (text: string) => {
+    // Pull the audited report for THIS idea — seeds the score and arms the agents
+    // with real competitors/risks instead of generic improv.
+    const ground = groundingFromDashboard(loadSession()?.dashboardData);
+    const score = ground?.score;
+    setGrounding(ground);
+    setPersonaScores({});
     setIdea(text);
     setSessionActive(true);
     setRound(1);
     setShieldsUsed(0);
-    setSurvival(7.5);
+    setSurvival(seededSurvival(score));
     setSurvivalDelta(0);
     setElapsed(0);
     setTimeLeft(ROUND_SECONDS);
     setLastEval(null);
     setResponse("");
+    setComposerMode("defend");
     setPaused(false);
-    setPersonas(SEED_PERSONAS.map((p) => ({ ...p, pressure: 30 + Math.floor(Math.random() * 30), killshot: Math.floor(Math.random() * 20) })));
+    setPersonas(SEED_PERSONAS.map((p) => ({ ...p, pressure: seededPressure(p, score), killshot: seededKillshot(p, score) })));
     setActiveSpeaker("lv");
     setTranscript([]);
     // arm the five agents with idea-specific challenges, then open with the adversary
-    const map = await fetchTailored(text);
+    const map = await fetchTailored(text, ground);
     const opener = map?.lv
       ? { body: map.lv.challenge, severity: map.lv.severity, flaw: map.lv.flaw }
       : { ...ATTACK_TEMPLATES.lv(text), flaw: undefined };
@@ -256,25 +316,41 @@ export default function DebateChamber() {
     setTranscript([{ id: Date.now(), who: "lv", role: "ADVERSARY", type: "attack", severity: opener.severity, body: opener.body, flaw: opener.flaw, ts: "00:00:00" }]);
   }, [fetchTailored]);
 
-  // Boot — a validated idea on file starts a real session automatically
+  /**
+   * Gate entry on credits, then start. A debate costs once per idea, so an
+   * already-paid idea (e.g. a page refresh) re-enters free; a new idea is
+   * charged, and an empty balance raises the top-up modal instead of starting.
+   */
+  const beginSession = useCallback((text: string) => {
+    const idea = text.trim();
+    if (!idea) return;
+    // A cached open means this idea's debate was already paid → free re-entry
+    // (the server charges "debate" only on a real /api/chamber/open call).
+    const alreadyOpened = !!readTailoredCache(idea);
+    if (!alreadyOpened && creditsState.configured) {
+      if (!creditsState.authed) { router.push("/login?next=/debate"); return; }
+      if ((creditsState.balance ?? 0) < CREDIT_COSTS.debate) { setCreditGate({ balance: creditsState.balance ?? 0 }); return; }
+    }
+    void startSession(idea).then(() => { if (!alreadyOpened) void refreshCredits(); });
+  }, [startSession, creditsState, router, refreshCredits]);
+
+  // Boot — prefill the validated idea but DON'T auto-start. The Chamber stays
+  // locked until the founder clicks Enter (which charges the "debate" credits).
   useEffect(() => {
     const stored = loadSession()?.setup?.topic?.trim();
-    if (stored) {
-      setIdeaDraft(stored);
-      void startSession(stored);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (stored) setIdeaDraft(stored);
   }, []);
 
-  // Timer — only runs during an active session
+  // Timer — only runs during an active session. Pauses while the founder is
+  // actively typing so they're never punished for taking time to think.
   useEffect(() => {
-    if (!sessionActive || paused) return;
+    if (!sessionActive || paused || composerFocused || evaluating || asking) return;
     const t = setInterval(() => {
       setTimeLeft((s) => Math.max(0, s - 1));
       setElapsed((s) => s + 1);
     }, 1000);
     return () => clearInterval(t);
-  }, [sessionActive, paused]);
+  }, [sessionActive, paused, composerFocused, evaluating, asking]);
 
   // Time-out → adversary lands free hit
   useEffect(() => {
@@ -306,15 +382,15 @@ export default function DebateChamber() {
   }, [elapsed]);
 
   const pickNextSpeaker = useCallback((skip?: string) => {
-    // Highest pressure persona, slightly weighted by kill-shot probability
     const candidates = personas.filter((p) => p.id !== skip);
-    const sorted = [...candidates].sort((a, b) => (b.pressure + b.killshot * 0.5) - (a.pressure + a.killshot * 0.5));
-    return sorted[0];
-  }, [personas]);
-
-  const updatePersonaPressure = useCallback((updater: (p: Persona) => Persona) => {
-    setPersonas((prev) => prev.map(updater));
-  }, []);
+    // Who has already taken the floor (delivered an attack/rebuttal)?
+    const spoken = new Set(transcript.filter((t) => t.who !== "you").map((t) => t.who));
+    const byThreat = (a: Persona, b: Persona) => (b.pressure + b.killshot * 0.5) - (a.pressure + a.killshot * 0.5);
+    // Coverage first: every persona speaks once before anyone speaks twice.
+    const unspoken = candidates.filter((p) => !spoken.has(p.id)).sort(byThreat);
+    if (unspoken.length > 0) return unspoken[0];
+    return [...candidates].sort(byThreat)[0];
+  }, [personas, transcript]);
 
   /* ---------- ACTIONS ---------- */
 
@@ -368,6 +444,7 @@ export default function DebateChamber() {
           flaw: lastAttack?.flaw ?? tailored[speakerId]?.flaw ?? "",
           defence: text,
           history: transcript.slice(-8).map((t) => ({ who: t.who, body: t.body })),
+          grounding: grounding ?? undefined,
         }),
       });
       if (res.ok) {
@@ -384,6 +461,8 @@ export default function DebateChamber() {
     if (evalResult) {
       setApiStatus("live");
       setLastEval(evalResult);
+      // Record the REAL score this persona gave — the final verdict reads from here, not pressure.
+      setPersonaScores((prev) => ({ ...prev, [speakerId]: [...(prev[speakerId] ?? []), evalResult!.strength] }));
       survivalShift = evalResult.strength === 3 ? 1.0 : evalResult.strength === 2 ? 0.2 : -0.7;
       pressureDrop = evalResult.strength === 3 ? 22 : evalResult.strength === 2 ? 10 : 2;
       reaction = {
@@ -397,13 +476,24 @@ export default function DebateChamber() {
         ts: nextTs(),
       };
     } else {
-      // quality heuristic — numbers & length lower the next attack
+      // OFFLINE — no AI. Score with a transparent heuristic and SAY it's simulated.
       setLastEval(null);
       const hasNumbers = /\d/.test(text);
       const long = text.length > 220;
       const quality = (hasNumbers ? 0.4 : 0) + (long ? 0.3 : 0) + Math.min(0.3, text.length / 1500);
       survivalShift = +(quality * 1.4 - 0.3).toFixed(2); // -0.3 .. +1.1
       pressureDrop = Math.round(8 + quality * 14);
+      reaction = {
+        id: Date.now() + 1,
+        who: speakerId,
+        role: speaker.role.replace("The ", "").toUpperCase(),
+        type: "rebuttal",
+        severity: quality > 0.5 ? "insight" : quality > 0.2 ? "warn" : "kill",
+        body: hasNumbers
+          ? `Noted — there are numbers in that. The live panel is offline so I can't truly weigh it; bring this answer back when the engine is up and I'll score it for real.`
+          : `That reads like assertion, not evidence. The live panel is offline, so treat this as a rough read, not a verdict — numbers and named sources would move me.`,
+        ts: nextTs(),
+      };
       // brief deliberation beat so the simulated panel doesn't answer instantly
       await new Promise((r) => setTimeout(r, 700));
     }
@@ -441,7 +531,47 @@ export default function DebateChamber() {
     setEvaluating(false);
     advanceToNextRound(next.id);
     requestAnimationFrame(() => transcriptRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
-  }, [response, evaluating, sessionActive, activeSpeaker, personas, transcript, idea, tailored, nextTs, pickNextSpeaker, attackFor, advanceToNextRound]);
+  }, [response, evaluating, sessionActive, activeSpeaker, personas, transcript, idea, tailored, grounding, nextTs, pickNextSpeaker, attackFor, advanceToNextRound]);
+
+  /** Two-way: the founder interrogates the persona holding the floor. No score, no attack — a real answer. */
+  const handleAsk = useCallback(async () => {
+    if (!response.trim() || asking || evaluating || !sessionActive) return;
+    const text = response.trim();
+    const targetId = activeSpeaker;
+    const target = personas.find((p) => p.id === targetId)!;
+
+    const question: Turn = { id: Date.now(), who: "you", type: "question", ts: nextTs(), body: text };
+    setTranscript((t) => [...t, question]);
+    setResponse("");
+    setAsking(true);
+
+    let answer = "";
+    try {
+      const res = await fetch("/api/chamber/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idea,
+          personaId: targetId,
+          question: text,
+          history: transcript.slice(-8).map((t) => ({ who: t.who, body: t.body })),
+          grounding: grounding ?? undefined,
+        }),
+      });
+      if (res.ok) { const j = (await res.json()) as { answer?: string }; answer = j?.answer ?? ""; }
+    } catch { /* offline */ }
+
+    if (!answer) {
+      answer = `${target.name.split(" ")[0]}: the live panel is offline — put that to me again when the engine is up and I'll answer straight.`;
+    }
+    const reply: Turn = {
+      id: Date.now() + 1, who: targetId, role: target.role.replace("The ", "").toUpperCase(),
+      type: "rebuttal", severity: "insight", body: answer, ts: nextTs(),
+    };
+    setTranscript((t) => [...t, reply]);
+    setAsking(false);
+    requestAnimationFrame(() => transcriptRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }, [response, asking, evaluating, sessionActive, activeSpeaker, personas, transcript, idea, grounding, nextTs]);
 
   const handleConcede = useCallback(() => {
     if (!sessionActive) return;
@@ -505,8 +635,8 @@ export default function DebateChamber() {
 
   const handleEnterChamber = useCallback(() => {
     if (!ideaDraft.trim()) return;
-    void startSession(ideaDraft.trim());
-  }, [ideaDraft, startSession]);
+    beginSession(ideaDraft.trim());
+  }, [ideaDraft, beginSession]);
 
   /** End the session and return the chamber to its idle state. No fake data. */
   const handleReset = useCallback(() => {
@@ -518,6 +648,7 @@ export default function DebateChamber() {
     setShieldsUsed(0); setResponse(""); setActiveSpeaker("lv");
     setTimeLeft(ROUND_SECONDS); setElapsed(0); setPaused(false);
     setLastEval(null); setTailoredUsed({});
+    setGrounding(null); setPersonaScores({}); setComposerMode("defend"); setAsking(false);
   }, []);
 
   const handleExportMarkdown = useCallback(async () => {
@@ -547,13 +678,9 @@ export default function DebateChamber() {
       type: "attack", severity: tmpl.severity, body: tmpl.body, flaw: tmpl.flaw, ts: nextTs(),
     }]);
     advanceToNextRound(next.id);
-  }, [sessionActive, round, activeSpeaker, nextTs, pickNextSpeaker, attackFor, advanceToNextRound, handleReset]);
+  }, [sessionActive, round, activeSpeaker, nextTs, pickNextSpeaker, attackFor, advanceToNextRound]);
 
   /* ---------- DERIVED ---------- */
-
-  const combinedPressure = Math.round(personas.reduce((a, p) => a + p.pressure, 0) / personas.length);
-  const loadedKillshots = personas.filter((p) => p.killshot > 30).length;
-  const winnableLanes = personas.filter((p) => p.pressure < 50).length;
 
   const kills = transcript.filter((t) => t.severity === "kill").length;
   const warns = transcript.filter((t) => t.severity === "warn").length;
@@ -567,48 +694,46 @@ export default function DebateChamber() {
     return "Idea is broken. The chamber would not fund this in its current form. Return with evidence.";
   }, [sessionActive, survival]);
 
-  // Final-verdict synthesis — built from the live session, never hardcoded
-  const verdictCards = useMemo(() => ({
-    assumptions: Object.values(tailored).map((t) => t?.lens).filter((x): x is string => !!x).slice(0, 4),
-    risks: [...new Set(
-      transcript
-        .filter((t) => t.who !== "you" && (t.severity === "kill" || t.severity === "warn"))
-        .map((t) => t.flaw || t.body),
-    )].slice(-4),
-    concessions: transcript.filter((t) => t.type === "concession").map((t) => t.body).slice(-4),
-    priorities: [...new Set(transcript.map((t) => t.fix).filter((x): x is string => !!x))].slice(-4),
-  }), [tailored, transcript]);
-
   return (
     <div className="chamber-scope min-h-screen bg-background text-foreground">
-      <Ticker sessionActive={sessionActive} round={round} survival={survival} survivalDelta={survivalDelta} shieldsLeft={SHIELDS_TOTAL - shieldsUsed} activeSpeaker={personas.find(p => p.id === activeSpeaker)!} />
       <TopBar sessionActive={sessionActive} onReset={handleReset} onPause={() => setPaused((p) => !p)} paused={paused} apiStatus={apiStatus}
         voiceOn={voiceOn} voiceSupported={voice.supported} speaking={voice.speaking} onToggleVoice={() => setVoiceOn((v) => !v)} />
+      <JourneyStepper current="debate" />
       <Hero
         ideaDraft={ideaDraft} setIdeaDraft={setIdeaDraft} onEnter={handleEnterChamber}
         survival={survival} survivalDelta={survivalDelta} round={round}
         timeLeft={timeLeft} shieldsLeft={SHIELDS_TOTAL - shieldsUsed} verdict={verdictNow}
         apiStatus={apiStatus} sessionActive={sessionActive}
+        unlockCost={creditsState.configured ? CREDIT_COSTS.debate : null}
+        balanceNote={
+          creditsState.configured
+            ? creditsState.authed
+              ? `Costs ${CREDIT_COSTS.debate} credits · you have ${creditsState.balance ?? 0}`
+              : `Sign in to enter · ${CREDIT_COSTS.debate} credits per debate`
+            : null
+        }
       />
-      <Tribunal personas={personas} activeSpeaker={sessionActive ? activeSpeaker : ""} onOpenDossier={setDossierId}
-        combinedPressure={combinedPressure} loadedKillshots={loadedKillshots} winnableLanes={winnableLanes}
-        speakingId={voiceOn ? voice.speakingId : null} />
-      <ChamberCore
+      <PanelStrip personas={personas} activeSpeaker={sessionActive ? activeSpeaker : ""} onOpenDossier={setDossierId}
+        speakingId={voiceOn ? voice.speakingId : null} sessionActive={sessionActive} />
+      <div ref={transcriptRef} />
+      <ChamberConversation
         transcript={transcript} personas={personas} response={response} setResponse={setResponse}
-        timeLeft={timeLeft} round={round} elapsed={elapsed}
+        timeLeft={timeLeft} round={round} apiStatus={apiStatus}
         shieldsUsed={shieldsUsed} onSend={handleSend} onConcede={handleConcede} onShield={handleShield}
         onChip={handleChip} evaluating={evaluating} lastEval={lastEval} sessionActive={sessionActive}
         voiceOn={voiceOn} speaking={voice.speaking}
         onReplay={(t) => voiceOn && voice.speak(t.who as ChamberPersonaId, t.body)}
-      />
-      <div ref={transcriptRef} />
-      <CourtRecord transcript={transcript} personas={personas} round={round}
+        composerMode={composerMode} setComposerMode={setComposerMode} onAsk={handleAsk} asking={asking}
+        onComposerFocus={() => setComposerFocused(true)} onComposerBlur={() => setComposerFocused(false)}
         kills={kills} warns={warns} insights={insights}
-        onExportMD={handleExportMarkdown} onCopyMD={handleCopyMarkdown} onExportPDF={handleExportPDF} />
-      <FinalVerdictPreview survival={survival} round={round} onContinue={handleContinue} onReset={handleReset}
-        sessionActive={sessionActive} cards={verdictCards} onVerdict={() => setShowVerdict(true)} />
-      <Ticker sessionActive={sessionActive} round={round} survival={survival} survivalDelta={survivalDelta} shieldsLeft={SHIELDS_TOTAL - shieldsUsed} activeSpeaker={personas.find(p => p.id === activeSpeaker)!} />
+        onExportMD={handleExportMarkdown} onCopyMD={handleCopyMarkdown} onExportPDF={handleExportPDF}
+      />
+      <VerdictBar survival={survival} round={round} onContinue={handleContinue} onReset={handleReset}
+        sessionActive={sessionActive} onVerdict={() => setShowVerdict(true)} />
       {dossierId && <DossierModal persona={personas.find(p => p.id === dossierId)!} onClose={() => setDossierId(null)} />}
+      {creditGate && (
+        <OutOfCreditsModal action="debate" balance={creditGate.balance} onClose={() => setCreditGate(null)} />
+      )}
       {showVerdict && (
         <ChamberVerdict
           idea={idea}
@@ -618,6 +743,7 @@ export default function DebateChamber() {
           personas={personas.map<VerdictPersona>((p) => ({
             id: p.id, name: p.name, role: p.role, initials: p.initials, hue: p.hue, pressure: p.pressure, killshot: p.killshot,
           }))}
+          scores={personaScores}
           transcript={transcript.map<VerdictTurn>((t) => ({ who: t.who, type: t.type, severity: t.severity, body: t.body }))}
           onClose={() => setShowVerdict(false)}
           onReset={() => { setShowVerdict(false); handleReset(); }}
@@ -629,95 +755,53 @@ export default function DebateChamber() {
 
 /* ============================= CHROME ============================= */
 
-function Ticker({ sessionActive, round, survival, survivalDelta, shieldsLeft, activeSpeaker }:
-  { sessionActive: boolean; round: number; survival: number; survivalDelta: number; shieldsLeft: number; activeSpeaker: Persona }) {
-  const items = sessionActive
-    ? [
-        { tag: "LIVE", tone: "danger" as const, txt: `ROUND ${round} OF ${TOTAL_ROUNDS} // ${activeSpeaker.role.toUpperCase()} HOLDING THE FLOOR` },
-        { tag: "SCORE", tone: survivalDelta < 0 ? "warn" as const : "success" as const, txt: `SURVIVAL ${survival.toFixed(1)} / 10 — ${survivalDelta >= 0 ? "UP" : "DOWN"} ${Math.abs(survivalDelta).toFixed(1)} LAST EXCHANGE` },
-        { tag: "PRESSURE", tone: "danger" as const, txt: `${activeSpeaker.name.toUpperCase()} ESCALATING — KILL-SHOT PROBABILITY ${activeSpeaker.killshot}%` },
-        { tag: "SHIELD", tone: "data" as const, txt: `${shieldsLeft} SHIELDS REMAINING / USE WITH INTENT` },
-      ]
-    : [
-        { tag: "IDLE", tone: "data" as const, txt: "CHAMBER EMPTY — AWAITING AN IDEA TO PRESSURE-TEST" },
-        { tag: "PANEL", tone: "warn" as const, txt: "FIVE AGENTS SEATED // INVESTOR · CUSTOMER · OPERATOR · ADVERSARY · MENTOR" },
-        { tag: "SCORE", tone: "data" as const, txt: "SURVIVAL — / 10 · NO SESSION ON RECORD" },
-        { tag: "SYS", tone: "success" as const, txt: "SUBMIT YOUR IDEA ABOVE TO OPEN THE SESSION" },
-      ];
-  const cls = (t: string) =>
-    t === "danger" ? "border-danger text-danger" :
-    t === "warn"   ? "border-warn text-warn" :
-    t === "success"? "border-success text-success" :
-                     "border-data text-data";
-  return (
-    <div className="chamber-ticker bg-ink text-ink-foreground border-y border-ink overflow-hidden print:hidden">
-      <div className="chamber-ticker-track flex gap-10 py-2 text-[10px] tracking-[0.2em] whitespace-nowrap">
-        {[...items, ...items, ...items].map((s, i) => (
-          <span key={i} className="flex items-center gap-3">
-            <span className={`px-1.5 py-0.5 border ${cls(s.tone)}`}>[{s.tag}]</span>
-            <span className="text-ink-foreground/80">{s.txt}</span>
-            <span className="text-ink-foreground/30">//</span>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function TopBar({ sessionActive, onReset, onPause, paused, apiStatus, voiceOn, voiceSupported, speaking, onToggleVoice }:
   { sessionActive: boolean; onReset: () => void; onPause: () => void; paused: boolean; apiStatus: ApiStatus;
     voiceOn: boolean; voiceSupported: boolean; speaking: boolean; onToggleVoice: () => void }) {
+  const status = !sessionActive
+    ? "Chamber · Idle"
+    : apiStatus === "live" ? "Chamber · AI panel armed"
+    : apiStatus === "loading" ? "Chamber · Arming panel…"
+    : "Chamber · Simulated panel";
   return (
-    <div className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-40 print:hidden">
-      <div className="mx-auto max-w-[1480px] px-4 md:px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="size-9 border border-border-strong grid place-items-center font-display text-lg">PD</div>
-          <div>
-            <div className="font-display text-sm tracking-wider">PRIORITY DEBATER</div>
-            <div className="text-[10px] text-muted-foreground tracking-widest">
-              CHAMBER · {!sessionActive ? "IDLE — NO SESSION" : apiStatus === "live" ? "AI PANEL ARMED" : apiStatus === "loading" ? "ARMING PANEL…" : "OFFLINE — SIMULATED PANEL"}
-            </div>
-          </div>
-        </div>
-        <div className="hidden md:flex items-center gap-2 text-[10px] tracking-widest">
-          <Link href="/results" className="text-muted-foreground hover:text-foreground">REPORT</Link>
-          <span>·</span><span className="text-foreground font-bold">DEBATE</span>
-          <span>·</span><Link href="/brand" className="text-muted-foreground hover:text-foreground">BRAND</Link>
-          <span>·</span><Link href="/landing" className="text-muted-foreground hover:text-foreground">LANDING</Link>
-        </div>
-        <div className="flex items-center gap-2">
-          {voiceSupported && (
-            <button onClick={onToggleVoice} title={voiceOn ? "Mute the tribunal" : "Let the tribunal speak"}
-              className={`flex items-center gap-1.5 px-3 py-2 border text-[10px] tracking-widest font-bold transition-colors ${voiceOn ? "border-data text-data" : "border-border text-muted-foreground hover:bg-surface"}`}>
-              {voiceOn ? <Volume2 className={`size-3 ${speaking ? "animate-pulse" : ""}`} /> : <VolumeX className="size-3" />}
-              <span className="hidden sm:inline">{voiceOn ? (speaking ? "SPEAKING" : "VOICE ON") : "VOICE OFF"}</span>
-            </button>
-          )}
-          {sessionActive ? (
-            <>
-              <button onClick={onPause} className="flex items-center gap-1.5 px-3 py-2 border border-border text-foreground text-[10px] tracking-widest font-bold hover:bg-surface">
-                {paused ? <><Play className="size-3" /> RESUME</> : <><Pause className="size-3" /> PAUSE</>}
+    <div className="print:hidden">
+      <SiteNav
+        subtitle={status}
+        actions={
+          <div className="flex items-center gap-2">
+            {voiceSupported && (
+              <button onClick={onToggleVoice} title={voiceOn ? "Mute the tribunal" : "Let the tribunal speak"}
+                className={`flex items-center gap-1.5 px-3 py-2 border font-mono text-[10px] uppercase tracking-[0.16em] font-bold transition-colors ${voiceOn ? "border-[#32d74b] text-[#32d74b]" : "border-white/30 text-white hover:bg-white hover:text-black"}`}>
+                {voiceOn ? <Volume2 className={`size-3 ${speaking ? "animate-pulse" : ""}`} /> : <VolumeX className="size-3" />}
+                <span className="hidden sm:inline">{voiceOn ? (speaking ? "Speaking" : "Voice on") : "Voice off"}</span>
               </button>
-              <span className="flex items-center gap-2 px-3 py-2 border border-danger text-danger text-[10px] tracking-widest font-bold">
-                <span className="size-1.5 rounded-full bg-danger animate-pulse" /> {paused ? "PAUSED" : "LIVE"}
+            )}
+            {sessionActive ? (
+              <>
+                <button onClick={onPause} className="flex items-center gap-1.5 px-3 py-2 border border-white/30 text-white font-mono text-[10px] uppercase tracking-[0.16em] font-bold hover:bg-white hover:text-black transition-colors">
+                  {paused ? <><Play className="size-3" /> Resume</> : <><Pause className="size-3" /> Pause</>}
+                </button>
+                <span className="hidden sm:flex items-center gap-2 px-3 py-2 border border-[#ff3b30] text-[#ff3b30] font-mono text-[10px] uppercase tracking-[0.16em] font-bold">
+                  <span className="size-1.5 rounded-full bg-[#ff3b30] animate-pulse" /> {paused ? "Paused" : "Live"}
+                </span>
+                <button onClick={onReset} className="flex items-center gap-1.5 px-3 py-2 bg-[#ff3b30] text-white font-mono text-[10px] uppercase tracking-[0.16em] font-bold hover:bg-white hover:text-black transition-colors">
+                  <RotateCcw className="size-3" /> End
+                </button>
+              </>
+            ) : (
+              <span className="flex items-center gap-2 px-3 py-2 border border-white/30 text-white/60 font-mono text-[10px] uppercase tracking-[0.16em] font-bold">
+                <span className="size-1.5 rounded-full bg-white/40" /> Idle
               </span>
-              <button onClick={onReset} className="flex items-center gap-1.5 px-3 py-2 bg-accent text-accent-foreground text-[10px] tracking-widest font-bold hover:opacity-90">
-                <RotateCcw className="size-3" /> END SESSION
-              </button>
-            </>
-          ) : (
-            <span className="flex items-center gap-2 px-3 py-2 border border-border text-muted-foreground text-[10px] tracking-widest font-bold">
-              <span className="size-1.5 rounded-full bg-muted-foreground/50" /> IDLE
-            </span>
-          )}
-        </div>
-      </div>
+            )}
+          </div>
+        }
+      />
     </div>
   );
 }
 
-function Hero({ ideaDraft, setIdeaDraft, onEnter, survival, survivalDelta, round, timeLeft, shieldsLeft, verdict, apiStatus, sessionActive }:
-  { ideaDraft: string; setIdeaDraft: (s: string) => void; onEnter: () => void; survival: number; survivalDelta: number; round: number; timeLeft: number; shieldsLeft: number; verdict: string; apiStatus: ApiStatus; sessionActive: boolean }) {
+function Hero({ ideaDraft, setIdeaDraft, onEnter, survival, survivalDelta, round, timeLeft, shieldsLeft, verdict, apiStatus, sessionActive, unlockCost, balanceNote }:
+  { ideaDraft: string; setIdeaDraft: (s: string) => void; onEnter: () => void; survival: number; survivalDelta: number; round: number; timeLeft: number; shieldsLeft: number; verdict: string; apiStatus: ApiStatus; sessionActive: boolean; unlockCost?: number | null; balanceNote?: string | null }) {
   const tone = survival >= 7 ? "text-success" : survival >= 5 ? "text-warn" : "text-danger";
   return (
     <section className="relative bg-ink text-ink-foreground border-y border-ink grid-bg-ink print:hidden">
@@ -746,9 +830,16 @@ function Hero({ ideaDraft, setIdeaDraft, onEnter, survival, survivalDelta, round
               placeholder="Paste the idea you want pressure-tested…"
             />
             <button type="submit" disabled={apiStatus === "loading"} className="px-6 py-4 bg-danger text-ink-foreground font-display text-sm tracking-widest hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2">
-              {apiStatus === "loading" ? <><Loader2 className="size-4 animate-spin" /> ARMING PANEL…</> : <>ENTER THE CHAMBER <ArrowRight className="size-4" /></>}
+              {apiStatus === "loading"
+                ? <><Loader2 className="size-4 animate-spin" /> ARMING PANEL…</>
+                : <>{sessionActive ? "RE-ENTER" : "UNLOCK THE CHAMBER"}{!sessionActive && unlockCost ? ` · ${unlockCost} CR` : ""} <ArrowRight className="size-4" /></>}
             </button>
           </form>
+          {balanceNote && !sessionActive && (
+            <div className="mt-3 inline-block border border-ink-foreground/25 px-2.5 py-1 font-mono text-[10px] tracking-widest text-ink-foreground/70">
+              {balanceNote}
+            </div>
+          )}
           <div className="mt-3 text-[10px] tracking-widest text-ink-foreground/45">
             {apiStatus === "live" ? "◉ LIVE — FIVE AI AGENTS GENERATE EVERY ATTACK & SCORE FOR THIS IDEA"
               : apiStatus === "loading" ? "◌ ARMING FIVE AGENTS — EACH IS STUDYING YOUR IDEA"
@@ -771,7 +862,7 @@ function Hero({ ideaDraft, setIdeaDraft, onEnter, survival, survivalDelta, round
               {survivalDelta >= 0 ? "▲" : "▼"} {Math.abs(survivalDelta).toFixed(1)} last exchange · trending {survivalDelta >= 0 ? "UP" : "DOWN"}
             </div>
           ) : (
-            <div className="text-xs text-ink-foreground/40">NO SESSION · SCORE STARTS AT 7.5 AND MOVES WITH EVERY EXCHANGE</div>
+            <div className="text-xs text-ink-foreground/40">NO SESSION · SCORE SEEDS FROM YOUR AUDITED REPORT, THEN MOVES WITH EVERY EXCHANGE</div>
           )}
           <div className="mt-6 grid grid-cols-3 border border-ink-foreground/20">
             <MiniStat label="ROUND" value={sessionActive ? `${round}/${TOTAL_ROUNDS}` : "—"} />
@@ -798,372 +889,307 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
 
 /* ============================= TRIBUNAL ============================= */
 
-function Tribunal({ personas, activeSpeaker, onOpenDossier, combinedPressure, loadedKillshots, winnableLanes, speakingId }:
-  { personas: Persona[]; activeSpeaker: string; onOpenDossier: (id: string) => void; combinedPressure: number; loadedKillshots: number; winnableLanes: number; speakingId: ChamberPersonaId | null }) {
+function PanelStrip({ personas, activeSpeaker, onOpenDossier, speakingId, sessionActive }:
+  { personas: Persona[]; activeSpeaker: string; onOpenDossier: (id: string) => void; speakingId: ChamberPersonaId | null; sessionActive: boolean }) {
   const order = ["vk", "ht", "mr", "es", "lv"];
   const seats = order.map((id) => personas.find((p) => p.id === id)!);
-
   return (
-    <section className="relative bg-ink text-ink-foreground border-b border-ink overflow-hidden print:hidden">
-      <div className="absolute inset-0 pointer-events-none"
-        style={{ background: "radial-gradient(ellipse 60% 60% at 50% 0%, color-mix(in oklab, var(--danger) 22%, transparent), transparent 70%)" }} />
-      <div className="absolute inset-0 grid-bg-ink pointer-events-none opacity-60" />
-
-      <div className="relative mx-auto max-w-[1480px] px-4 md:px-8 pt-20 pb-24">
-        <div className="flex flex-wrap items-end justify-between gap-6 mb-14">
-          <div>
-            <div className="text-[10px] tracking-widest text-ink-foreground/55 mb-3">— 01 / THE TRIBUNAL · NOW IN SESSION</div>
-            <h2 className="text-display text-5xl md:text-6xl lg:text-7xl text-ink-foreground leading-[0.95]">
-              Five seats.<br /><span className="hl-red">Five blades.</span>
-            </h2>
-          </div>
-          <div className="flex flex-col items-end gap-3 max-w-md text-right">
-            <div className="flex items-center gap-2 text-[10px] tracking-widest text-danger">
-              <Radio className="size-3 animate-pulse" /> LIVE TRANSMISSION · AUTO-RECORDED
-            </div>
-            <p className="text-sm text-ink-foreground/65 leading-relaxed">
-              Each persona attacks from a distinct strategic axis. Click a seat to open the dossier.
-              You cannot satisfy all five — choose what you defend.
-            </p>
-          </div>
+    <section className="bg-ink text-ink-foreground border-b border-ink print:hidden">
+      <div className="mx-auto max-w-[1100px] px-4 md:px-8 py-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-[10px] tracking-widest text-ink-foreground/45">THE PANEL · FIVE ADVERSARIES</div>
+          <div className="hidden sm:block text-[10px] tracking-widest text-ink-foreground/45">CLICK A SEAT FOR ITS DOSSIER</div>
         </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-px bg-ink-foreground/15 border border-ink-foreground/20">
-          {seats.map((p) => (
-            <PersonaThrone key={p.id} p={p} active={p.id === activeSpeaker} speaking={speakingId === p.id} onOpen={() => onOpenDossier(p.id)} />
-          ))}
-        </div>
-
-        <div className="mt-10 grid md:grid-cols-3 gap-3 text-[10px] tracking-widest">
-          <RailStat label="COMBINED PRESSURE" value={`${combinedPressure}%`} tone={combinedPressure > 55 ? "warn" : "success"} detail={combinedPressure > 55 ? "Above ignition threshold (55%)" : "Below ignition threshold"} />
-          <RailStat label="LOADED KILL-SHOTS" value={`${loadedKillshots} / 5`} tone={loadedKillshots >= 2 ? "danger" : "warn"} detail={loadedKillshots >= 2 ? "Multiple adversaries armed" : "Manageable threat level"} />
-          <RailStat label="WINNABLE LANES" value={`${winnableLanes}`} tone="success" detail="Personas under 50% pressure" />
+        <div className="flex flex-wrap gap-2">
+          {seats.map((p) => {
+            const c = HUE[p.hue];
+            const active = sessionActive && p.id === activeSpeaker;
+            const speaking = speakingId === p.id;
+            return (
+              <button
+                key={p.id}
+                onClick={() => onOpenDossier(p.id)}
+                title={`${p.name} — ${p.role}`}
+                className={`flex items-center gap-2.5 border px-3 py-2 transition-colors ${active ? `${c.border} bg-ink-foreground/[0.06]` : "border-ink-foreground/15 hover:border-ink-foreground/35"}`}
+              >
+                <span className={`size-8 grid place-items-center border ${c.border} font-display text-sm ${c.text}`}>{p.initials}</span>
+                <span className="text-left">
+                  <span className="block font-display text-sm leading-none text-ink-foreground">{p.name}</span>
+                  <span className={`block text-[9px] tracking-widest mt-1 ${active ? c.text : "text-ink-foreground/45"}`}>
+                    {speaking ? "SPEAKING" : active ? "HOLDING FLOOR" : p.role.toUpperCase()}
+                  </span>
+                </span>
+                {speaking && <SpeakingBars className={c.text} />}
+              </button>
+            );
+          })}
         </div>
       </div>
     </section>
-  );
-}
-
-function RailStat({ label, value, tone, detail }: { label: string; value: string; tone: "danger" | "warn" | "success"; detail: string }) {
-  const c = HUE[tone];
-  return (
-    <div className="border border-ink-foreground/20 bg-ink-foreground/5 p-4 flex items-center gap-4">
-      <div className={`size-10 grid place-items-center border ${c.border} ${c.text}`}>
-        {tone === "danger" ? <Crosshair className="size-4" /> : tone === "warn" ? <Flame className="size-4" /> : <Shield className="size-4" />}
-      </div>
-      <div className="min-w-0">
-        <div className="text-ink-foreground/55">{label}</div>
-        <div className={`font-display text-xl ${c.text}`}>{value}</div>
-        <div className="text-ink-foreground/55 normal-case tracking-normal text-[11px] mt-0.5">{detail}</div>
-      </div>
-    </div>
-  );
-}
-
-function PersonaThrone({ p, active, speaking, onOpen }: { p: Persona; active: boolean; speaking: boolean; onOpen: () => void }) {
-  const c = HUE[p.hue];
-  const statusLabel = speaking ? "SPEAKING" : p.status.toUpperCase();
-  const statusTone =
-    p.status === "speaking"  ? "text-danger"  :
-    p.status === "preparing" ? "text-warn"    :
-                                "text-ink-foreground/55";
-
-  return (
-    <div
-      className={`relative bg-ink p-6 pt-8 flex flex-col min-h-[420px] transition-all ${
-        active ? "bg-gradient-to-b from-[color-mix(in_oklab,var(--danger)_14%,transparent)] to-transparent" : ""
-      }`}
-    >
-      {active && (
-        <>
-          <div className="absolute inset-x-0 -top-px h-[3px] bg-danger" />
-          <div className="absolute inset-x-0 -bottom-px h-[3px] bg-danger" />
-          <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 bg-danger text-ink-foreground text-[9px] tracking-widest font-bold">
-            <span className="size-1 rounded-full bg-ink-foreground animate-pulse" /> HOLDING THE FLOOR
-          </div>
-        </>
-      )}
-
-      <div className="flex items-center justify-between text-[9px] tracking-widest text-ink-foreground/40 mb-6">
-        <span>SEAT · {p.initials}</span>
-        <span className={`flex items-center gap-1.5 ${speaking ? c.text : statusTone}`}>
-          {speaking && <SpeakingBars className={c.text} />}{statusLabel}
-        </span>
-      </div>
-
-      <div className="flex items-start gap-4">
-        <div className={`relative size-20 grid place-items-center border-2 ${c.border} bg-ink-foreground/5 font-display text-3xl ${c.text}`}>
-          {p.initials}
-          {active && <div className={`absolute -inset-1 ${c.ring} pointer-events-none`} />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="font-display text-lg leading-tight text-ink-foreground">{p.name}</div>
-          <div className={`text-[10px] tracking-widest mt-1 ${c.text}`}>{p.role.toUpperCase()}</div>
-          <div className="text-[10px] text-ink-foreground/50 mt-1 leading-snug">{p.archetype}</div>
-        </div>
-      </div>
-
-      <p className={`text-[12px] text-ink-foreground/70 mt-5 leading-relaxed border-l-2 ${c.border} pl-3 italic`}>
-        “{p.bio}”
-      </p>
-
-      <div className="mt-auto pt-5 space-y-3">
-        <div>
-          <div className="flex items-center justify-between text-[9px] tracking-widest text-ink-foreground/55 mb-1.5">
-            <span className="flex items-center gap-1.5"><Flame className="size-3" /> PRESSURE</span>
-            <span className={c.text}>{p.pressure}%</span>
-          </div>
-          <div className="h-[3px] bg-ink-foreground/10 relative overflow-hidden">
-            <div className={`h-full ${c.bg} transition-all duration-500`} style={{ width: `${p.pressure}%` }} />
-          </div>
-        </div>
-        <div>
-          <div className="flex items-center justify-between text-[9px] tracking-widest text-ink-foreground/55 mb-1.5">
-            <span className="flex items-center gap-1.5"><Skull className="size-3" /> KILL-SHOT</span>
-            <span className={p.killshot > 30 ? "text-danger" : "text-ink-foreground/70"}>{p.killshot}%</span>
-          </div>
-          <div className="h-[3px] bg-ink-foreground/10 relative overflow-hidden">
-            <div className={`h-full transition-all duration-500 ${p.killshot > 30 ? "bg-danger" : "bg-ink-foreground/40"}`} style={{ width: `${p.killshot}%` }} />
-          </div>
-        </div>
-
-        <button onClick={onOpen} className="w-full mt-2 text-[10px] tracking-widest text-ink-foreground/55 hover:text-ink-foreground flex items-center justify-center gap-2 border border-ink-foreground/15 py-2 hover:bg-ink-foreground/5">
-          <Eye className="size-3" /> OPEN DOSSIER
-        </button>
-      </div>
-    </div>
   );
 }
 
 /* ============================= CHAMBER CORE ============================= */
 
-function ChamberCore({
-  transcript, personas, response, setResponse, timeLeft, round, elapsed, shieldsUsed,
+/**
+ * Reveal a freshly-landed line character by character so each attack feels
+ * spoken in real time rather than appearing as a finished block. Falls back to
+ * the full string instantly when disabled (e.g. print) or when text repeats.
+ */
+function useTypewriter(text: string, enabled: boolean, cps = 90): string {
+  const [out, setOut] = useState(text);
+  useEffect(() => {
+    if (!enabled || !text) { setOut(text); return; }
+    setOut("");
+    let i = 0;
+    const step = Math.max(1, Math.round(cps / 20));
+    const id = setInterval(() => {
+      i += step;
+      setOut(text.slice(0, i));
+      if (i >= text.length) clearInterval(id);
+    }, 50);
+    return () => clearInterval(id);
+  }, [text, enabled, cps]);
+  return out;
+}
+
+function ChamberConversation({
+  transcript, personas, response, setResponse, timeLeft, round, apiStatus, shieldsUsed,
   onSend, onConcede, onShield, onChip, evaluating, lastEval, sessionActive,
   voiceOn, speaking, onReplay,
+  composerMode, setComposerMode, onAsk, asking, onComposerFocus, onComposerBlur,
+  kills, warns, insights, onExportMD, onCopyMD, onExportPDF,
 }: {
   transcript: Turn[]; personas: Persona[]; response: string; setResponse: (v: string) => void;
-  timeLeft: number; round: number; elapsed: number; shieldsUsed: number;
+  timeLeft: number; round: number; apiStatus: ApiStatus; shieldsUsed: number;
   onSend: () => void; onConcede: () => void; onShield: () => void; onChip: (label: string) => void;
   evaluating: boolean; lastEval: EvalResult | null; sessionActive: boolean;
   voiceOn: boolean; speaking: boolean; onReplay: (t: Turn) => void;
+  composerMode: "defend" | "ask"; setComposerMode: (m: "defend" | "ask") => void;
+  onAsk: () => void; asking: boolean; onComposerFocus: () => void; onComposerBlur: () => void;
+  kills: number; warns: number; insights: number;
+  onExportMD: () => void; onCopyMD: () => void; onExportPDF: () => void;
 }) {
   const MAX = 1200;
-  const lastAttack = [...transcript].reverse().find((t) => t.who !== "you") ?? transcript[transcript.length - 1];
-  const speaker = (lastAttack && personas.find((p) => p.id === lastAttack.who)) || personas[0];
-  const c = HUE[speaker.hue];
-
+  const threadRef = useRef<HTMLDivElement>(null);
+  const lastNonYou = [...transcript].reverse().find((t) => t.who !== "you");
+  const speaker = (lastNonYou && personas.find((p) => p.id === lastNonYou.who)) || personas[0];
+  const sc = HUE[speaker.hue];
   const pct = ((ROUND_SECONDS - timeLeft) / ROUND_SECONDS) * 100;
 
-  const attacks = transcript.filter((t) => t.type === "attack").length;
-  const rebuttals = transcript.filter((t) => t.type === "rebuttal" || t.type === "defense").length;
+  // Keep the newest turn in view as the conversation grows.
+  useEffect(() => {
+    const el = threadRef.current;
+    if (el) requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+  }, [transcript.length, evaluating, asking]);
 
   return (
-    <section className="bg-background border-b border-border print:hidden">
-      <div className="mx-auto max-w-[1480px] px-4 md:px-8 pt-16 pb-20">
-        <div className="flex flex-wrap items-end justify-between gap-6 mb-10">
+    <section className="bg-background border-b border-border">
+      <div className="mx-auto max-w-[1400px] px-4 md:px-6 py-12 print:py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div>
-            <div className="text-[10px] tracking-widest text-muted-foreground mb-3">— 02 / THE FLOOR · YOUR TURN</div>
-            <h2 className="text-display text-4xl md:text-5xl text-foreground leading-tight">
-              They've stopped talking. <span className="hl-red">Now you speak.</span>
+            <div className="text-[10px] tracking-widest text-muted-foreground mb-2">— THE FLOOR · LIVE EXCHANGE</div>
+            <h2 className="text-display text-3xl md:text-4xl text-foreground leading-tight">
+              The <span className="hl-red">conversation.</span>
             </h2>
           </div>
-          <div className="flex items-center gap-3 text-[10px] tracking-widest">
-            <span className="px-2 py-1 border border-danger text-danger flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full bg-danger animate-pulse" /> FLOOR OPEN
-            </span>
-            <span className="px-2 py-1 border border-border text-muted-foreground">ROUND {round} / {TOTAL_ROUNDS}</span>
+          <div className="flex items-center gap-2 text-[10px] tracking-widest print:hidden">
+            {sessionActive && kills + warns + insights > 0 && (
+              <span className="hidden sm:flex items-center gap-1">
+                <span className="px-1.5 py-0.5 border border-danger text-danger">{kills}K</span>
+                <span className="px-1.5 py-0.5 border border-warn text-warn">{warns}W</span>
+                <span className="px-1.5 py-0.5 border border-data text-data">{insights}I</span>
+              </span>
+            )}
+            {lastEval && (
+              <span className={`px-1.5 py-0.5 border ${lastEval.strength === 3 ? "border-success text-success" : lastEval.strength === 2 ? "border-warn text-warn" : "border-danger text-danger"}`}>
+                RATED {lastEval.strength}/3
+              </span>
+            )}
+            <span className="px-2 py-1 border border-border text-muted-foreground">R{round}/{TOTAL_ROUNDS}</span>
+            <button onClick={onExportMD} title="Download transcript (.md)" className="px-2 py-1.5 border border-border text-muted-foreground hover:bg-surface"><Download className="size-3" /></button>
+            <button onClick={onCopyMD} title="Copy transcript" className="px-2 py-1.5 border border-border text-muted-foreground hover:bg-surface"><Copy className="size-3" /></button>
+            <button onClick={onExportPDF} title="Print / PDF" className="px-2 py-1.5 border border-border text-muted-foreground hover:bg-surface">PDF</button>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[2fr_1fr] gap-3">
-          <div className="bg-ink text-ink-foreground border border-ink relative overflow-hidden">
-            <div className="absolute inset-0 grid-bg-ink opacity-50 pointer-events-none" />
-
-            <div className="relative flex items-center justify-between px-6 py-4 border-b border-ink-foreground/15">
-              {sessionActive && lastAttack ? (
-                <div className="flex items-center gap-4">
-                  <div className={`size-12 grid place-items-center border-2 ${c.border} font-display text-base ${c.text} bg-ink`}>
-                    {speaker.initials}
-                  </div>
-                  <div>
-                    <div className="text-[10px] tracking-widest text-ink-foreground/55 flex items-center gap-2">
-                      INCOMING FIRE FROM
-                      {voiceOn && speaking && <SpeakingBars className={c.text} />}
+        <div className="border-2 border-ink bg-ink text-ink-foreground">
+          {sessionActive && (
+            <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-ink-foreground/15 print:hidden">
+              <div className="flex items-center gap-3 min-w-0">
+                {lastNonYou ? (
+                  <>
+                    <span className={`size-9 shrink-0 grid place-items-center border ${sc.border} font-display text-sm ${sc.text}`}>{speaker.initials}</span>
+                    <div className="min-w-0">
+                      <div className="text-[10px] tracking-widest text-ink-foreground/55 flex items-center gap-2">
+                        ON THE FLOOR {voiceOn && speaking && <SpeakingBars className={sc.text} />}
+                      </div>
+                      <div className="font-display text-sm leading-tight truncate">
+                        {speaker.name} <span className={`text-[10px] tracking-widest ${sc.text}`}>· {speaker.role.toUpperCase()}</span>
+                      </div>
                     </div>
-                    <div className="font-display text-lg leading-tight flex items-center gap-2">
-                      {speaker.name}
-                      {voiceOn && lastAttack && (
-                        <button onClick={() => onReplay(lastAttack)} title="Replay aloud"
-                          className={`${c.text} opacity-60 hover:opacity-100`}>
-                          <Volume2 className="size-3.5" />
-                        </button>
-                      )}
-                    </div>
-                    <div className={`text-[10px] tracking-widest ${c.text}`}>{speaker.role.toUpperCase()} · KILL-SHOT {speaker.killshot}%</div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-4">
-                  <div className="size-12 grid place-items-center border-2 border-ink-foreground/25 font-display text-base text-ink-foreground/40 bg-ink">?</div>
-                  <div>
-                    <div className="text-[10px] tracking-widest text-ink-foreground/55">INCOMING FIRE FROM</div>
-                    <div className="font-display text-lg leading-tight text-ink-foreground/40">—</div>
-                    <div className="text-[10px] tracking-widest text-ink-foreground/35">NO SESSION IN PROGRESS</div>
-                  </div>
-                </div>
-              )}
-              {sessionActive && <CountdownRing pct={pct} label={fmtClock(timeLeft)} critical={timeLeft < 30} />}
+                  </>
+                ) : (
+                  <div className="text-[10px] tracking-widest text-ink-foreground/55">THE PANEL IS CONVENING…</div>
+                )}
+              </div>
+              <CountdownRing pct={pct} label={fmtClock(timeLeft)} critical={timeLeft < 30} />
             </div>
+          )}
 
-            <div className="relative p-8 md:p-12 border-b border-ink-foreground/15">
-              {lastAttack ? (
-                <>
-                  <Quote className={`absolute top-6 left-6 size-10 ${c.text} opacity-25`} />
-                  <p className="relative pl-14 font-display text-2xl md:text-3xl text-ink-foreground leading-snug">
-                    {lastAttack.body}
-                  </p>
-                  <div className="mt-6 pl-14 flex items-center gap-3 text-[10px] tracking-widest">
-                    {lastAttack.severity === "kill" && (
-                      <span className="px-1.5 py-0.5 border border-danger text-danger flex items-center gap-1"><Skull className="size-3" /> KILL-SHOT</span>
-                    )}
-                    {lastAttack.severity === "warn" && (
-                      <span className="px-1.5 py-0.5 border border-warn text-warn flex items-center gap-1"><AlertTriangle className="size-3" /> WARNING</span>
-                    )}
-                    {lastAttack.severity === "insight" && (
-                      <span className="px-1.5 py-0.5 border border-data text-data flex items-center gap-1"><Activity className="size-3" /> INSIGHT</span>
-                    )}
-                    <span className="text-ink-foreground/45">LOGGED {lastAttack.ts}</span>
-                  </div>
-                </>
-              ) : sessionActive ? (
-                <div className="flex items-center gap-4 text-ink-foreground/70">
-                  <Loader2 className="size-6 animate-spin text-data" />
-                  <div>
-                    <div className="font-display text-2xl text-ink-foreground">THE PANEL IS CONVENING…</div>
-                    <div className="text-[10px] tracking-widest text-ink-foreground/50 mt-1">FIVE AGENTS ARE STUDYING YOUR IDEA · FIRST ATTACK INCOMING</div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-ink-foreground/70">
-                  <div className="font-display text-2xl text-ink-foreground/60">THE CHAMBER IS EMPTY.</div>
-                  <div className="text-[10px] tracking-widest text-ink-foreground/45 mt-2">SUBMIT YOUR IDEA ABOVE — THE FIRST ATTACK LANDS HERE</div>
-                </div>
-              )}
-            </div>
-
-            {lastEval && (
-              <div className="relative px-6 md:px-8 py-5 border-b border-ink-foreground/15 bg-ink-foreground/[0.03]">
-                <div className="flex items-center gap-2 text-[10px] tracking-widest mb-2">
-                  <span className={`px-1.5 py-0.5 border ${lastEval.strength === 3 ? "border-success text-success" : lastEval.strength === 2 ? "border-warn text-warn" : "border-danger text-danger"}`}>
-                    DEFENSE RATED {lastEval.strength}/3
+          <div ref={threadRef} className="max-h-[58vh] overflow-y-auto px-4 md:px-6 py-6 space-y-5 grid-bg-ink print:max-h-none print:overflow-visible">
+            {sessionActive && apiStatus === "offline" && (
+              <div className="flex items-start gap-2.5 border border-warn/50 bg-warn/[0.07] px-3 py-2.5 text-[11px] leading-relaxed text-warn print:hidden">
+                <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
+                <span className="tracking-wide">
+                  <span className="font-bold">SIMULATED PANEL.</span>{" "}
+                  <span className="text-ink-foreground/70">
+                    The live AI engine is unreachable, so attacks and scores are run by a transparent
+                    heuristic — not the five agents. Bring your answers back when the engine is live for a real verdict.
                   </span>
-                  <span className="text-ink-foreground/45">PANEL VERDICT ON YOUR LAST ANSWER</span>
-                </div>
-                <p className="text-sm text-ink-foreground/85 leading-relaxed italic">“{lastEval.reactionQuote}”</p>
-                <div className="mt-3 flex items-start gap-2 text-xs text-ink-foreground/75 leading-relaxed border-l-2 border-data pl-3">
-                  <Wrench className="size-3.5 text-data shrink-0 mt-0.5" />
-                  <span><span className="text-data tracking-widest text-[10px]">FAIL-PROOF FIX · </span>{lastEval.fix}</span>
-                </div>
+                </span>
               </div>
             )}
-
-            <div className="relative p-6 md:p-8">
-              <div className="flex items-center justify-between mb-3 text-[10px] tracking-widest text-ink-foreground/55">
-                <span className="flex items-center gap-2 text-data">
-                  <Mic className="size-3 animate-pulse" /> THE FLOOR IS YOURS
+            {transcript.length === 0 ? (
+              <div className="py-12 text-center">
+                {sessionActive ? (
+                  <div className="inline-flex items-center gap-3 text-ink-foreground/70">
+                    <Loader2 className="size-5 animate-spin text-data" />
+                    <span className="font-display text-lg">The panel is convening…</span>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="font-display text-2xl text-ink-foreground/60">The chamber is empty.</div>
+                    <div className="text-[10px] tracking-widest text-ink-foreground/45 mt-2">SUBMIT YOUR IDEA ABOVE — THE FIRST ATTACK LANDS HERE</div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              transcript.map((t) => (
+                <ThreadBubble key={t.id} t={t} personas={personas}
+                  isLatest={!!lastNonYou && t.id === lastNonYou.id}
+                  voiceOn={voiceOn} speaking={speaking} onReplay={onReplay} />
+              ))
+            )}
+            {(evaluating || asking) && (
+              <div className="flex items-center gap-2 text-ink-foreground/60 text-[11px] tracking-widest">
+                <span className="inline-flex gap-1">
+                  <span className="size-1.5 bg-ink-foreground/60 animate-bounce" />
+                  <span className="size-1.5 bg-ink-foreground/60 animate-bounce [animation-delay:120ms]" />
+                  <span className="size-1.5 bg-ink-foreground/60 animate-bounce [animation-delay:240ms]" />
                 </span>
-                <span>{response.length} / {MAX}</span>
+                {asking ? "PANELLIST IS THINKING…" : "THE PANEL IS DELIBERATING…"}
               </div>
-              <textarea
-                value={response}
-                onChange={(e) => setResponse(e.target.value.slice(0, MAX))}
-                onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); onSend(); } }}
-                disabled={!sessionActive}
-                placeholder={sessionActive
-                  ? "Draft your rebuttal. Be specific. Numbers travel. Adjectives die. (⌘+Enter to send)"
-                  : "The floor opens once a session is live — submit your idea above."}
-                className="w-full h-44 bg-ink-foreground/5 border border-ink-foreground/25 text-ink-foreground placeholder:text-ink-foreground/35 p-4 text-sm leading-relaxed focus:outline-none focus:border-data resize-none disabled:opacity-50"
-              />
-
-              <div className="mt-4 flex flex-wrap gap-2 text-[10px] tracking-widest">
-                {Object.keys(CHIP_SNIPPETS).map((label) => (
-                  <Chip key={label} onClick={() => onChip(label)}>{label}</Chip>
-                ))}
-              </div>
-
-              <div className="mt-6 flex flex-col sm:flex-row gap-2">
-                <button onClick={onSend} disabled={!response.trim() || evaluating || !sessionActive}
-                  className="flex-1 px-6 py-4 bg-danger text-ink-foreground font-display text-sm tracking-widest hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_40px_-10px_var(--danger)]">
-                  {evaluating ? <><Loader2 className="size-4 animate-spin" /> PANEL DELIBERATING…</> : <><Send className="size-4" /> DELIVER DEFENSE</>}
-                </button>
-                <button onClick={onConcede} disabled={!sessionActive}
-                  className="px-5 py-4 border border-ink-foreground/30 text-ink-foreground/80 font-display text-sm tracking-widest hover:bg-ink-foreground/5 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                  <X className="size-4" /> CONCEDE POINT
-                </button>
-                <button onClick={onShield} disabled={!sessionActive || shieldsUsed >= SHIELDS_TOTAL}
-                  className="px-5 py-4 border border-data text-data font-display text-sm tracking-widest hover:bg-data/10 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                  <Shield className="size-4" /> USE SHIELD
-                </button>
-              </div>
-            </div>
+            )}
           </div>
 
-          <aside className="grid grid-rows-[auto_1fr_auto] gap-3">
-            <div className="border border-border bg-surface p-5">
-              <div className="text-[10px] tracking-widest text-muted-foreground mb-3">SESSION</div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <KV k="ROUND" v={`${round} / ${TOTAL_ROUNDS}`} />
-                <KV k="ELAPSED" v={fmtElapsed(elapsed)} />
-                <KV k="ATTACKS" v={String(attacks)} />
-                <KV k="REBUTTALS" v={String(rebuttals)} />
+          <div className="border-t-2 border-ink-foreground/15 p-4 md:p-5 print:hidden">
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <div className="inline-flex border border-ink-foreground/20 text-[10px] tracking-widest">
+                <button type="button" disabled={!sessionActive} onClick={() => setComposerMode("defend")}
+                  className={`px-3 py-1.5 flex items-center gap-1.5 transition-colors disabled:opacity-40 ${composerMode === "defend" ? "bg-danger text-ink-foreground" : "text-ink-foreground/60 hover:text-ink-foreground"}`}>
+                  <Shield className="size-3" /> DEFEND
+                </button>
+                <button type="button" disabled={!sessionActive} onClick={() => setComposerMode("ask")}
+                  className={`px-3 py-1.5 flex items-center gap-1.5 border-l border-ink-foreground/20 transition-colors disabled:opacity-40 ${composerMode === "ask" ? "bg-data text-ink" : "text-ink-foreground/60 hover:text-ink-foreground"}`}>
+                  <Quote className="size-3" /> QUESTION
+                </button>
+              </div>
+              <div className="flex items-center gap-1.5" title={`${SHIELDS_TOTAL - shieldsUsed} shields remaining`}>
+                <span className="text-[9px] tracking-widest text-ink-foreground/40">SHIELDS</span>
+                {Array.from({ length: SHIELDS_TOTAL }).map((_, i) => (
+                  <span key={i} className={`size-2 ${i < shieldsUsed ? "bg-ink-foreground/20" : "bg-data"}`} />
+                ))}
               </div>
             </div>
-
-            <div className="border border-border bg-surface p-5">
-              <div className="flex items-center justify-between text-[10px] tracking-widest text-muted-foreground mb-4">
-                <span>PRESSURE BY PERSONA</span>
-                <span className="text-warn flex items-center gap-1"><Zap className="size-3" /> AVG {Math.round(personas.reduce((a,p)=>a+p.pressure,0)/personas.length)}%</span>
+            <textarea
+              value={response}
+              onChange={(e) => setResponse(e.target.value.slice(0, MAX))}
+              onFocus={onComposerFocus}
+              onBlur={onComposerBlur}
+              onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); if (composerMode === "ask") onAsk(); else onSend(); } }}
+              disabled={!sessionActive}
+              placeholder={!sessionActive
+                ? "The floor opens once a session is live — submit your idea above."
+                : composerMode === "ask"
+                  ? `Ask ${speaker.name.split(" ")[0]} anything — "what would change your mind?" (⌘+Enter)`
+                  : "Draft your rebuttal. Numbers travel, adjectives die. (⌘+Enter to send)"}
+              className="w-full h-32 bg-ink-foreground/5 border border-ink-foreground/25 text-ink-foreground placeholder:text-ink-foreground/35 p-3.5 text-sm leading-relaxed focus:outline-none focus:border-data resize-none disabled:opacity-50"
+            />
+            {composerMode === "defend" && (
+              <div className="mt-3 flex flex-wrap gap-2 text-[10px] tracking-widest">
+                {Object.keys(CHIP_SNIPPETS).map((label) => (<Chip key={label} onClick={() => onChip(label)}>{label}</Chip>))}
               </div>
-              <div className="space-y-3">
-                {personas.map((p) => {
-                  const tone: Hue = p.pressure > 75 ? "danger" : p.pressure > 45 ? "warn" : "success";
-                  const t = HUE[tone];
-                  return (
-                    <div key={p.id}>
-                      <div className="flex items-center justify-between text-[10px] tracking-widest mb-1">
-                        <span className="text-foreground"><span className="text-muted-foreground">{p.initials} ·</span> {p.role.toUpperCase()}</span>
-                        <span className={t.text}>{p.pressure}%</span>
-                      </div>
-                      <div className="h-1.5 bg-muted relative overflow-hidden">
-                        <div className={`h-full ${t.bg} transition-all duration-500`} style={{ width: `${p.pressure}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+            )}
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <span className="text-[10px] tracking-widest text-ink-foreground/40">{response.length} / {MAX}</span>
+              {composerMode === "ask" ? (
+                <button onClick={onAsk} disabled={!response.trim() || asking || evaluating || !sessionActive}
+                  className="px-5 py-3 bg-data text-ink font-display text-xs tracking-widest hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+                  {asking ? <><Loader2 className="size-4 animate-spin" /> THINKING…</> : <><Send className="size-4" /> ASK {speaker.name.split(" ")[0].toUpperCase()}</>}
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button onClick={onShield} disabled={!sessionActive || shieldsUsed >= SHIELDS_TOTAL}
+                    className="px-3 py-3 border border-data text-data font-display text-xs tracking-widest hover:bg-data/10 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+                    <Shield className="size-4" /> <span className="hidden sm:inline">SHIELD</span>
+                  </button>
+                  <button onClick={onConcede} disabled={!sessionActive}
+                    className="px-3 py-3 border border-ink-foreground/30 text-ink-foreground/80 font-display text-xs tracking-widest hover:bg-ink-foreground/5 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+                    <X className="size-4" /> <span className="hidden sm:inline">CONCEDE</span>
+                  </button>
+                  <button onClick={onSend} disabled={!response.trim() || evaluating || asking || !sessionActive}
+                    className="px-5 py-3 bg-danger text-ink-foreground font-display text-xs tracking-widest hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+                    {evaluating ? <><Loader2 className="size-4 animate-spin" /> DELIBERATING…</> : <><Send className="size-4" /> DELIVER</>}
+                  </button>
+                </div>
+              )}
             </div>
-
-            <div className="border border-border bg-surface p-5">
-              <div className="text-[10px] tracking-widest text-muted-foreground mb-3">SHIELDS REMAINING</div>
-              <div className="flex items-center gap-2">
-                {Array.from({ length: SHIELDS_TOTAL }).map((_, i) => {
-                  const used = i < shieldsUsed;
-                  return (
-                    <div key={i} className={`size-10 grid place-items-center border transition-all ${used ? "border-border text-muted-foreground/40" : "border-data text-data shadow-[0_0_20px_-6px_var(--data)]"}`}>
-                      <Shield className="size-4" />
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
-                A shield buys one round of expert reframing. Use them on assumptions you can't yet defend with data.
-              </p>
-            </div>
-          </aside>
+          </div>
         </div>
       </div>
     </section>
+  );
+}
+
+function ThreadBubble({ t, personas, isLatest, voiceOn, speaking, onReplay }:
+  { t: Turn; personas: Persona[]; isLatest: boolean; voiceOn: boolean; speaking: boolean; onReplay: (t: Turn) => void }) {
+  const isYou = t.who === "you";
+  const persona = !isYou ? personas.find((p) => p.id === t.who) : null;
+  const hue: Hue = isYou ? "data" : (persona?.hue ?? "data");
+  const c = HUE[hue];
+  const typed = useTypewriter(t.body, isLatest && !isYou);
+  const showCursor = isLatest && !isYou && typed.length < t.body.length;
+  const sevTone: Hue | null = t.severity === "kill" ? "danger" : t.severity === "warn" ? "warn" : t.severity === "insight" ? "data" : null;
+  const sev = sevTone ? HUE[sevTone] : null;
+  const label = isYou
+    ? (t.type === "question" ? "YOU · QUESTION" : t.type === "concession" ? "YOU · CONCEDE" : "YOU")
+    : `${persona?.name ?? t.who}${t.role ? ` · ${t.role}` : ""}`;
+
+  return (
+    <div className={`flex gap-3 ${isYou ? "flex-row-reverse" : ""}`}>
+      <span className={`size-8 shrink-0 grid place-items-center border ${c.border} font-display text-[11px] ${c.text} bg-ink`}>
+        {isYou ? "YOU" : persona?.initials ?? "?"}
+      </span>
+      <div className={`min-w-0 max-w-[86%] flex flex-col ${isYou ? "items-end" : "items-start"}`}>
+        <div className="text-[9px] tracking-widest text-ink-foreground/45 mb-1 flex items-center gap-2">
+          <span className="truncate">{label}</span>
+          {sev && <span className={`px-1 py-0.5 border ${sev.border} ${sev.text}`}>{t.severity!.toUpperCase()}</span>}
+          {!isYou && voiceOn && (
+            <button onClick={() => onReplay(t)} title="Replay aloud" className={`${c.text} opacity-60 hover:opacity-100`}><Volume2 className="size-3" /></button>
+          )}
+        </div>
+        <div className={`border px-3 py-2 text-[14px] leading-relaxed text-ink-foreground text-left ${isYou ? "border-data/40 bg-data/[0.06]" : "border-ink-foreground/15 bg-ink-foreground/[0.03]"}`}>
+          {isYou ? t.body : <>{typed}{showCursor && <span className="ml-0.5 inline-block w-1.5 -mb-0.5 h-4 bg-current animate-pulse" />}</>}
+        </div>
+        {t.fix && (
+          <div className="mt-1.5 flex items-start gap-1.5 text-[11px] text-ink-foreground/70 leading-snug border-l-2 border-data pl-2 text-left">
+            <Wrench className="size-3 text-data shrink-0 mt-0.5" />
+            <span><span className="text-data tracking-widest text-[9px]">FAIL-PROOF FIX · </span>{t.fix}</span>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -1206,267 +1232,61 @@ function CountdownRing({ pct, label, critical }: { pct: number; label: string; c
   );
 }
 
-function KV({ k, v }: { k: string; v: string }) {
+/* ============================= VERDICT BAR ============================= */
+
+function VerdictBar({ survival, round, onContinue, onReset, sessionActive, onVerdict }:
+  { survival: number; round: number; onContinue: () => void; onReset: () => void; sessionActive: boolean; onVerdict: () => void }) {
+  const tone = survival >= 7 ? "text-success" : survival >= 5 ? "text-warn" : "text-danger";
   return (
-    <div className="border border-border p-3 bg-background">
-      <div className="text-[9px] tracking-widest text-muted-foreground">{k}</div>
-      <div className="font-display text-lg text-foreground mt-1">{v}</div>
-    </div>
-  );
-}
-
-/* ============================= COURT RECORD ============================= */
-
-function CourtRecord({ transcript, personas, round, kills, warns, insights, onExportMD, onCopyMD, onExportPDF }:
-  { transcript: Turn[]; personas: Persona[]; round: number; kills: number; warns: number; insights: number; onExportMD: () => void; onCopyMD: () => void; onExportPDF: () => void }) {
-  const [filter, setFilter] = useState<"all" | "kill" | "warn" | "insight" | "you">("all");
-  const [query, setQuery] = useState("");
-
-  const filtered = transcript.filter((t) => {
-    if (filter === "you" && t.who !== "you") return false;
-    if (filter !== "all" && filter !== "you" && t.severity !== filter) return false;
-    if (query && !t.body.toLowerCase().includes(query.toLowerCase())) return false;
-    return true;
-  });
-
-  return (
-    <section className="bg-background border-b border-border">
-      <div className="mx-auto max-w-[1480px] px-4 md:px-8 py-20">
-        <div className="flex flex-wrap items-end justify-between gap-6 mb-10">
-          <div>
-            <div className="text-[10px] tracking-widest text-muted-foreground mb-3">— 03 / COURT RECORD · VERBATIM</div>
-            <h2 className="text-display text-4xl md:text-5xl text-foreground leading-tight">
-              Every word. <span className="hl-red">Logged & timestamped.</span>
-            </h2>
-            <p className="mt-4 max-w-xl text-sm text-muted-foreground leading-relaxed">
-              The transcript reads like a newspaper of record. Search it, export it, or hand
-              it to the co-founder who wasn't in the room.
+    <section className="bg-ink text-ink-foreground border-y border-ink grid-bg-ink print:hidden">
+      <div className="mx-auto max-w-[1100px] px-4 md:px-8 py-10">
+        <div className="flex flex-wrap items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <div>
+              <div className="text-[10px] tracking-widest text-ink-foreground/55">
+                {sessionActive ? (round >= TOTAL_ROUNDS ? "FINAL · " : "PROVISIONAL · ") : "NO SESSION"}
+                {sessionActive ? `ROUND ${round}/${TOTAL_ROUNDS}` : ""}
+              </div>
+              <div className={`font-display text-4xl leading-none mt-1 ${sessionActive ? tone : "text-ink-foreground/30"}`}>
+                {sessionActive ? survival.toFixed(1) : "—"}<span className="text-ink-foreground/40 text-lg"> / 10</span>
+              </div>
+            </div>
+            <p className="max-w-sm text-sm text-ink-foreground/70 leading-relaxed">
+              {sessionActive
+                ? "Survival is the panel's running read. End the session for the full ruling — five verdicts, one decision."
+                : "Submit an idea above to open a live session and earn a verdict."}
             </p>
           </div>
-          <div className="flex flex-col items-end gap-3 print:hidden">
-            <div className="grid grid-cols-3 gap-2 text-[10px] tracking-widest">
-              <span className="px-2 py-1 border border-danger text-danger">{kills} KILL-SHOT{kills===1?"":"S"}</span>
-              <span className="px-2 py-1 border border-warn text-warn">{warns} WARNING{warns===1?"":"S"}</span>
-              <span className="px-2 py-1 border border-data text-data">{insights} INSIGHT{insights===1?"":"S"}</span>
-            </div>
-            <div className="flex items-center gap-2 text-[10px] tracking-widest">
-              <button onClick={onExportPDF} className="px-3 py-2 border border-border hover:bg-surface flex items-center gap-1.5"><Download className="size-3" /> EXPORT PDF</button>
-              <button onClick={onExportMD} className="px-3 py-2 border border-border hover:bg-surface flex items-center gap-1.5"><Download className="size-3" /> .MD</button>
-              <button onClick={onCopyMD} className="px-3 py-2 border border-border hover:bg-surface flex items-center gap-1.5"><Copy className="size-3" /> COPY</button>
-            </div>
-          </div>
-        </div>
-
-        {/* filter / search */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3 print:hidden">
-          <div className="flex items-center gap-1 text-[10px] tracking-widest">
-            {(["all","kill","warn","insight","you"] as const).map((f) => (
-              <button key={f} onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 border ${filter === f ? "border-ink bg-ink text-ink-foreground" : "border-border text-muted-foreground hover:bg-surface"}`}>
-                {f.toUpperCase()}
+          <div className="flex flex-wrap gap-2">
+            {sessionActive && (round >= TOTAL_ROUNDS ? (
+              <button onClick={onVerdict} className="px-5 py-3 bg-danger text-ink-foreground font-display text-xs tracking-widest hover:opacity-90 flex items-center gap-2">
+                <Gavel className="size-4" /> RENDER VERDICT
               </button>
+            ) : (
+              <>
+                <button onClick={onContinue} className="px-5 py-3 bg-danger text-ink-foreground font-display text-xs tracking-widest hover:opacity-90 flex items-center gap-2">
+                  CONTINUE · ROUND {round + 1} <ChevronRight className="size-4" />
+                </button>
+                <button onClick={onVerdict} className="px-5 py-3 border border-data text-data font-display text-xs tracking-widest hover:bg-data/10 flex items-center gap-2">
+                  <Gavel className="size-4" /> VERDICT NOW
+                </button>
+              </>
             ))}
-          </div>
-          <input
-            value={query} onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search the record…"
-            className="px-3 py-2 border border-border bg-background text-xs w-72 focus:outline-none focus:border-ink"
-          />
-        </div>
-
-        <div className="border-y-2 border-ink py-3 mb-px flex items-center justify-between text-[10px] tracking-widest text-muted-foreground">
-          <span>THE CHAMBER · OFFICIAL RECORD</span>
-          <span>ROUND {round} OF {TOTAL_ROUNDS}</span>
-          <span>{new Date().toISOString().slice(0,10)} · {filtered.length} ENTR{filtered.length===1?"Y":"IES"}</span>
-        </div>
-
-        <div className="border border-ink bg-surface divide-y divide-border">
-          {filtered.length === 0 && (
-            <div className="p-10 text-center text-sm text-muted-foreground">
-              {transcript.length === 0
-                ? "The record is empty. It begins the moment you enter the chamber with an idea."
-                : "No entries match the current filter."}
-            </div>
-          )}
-          {filtered.map((t, i) => (
-            <TranscriptRow key={t.id} t={t} idx={i + 1} personas={personas} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function TranscriptRow({ t, idx, personas }: { t: Turn; idx: number; personas: Persona[] }) {
-  const isYou = t.who === "you";
-  const persona = !isYou ? personas.find((p) => p.id === t.who)! : null;
-  const hue: Hue = isYou ? "data" : persona!.hue;
-  const c = HUE[hue];
-
-  const sevTone: Hue | null =
-    t.severity === "kill"    ? "danger" :
-    t.severity === "warn"    ? "warn"   :
-    t.severity === "insight" ? "data"   : null;
-  const sev = sevTone ? HUE[sevTone] : null;
-
-  const typeLabel =
-    t.type === "attack"     ? "ATTACK" :
-    t.type === "rebuttal"   ? "REBUTTAL" :
-    t.type === "defense"    ? "DEFENSE" :
-    t.type === "concession" ? "CONCESSION" :
-    t.type === "shield"     ? "SHIELD" :
-                              "VERDICT";
-
-  return (
-    <article className="grid md:grid-cols-[60px_220px_1fr] gap-0">
-      <div className="hidden md:flex flex-col items-center justify-start p-5 border-r border-border bg-background">
-        <div className="font-display text-2xl text-muted-foreground">{String(idx).padStart(2, "0")}</div>
-        <div className="text-[9px] tracking-widest text-muted-foreground mt-1">EX-{String(idx).padStart(3, "0")}</div>
-      </div>
-
-      <div className={`p-5 md:p-6 border-r border-border flex md:flex-col md:items-start gap-4 ${isYou ? "bg-data/[0.04]" : ""}`}>
-        <div className={`size-14 grid place-items-center border-2 ${c.border} font-display text-base ${c.text} bg-background shrink-0`}>
-          {isYou ? "YOU" : persona!.initials}
-        </div>
-        <div className="min-w-0">
-          <div className="font-display text-base leading-tight">{isYou ? "You" : persona!.name}</div>
-          <div className={`text-[10px] tracking-widest mt-1 ${c.text}`}>{isYou ? "FOUNDER" : t.role}</div>
-          <div className="mt-3 grid gap-1 text-[10px] tracking-widest text-muted-foreground">
-            <div className="flex items-center gap-1.5"><Clock className="size-3" /> {t.ts}</div>
-            <div>EXCHANGE #{String(idx).padStart(2, "0")}</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-5 md:p-7">
-        <div className="flex items-center gap-2 mb-4 text-[10px] tracking-widest">
-          <span className={`px-1.5 py-0.5 border ${c.border} ${c.text}`}>{typeLabel}</span>
-          {sev && (
-            <span className={`px-1.5 py-0.5 border ${sev.border} ${sev.text} flex items-center gap-1`}>
-              {t.severity === "kill" && <Skull className="size-3" />}
-              {t.severity === "warn" && <AlertTriangle className="size-3" />}
-              {t.severity === "insight" && <Activity className="size-3" />}
-              {t.severity!.toUpperCase()}
-            </span>
-          )}
-          <span className="text-muted-foreground">— {isYou ? "rebuttal accepted into record" : `${persona!.name.split(" ")[0]} on the offensive`}</span>
-        </div>
-        <p className={`text-base text-foreground leading-relaxed ${isYou ? "" : "first-letter:font-display first-letter:text-5xl first-letter:float-left first-letter:mr-2 first-letter:leading-[0.85]"}`}>
-          {t.body}
-        </p>
-        {t.fix && (
-          <div className="mt-4 flex items-start gap-2 text-xs leading-relaxed border-l-2 border-data pl-3 text-foreground/80">
-            <Wrench className="size-3.5 text-data shrink-0 mt-0.5" />
-            <span><span className="text-data tracking-widest text-[10px]">FAIL-PROOF FIX · </span>{t.fix}</span>
-          </div>
-        )}
-        {t.severity === "kill" && (
-          <div className="mt-4 inline-flex items-center gap-2 text-[10px] tracking-widest text-danger border-l-2 border-danger pl-3">
-            <Crosshair className="size-3" /> THIS EXCHANGE LOWERED SURVIVAL SCORE
-          </div>
-        )}
-        {t.severity === "insight" && (
-          <div className="mt-4 inline-flex items-center gap-2 text-[10px] tracking-widest text-data border-l-2 border-data pl-3">
-            <Activity className="size-3" /> CONVERTIBLE TO STRATEGIC ADVANTAGE IF ADDRESSED
-          </div>
-        )}
-      </div>
-    </article>
-  );
-}
-
-/* ============================= FINAL VERDICT PREVIEW ============================= */
-
-type VerdictCards = { assumptions: string[]; risks: string[]; concessions: string[]; priorities: string[] };
-
-function FinalVerdictPreview({ survival, round, onContinue, onReset, sessionActive, cards, onVerdict }:
-  { survival: number; round: number; onContinue: () => void; onReset: () => void; sessionActive: boolean; cards: VerdictCards; onVerdict: () => void }) {
-  return (
-    <section className="bg-ink text-ink-foreground border-y border-ink grid-bg-ink">
-      <div className="mx-auto max-w-[1480px] px-4 md:px-8 py-20">
-        <div className="flex flex-wrap items-end justify-between gap-6 mb-10">
-          <div>
-            <div className="text-[10px] tracking-widest text-ink-foreground/55 mb-3">— 04 / FINAL VERDICT (PROJECTED)</div>
-            <h2 className="text-display text-4xl md:text-5xl text-ink-foreground max-w-3xl">
-              {sessionActive
-                ? <>If the chamber closed now, <span className="hl-red">this is what survives.</span></>
-                : <>Nothing on record. <span className="hl-red">Nothing to judge.</span></>}
-            </h2>
-          </div>
-          <span className="px-3 py-2 border border-warn text-warn text-[10px] tracking-widest">
-            {sessionActive
-              ? `${round >= TOTAL_ROUNDS ? "FINAL" : "PROVISIONAL"} · ROUND ${round} / ${TOTAL_ROUNDS} · SURVIVAL ${survival.toFixed(1)}/10`
-              : "NO SESSION · VERDICT PENDING"}
-          </span>
-        </div>
-
-        <div className="grid lg:grid-cols-4 gap-3">
-          <VerdictCard tone="warn" title="ATTACK AXES ARMED"
-            items={cards.assumptions} emptyNote="Lenses appear once the agents study your idea." />
-          <VerdictCard tone="danger" title="UNRESOLVED RISKS"
-            items={cards.risks} emptyNote="Kill-shots and warnings land here as they're logged." />
-          <VerdictCard tone="danger" title="CONCESSIONS LOGGED"
-            items={cards.concessions} emptyNote="Ground you cede in the debate is recorded here." />
-          <VerdictCard tone="data" title="FAIL-PROOF FIXES"
-            items={cards.priorities} emptyNote="Each judged defence produces a concrete next step." />
-        </div>
-
-        <div className="mt-10 flex flex-col sm:flex-row gap-3 print:hidden">
-          {sessionActive && (
-            <>
-              {round >= TOTAL_ROUNDS ? (
-                <button onClick={onVerdict} className="px-6 py-4 bg-danger text-ink-foreground font-display text-sm tracking-widest hover:opacity-90 flex items-center gap-2">
-                  <Gavel className="size-4" /> RENDER THE FINAL VERDICT
-                </button>
-              ) : (
-                <button onClick={onContinue} className="px-6 py-4 bg-danger text-ink-foreground font-display text-sm tracking-widest hover:opacity-90 flex items-center gap-2">
-                  CONTINUE TO ROUND {round + 1} <ChevronRight className="size-4" />
-                </button>
-              )}
-              <button onClick={onVerdict} className="px-6 py-4 border border-data text-data font-display text-sm tracking-widest hover:bg-data/10 flex items-center gap-2">
-                <Gavel className="size-4" /> DEMAND THE VERDICT NOW
+            <Link href="/results" className="px-5 py-3 border border-ink-foreground/40 text-ink-foreground font-display text-xs tracking-widest hover:bg-ink-foreground/5 flex items-center gap-2">
+              FULL REPORT <ArrowRight className="size-4" />
+            </Link>
+            <Link href="/brand-kit" className="px-5 py-3 bg-accent text-accent-foreground font-display text-xs tracking-widest hover:opacity-90 flex items-center gap-2">
+              BRAND KIT <ArrowRight className="size-4" />
+            </Link>
+            {sessionActive && (
+              <button onClick={onReset} className="px-5 py-3 border border-warn text-warn font-display text-xs tracking-widest hover:bg-warn/10 flex items-center gap-2">
+                <AlertTriangle className="size-4" /> ABANDON
               </button>
-            </>
-          )}
-          <Link href="/results" className="px-6 py-4 border border-ink-foreground/40 text-ink-foreground font-display text-sm tracking-widest hover:bg-ink-foreground/5 flex items-center gap-2">
-            EXIT TO FULL VALIDATION REPORT <ArrowRight className="size-4" />
-          </Link>
-          {sessionActive && (
-            <button onClick={onReset} className="px-6 py-4 border border-warn text-warn font-display text-sm tracking-widest hover:bg-warn/10 flex items-center gap-2">
-              <AlertTriangle className="size-4" /> ABANDON SESSION
-            </button>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </section>
-  );
-}
-
-function VerdictCard({ tone, title, items, emptyNote }: { tone: "warn" | "danger" | "data"; title: string; items: string[]; emptyNote: string }) {
-  const c = HUE[tone];
-  return (
-    <div className="border border-ink-foreground/25 bg-ink-foreground/5 p-5">
-      <div className={`text-[10px] tracking-widest mb-3 ${c.text} flex items-center gap-2`}>
-        <span className={`block size-2 ${c.bg}`} />
-        {title}
-        {items.length > 0 && <span className="ml-auto text-ink-foreground/45">{items.length}</span>}
-      </div>
-      {items.length > 0 ? (
-        <ul className={`space-y-3 border-t ${c.border}/40 pt-3`}>
-          {items.map((it, i) => (
-            <li key={i} className="text-xs text-ink-foreground/85 leading-relaxed flex gap-2">
-              <span className={`mt-1 size-1.5 rounded-full ${c.bg} flex-shrink-0`} />
-              {it}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className="border-t border-ink-foreground/15 pt-3">
-          <div className="text-[10px] tracking-widest text-ink-foreground/35 mb-1">NONE LOGGED YET</div>
-          <p className="text-xs text-ink-foreground/45 leading-relaxed">{emptyNote}</p>
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -1550,6 +1370,7 @@ function renderMarkdown(idea: string, transcript: Turn[], personas: Persona[], m
     const who = t.who === "you" ? "You (Founder)" : personas.find(p => p.id === t.who)?.name ?? t.who;
     lines.push(`### [${t.ts}] ${who} — ${t.type.toUpperCase()}${t.severity ? ` · ${t.severity.toUpperCase()}` : ""}`);
     lines.push(``, t.body, ``);
+    if (t.fix) lines.push(`> **Fail-proof fix (7 days):** ${t.fix}`, ``);
   }
   return lines.join("\n");
 }

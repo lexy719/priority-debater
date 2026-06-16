@@ -1,0 +1,37 @@
+{
+  "summary": "Frontend-only testing of the new /campaign and /landing-builder mockup pages, plus stepper/journey regression on /brand-kit, /launch-kit and /ship. All flows verified end-to-end via Playwright at 1440px and 390px. Zero console / page errors observed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "verified_features": [
+    "/campaign renders campaign-page testid, FlowNav (flow-logo present), 8-step stepper with Campaign active (red) + 5 prior done (green), and footer. No console errors.",
+    "/landing-builder renders landing-gen-page testid, Landing active + 6 prior done. No console errors.",
+    "Stepper regression: /brand-kit -> Brand active + 3 done; /launch-kit -> Launch active + 4 done; /ship -> Ship active + 7 done.",
+    "FlowNav tabs map: flownav-home/brand/launch/campaign/landing/ship -> /, /brand-kit, /launch-kit, /campaign, /landing-builder, /ship (all 6 tabs verified in DOM with correct hrefs).",
+    "Flow CTA chain verified by href: launch-to-campaign-cta=/campaign, campaign-to-landing-cta=/landing-builder, landing-to-ship-cta=/ship.",
+    "Campaign §01: 4 channel cards (LinkedIn, X / Twitter, Reddit, Email). §02: 10 calendar post cards in horizontal scroller. §03: 10 ready-to-post cards each with copy-campaign-0..9 + autopost-0..9 testids — autopost-0 click triggered sonner toast (1 visible). §04: connect-linkedin / connect-x / connect-reddit / connect-email present; connect-linkedin click triggered toast (2nd toast visible).",
+    "CopyButton: copy-campaign-0 click correctly flips to 'COPIED' (uppercase via class as expected).",
+    "Landing builder archetypes: archetype-brutalist default selected (bg-black active state). Clicking archetype-minimal and archetype-editorial updates iframe srcDoc AND the visible <pre> code block. Brutalist srcDoc contains #ff3b30; minimal contains #2563eb; editorial contains #6B1F2A. Iframe actually renders generated HTML — iframe h1 reads 'STOP DRAFTING FROM SCRATCH.' and 'MINUTA' brand string is present.",
+    "Export tabs: export-tab-html (no <ol>, shows .html blurb), export-tab-wordpress (3 numbered steps), export-tab-shopify (3 numbered steps). copy-landing-html click flips to 'COPIED' without error.",
+    "Ship journey recap: 8 rows present — journey-validate, debate, results, brand, launch, campaign, landing, ship.",
+    "Responsive: at 1440px and 390px, scrollWidth == innerWidth on both /campaign and /landing-builder (no horizontal page overflow). Calendar scrolls internally (overflow-x-auto on inner container); iframe height-capped at 600px and code block at max-h-72 with overflow-auto."
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: Ship.jsx hero subtitle still reads 'Stage 06 / Ship' — should be Stage 08 now that the flow has 8 stages. Cosmetic copy issue only (not blocking).",
+    "Minor: Campaign.jsx hero reads 'Stage 06 / Marketing Campaign' and LandingGen.jsx reads 'Stage 07 / Landing Page' — these are consistent with the new 8-step order; just flagging the Ship one as the outlier.",
+    "Code quality: buildLandingHTML uses new Date().getFullYear() inside a srcDoc string — fine for a mock, but it re-builds the full HTML on every archetype change via useMemo (correctly memoized). No issue."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "n/a — no auth in the app",
+  "seed_data_creation": "none — all content is static mock from /lib/flowData.js and /lib/landingHtml.js",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration_3 covered the two new mockup pages /campaign and /landing-builder plus regression on the 8-step stepper across /brand-kit, /launch-kit, /ship. CopyButton renders 'Copied' as 'COPIED' due to the uppercase class — use case-insensitive or uppercase assertions. Sonner toast selector is [data-sonner-toast]. The landing-preview is an <iframe srcDoc>, not a screenshot — use page.frame_locator('[data-testid=\"landing-preview\"]') to assert against rendered HTML. Note an existing copy typo in Ship.jsx hero ('Stage 06 / Ship') that doesn't affect functionality.",
+  "rca of the issue": "n/a — no bugs found"
+}

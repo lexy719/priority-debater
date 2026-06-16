@@ -13,7 +13,9 @@ import {
   ArrowRight, Skull, ChevronRight, Activity, DollarSign, Flame, Share2, Globe, Link2, Gavel, Download,
 } from "lucide-react";
 import { DEFAULT_REPORT, type Report, type Tone, type Severity, type Priority } from "@/components/chamber/report";
-import ScoreLab from "@/components/chamber/ScoreLab";
+import ScoreAnatomy from "@/components/chamber/ScoreAnatomy";
+import { SiteNav } from "@/components/SiteNav";
+import { JourneyStepper } from "@/components/flow/JourneyStepper";
 
 /* ============================= CONFIG ============================= */
 
@@ -105,42 +107,20 @@ function downloadScorecard(report: Report) {
 /* ============================= PAGE ============================= */
 
 export default function ResultsChamber({
-  report: initialReport = DEFAULT_REPORT, shareId, idea, position, context,
+  report: initialReport = DEFAULT_REPORT, shareId,
 }: { report?: Report; shareId?: string; idea?: string; position?: string; context?: string }) {
   const [tab, setTab] = useState<TabId>("overview");
-  const [report, setReport] = useState<Report>(initialReport);
-
-  const ideaText = idea || report.meta.idea.replace(/^"|"$/g, "");
-
-  const handleRescore = (dims: Report["overview"]["dims"], score: number, meta: { recommendation?: string; rationale?: string }) => {
-    setReport((r) => ({
-      ...r,
-      score: {
-        ...r.score,
-        value: score,
-        rank: score >= 85 ? "TOP 5%" : score >= 70 ? "TOP 15%" : score >= 60 ? "TOP 35%" : score >= 50 ? "TOP 50%" : "BOTTOM HALF",
-        recommendation: meta.recommendation ?? r.score.recommendation,
-        rationale: meta.rationale ?? r.score.rationale,
-        progression: [...r.score.progression.slice(0, -1), { stage: "RE-SCORE", value: score }],
-      },
-      overview: {
-        ...r.overview,
-        dims,
-        totalContribution: +dims.reduce((a, d) => a + d.contrib, 0).toFixed(1),
-      },
-    }));
-  };
+  const report = initialReport;
 
   return (
     <div className="chamber-scope min-h-screen bg-background text-foreground">
+      <TopBar shareId={shareId} report={report} />
       <Ticker items={report.ticker} />
-      <TopBar meta={report.meta} shareId={shareId} report={report} />
       <Hero report={report} />
       <ExecSummaryBand data={report.execSummary} />
       <TabBar tab={tab} setTab={setTab} />
       <main className="mx-auto max-w-[1480px] px-4 md:px-8 pb-32">
-        {tab === "overview"    && <Overview data={report.overview} score={report.score.value} scoreMeta={report.score}
-                                    report={report} idea={ideaText} position={position} context={context} onRescore={handleRescore} />}
+        {tab === "overview"    && <Overview data={report.overview} score={report.score.value} scoreMeta={report.score} report={report} />}
         {tab === "market"      && <Market data={report.market} />}
         {tab === "risk"        && <Risk data={report.risk} />}
         {tab === "competition" && <Competition data={report.competition} />}
@@ -231,7 +211,7 @@ function Ticker({ items }: { items: Report["ticker"] }) {
   );
 }
 
-function TopBar({ meta, shareId, report }: { meta: Report["meta"]; shareId?: string; report: Report }) {
+function TopBar({ shareId, report }: { shareId?: string; report: Report }) {
   const [copied, setCopied] = useState(false);
   const onShare = async () => {
     if (!shareId) return;
@@ -240,34 +220,26 @@ function TopBar({ meta, shareId, report }: { meta: Report["meta"]; shareId?: str
   };
   const onDownloadCard = () => downloadScorecard(report);
   return (
-    <div className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-40 print:hidden">
-      <div className="mx-auto max-w-[1480px] px-4 md:px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="size-9 border border-border-strong grid place-items-center font-display text-lg">{meta.brandMark}</div>
-          <div>
-            <div className="font-display text-sm tracking-wider">{meta.brand}</div>
-            <div className="text-[10px] text-muted-foreground tracking-widest">{meta.version}</div>
-          </div>
-        </div>
-        <div className="hidden md:flex items-center gap-2 text-[10px] tracking-widest">
-          <span className="text-foreground font-bold">REPORT</span>
-          <span>·</span><Link href="/debate" className="text-muted-foreground hover:text-foreground">DEBATE</Link>
-          <span>·</span><Link href="/brand" className="text-muted-foreground hover:text-foreground">BRAND</Link>
-          <span>·</span><Link href="/landing" className="text-muted-foreground hover:text-foreground">LANDING</Link>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={onDownloadCard} className="hidden sm:flex px-3 py-2 border border-border text-[10px] tracking-widest hover:bg-surface items-center gap-1.5">
-            <Download className="size-3" /> SCORECARD
-          </button>
-          {shareId && (
-            <button onClick={onShare} className="px-3 py-2 border border-border text-[10px] tracking-widest hover:bg-surface flex items-center gap-1.5">
-              <Share2 className="size-3" /> {copied ? "COPIED" : "SHARE"}
+    <div className="print:hidden">
+      <SiteNav
+        subtitle={report.meta.version}
+        actions={
+          <div className="flex items-center gap-2">
+            <button onClick={onDownloadCard} className="hidden sm:flex items-center gap-1.5 border border-white/30 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-white hover:bg-white hover:text-black transition-colors">
+              <Download className="size-3" /> Scorecard
             </button>
-          )}
-          <Link href="/debate" className="hidden md:inline-block px-3 py-2 border border-border text-[10px] tracking-widest hover:bg-surface">DEBATE</Link>
-          <Link href="/" className="px-3 py-2 bg-accent text-accent-foreground text-[10px] tracking-widest font-bold hover:opacity-90">+ RE-RUN</Link>
-        </div>
-      </div>
+            {shareId && (
+              <button onClick={onShare} className="flex items-center gap-1.5 border border-white/30 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-white hover:bg-white hover:text-black transition-colors">
+                <Share2 className="size-3" /> {copied ? "Copied" : "Share"}
+              </button>
+            )}
+            <Link href="/#validate" className="bg-[#ff3b30] px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-white hover:bg-white hover:text-black transition-colors">
+              + Re-run
+            </Link>
+          </div>
+        }
+      />
+      <JourneyStepper current="results" />
     </div>
   );
 }
@@ -560,16 +532,55 @@ function ScoreProvenance({ score }: { score: Report["score"] }) {
 
 /* ============================= OVERVIEW ============================= */
 
-function Overview({ data, score, scoreMeta, report, idea, position, context, onRescore }: {
+/**
+ * Print-only static score breakdown. The on-screen Score Lab is interactive
+ * (sliders), which prints as frozen controls; this renders the same data as a
+ * clean table so the exported PDF reads like an audited report, not a UI.
+ */
+function ScoreBreakdownPrint({ dims, score }: { dims: Report["overview"]["dims"]; score: number }) {
+  return (
+    <div className="hidden print:block mt-6 border border-border">
+      <div className="px-4 py-2 border-b border-border flex items-center justify-between">
+        <span className="text-[10px] tracking-widest text-muted-foreground">SCORE BREAKDOWN · BY DIMENSION</span>
+        <span className="text-[10px] tracking-widest text-muted-foreground">HEADLINE {score}/100</span>
+      </div>
+      <table className="w-full text-left text-xs">
+        <thead>
+          <tr className="border-b border-border text-[9px] tracking-widest text-muted-foreground">
+            <th className="px-4 py-2 font-normal">DIMENSION</th>
+            <th className="px-4 py-2 font-normal">WEIGHT</th>
+            <th className="px-4 py-2 font-normal">SCORE</th>
+            <th className="px-4 py-2 font-normal">NOTE</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dims.map((d) => (
+            <tr key={d.k} className="border-b border-border/60 align-top">
+              <td className="px-4 py-2 font-semibold whitespace-nowrap">{d.k}</td>
+              <td className="px-4 py-2 text-muted-foreground">{d.weight}</td>
+              <td className="px-4 py-2 font-display">{d.value}/100</td>
+              <td className="px-4 py-2 text-muted-foreground leading-snug">{d.note}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Overview({ data, score, scoreMeta, report }: {
   data: Report["overview"]; score: number; scoreMeta: Report["score"];
-  report: Report; idea: string; position?: string; context?: string;
-  onRescore: (dims: Report["overview"]["dims"], score: number, meta: { recommendation?: string; rationale?: string }) => void;
+  report: Report;
 }) {
   return (
     <>
       <SectionHeader n="§01" label="EXECUTIVE SUMMARY" title="THE VERDICT," hl="IN ONE PAGE." body={data.sectionBody} />
       <ScoreProvenance score={scoreMeta} />
-      <ScoreLab report={report} idea={idea} position={position} context={context} onApply={onRescore} />
+      {/* Interactive anatomy is on-screen only; print gets a clean static breakdown. */}
+      <div className="print:hidden">
+        <ScoreAnatomy report={report} />
+      </div>
+      <ScoreBreakdownPrint dims={data.dims} score={score} />
 
       <div className="grid lg:grid-cols-3 gap-4 mt-6">
         <Card label="SHOULD YOU PROCEED?" className="lg:col-span-2">
@@ -618,43 +629,6 @@ function Overview({ data, score, scoreMeta, report, idea, position, context, onR
         </Card>
       </div>
 
-      <div className="mt-12 grid lg:grid-cols-[1fr_2fr] gap-4">
-        <Card>
-          <div className="text-[10px] tracking-widest text-muted-foreground mb-3">§02 · SCORE MATH</div>
-          <h3 className="text-display text-3xl">HOW WE GOT <span className="hl-red">{score}</span> / 100.</h3>
-          <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
-            Six weighted dimensions, scored against anchored rubrics. Headline = weighted sum.
-          </p>
-          <div className="mt-6 border border-border p-4 text-xs">
-            <div className="flex justify-between"><span>Σ CONTRIBUTIONS</span><span className="font-display text-xl">{data.totalContribution.toFixed(1)}</span></div>
-            <div className="flex justify-between text-muted-foreground mt-2"><span>Σ WEIGHTS</span><span>100%</span></div>
-          </div>
-        </Card>
-        <Card>
-          <ul className="divide-y divide-border -mx-5 -my-5">
-            {data.dims.map((d, i) => (
-              <li key={d.k} className="px-5 py-4 grid grid-cols-[auto_1fr_120px] gap-4 items-center">
-                <div className="text-[10px] text-muted-foreground tabular-nums">{String(i + 1).padStart(2, "0")}</div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-display text-sm">{d.k}</span>
-                    <span className="text-[10px] text-muted-foreground">{d.weight}</span>
-                  </div>
-                  <div className="text-[11px] text-muted-foreground mt-1">{d.note}</div>
-                  <div className="mt-2 h-1.5 bg-muted relative">
-                    <div className="absolute inset-y-0 left-0" style={{ width: `${d.value}%`, background: toneFill(d.tone) }}/>
-                  </div>
-                  <div className="flex justify-between text-[9px] text-muted-foreground mt-1"><span>0</span><span>{d.value} / 100</span><span>100</span></div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] text-muted-foreground">CONTRIBUTES</div>
-                  <div className="font-display text-2xl text-accent">+{d.contrib}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
     </>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import PitchDeckPage from "@/components/pitch/PitchDeckPage";
+import { FlowGuard } from "@/components/flow/FlowGuard";
 import { deck as staticDeck, project as staticProject } from "@/data/studioData";
 import { loadSessionWithStatus } from "@/lib/session";
 import { buildDashboardViewModel } from "@/lib/dashboard-view-model";
@@ -31,12 +32,14 @@ export default function PitchPage() {
     : "HELENA VOSS · FOUNDER · helena@cargobyte.eu";
 
   return (
-    <PitchDeckPage
-      deck={deck}
-      project={projectInfo}
-      footerByline={footerByline}
-      talkTrackObjection={talk.objection}
-      talkTrackAnswer={talk.answer}
-    />
+    <FlowGuard stage="pitch">
+      <PitchDeckPage
+        deck={deck}
+        project={projectInfo}
+        footerByline={footerByline}
+        talkTrackObjection={talk.objection}
+        talkTrackAnswer={talk.answer}
+      />
+    </FlowGuard>
   );
 }

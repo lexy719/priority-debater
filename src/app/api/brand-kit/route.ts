@@ -15,6 +15,7 @@
 
 import OpenAI from "openai";
 import { sanitizeLogoBrief } from "@/lib/logo-brief";
+import { guardAndSpend, guardFailResponse, refund } from "@/lib/credits/server";
 
 type Setup = {
   topic?: string;
@@ -47,6 +48,16 @@ export type BrandKitDynamic = {
   descriptor: string;        // one-line product descriptor
   domain: string;            // suggested available-looking domain
   taglines: string[];        // 4 uppercase taglines
+
+  // ↓ extended brand-narrative fields (drive the /brand-kit flow page)
+  pronunciation: string;     // how to say the name + why
+  alternates: string[];      // 3 also-considered names
+  rationale: string;         // why this name wins
+  oneLiner: string;          // the single positioning sentence
+  boilerplateShort: string;  // 1-sentence boilerplate
+  boilerplateLong: string;   // 2-3 sentence boilerplate
+  dos: string[];             // 3 phrases to say
+  donts: string[];           // 3 phrases to never say
 
   // ↓ original fields (preserved)
   designAnchor: string;
@@ -113,6 +124,14 @@ function fallbackPayload(topic: string): BrandKitDynamic {
       "DESIGNED TO HOLD.",
       "FEWER WORDS. MORE PROOF.",
     ],
+    pronunciation: `/${code.toLowerCase()}/ — built around "${topic}".`,
+    alternates: ["Northbound", "Cardinal", "Keystone"],
+    rationale: `"${code}" is short, ownable, and easy to say — it anchors the product's promise without boxing it into one feature.`,
+    oneLiner: `${code} turns "${topic}" into a product people can adopt today — clear, focused, and built to earn trust fast.`,
+    boilerplateShort: `${code} is a focused product built around "${topic}".`,
+    boilerplateLong: `${code} is a focused product built around "${topic}". It does one job exceptionally well, earns trust through clarity, and is designed to hold up under real-world use — not just a demo.`,
+    dos: ["“Built for the work”", "“Show the proof”", "“One job, done well”"],
+    donts: ["“Revolutionary”", "“AI-powered everything”", "“Trust us”"],
     designAnchor: `Professional, minimal identity for "${topic}" with a strong silhouette and small-size legibility.`,
     consistencyRules: [
       "Keep geometry simple and reproducible.",
@@ -214,6 +233,14 @@ function parseKitResponse(rawText: string, topic: string): BrandKitDynamic {
     descriptor:  str(parsed.descriptor, fb.descriptor).slice(0, 140),
     domain:      str(parsed.domain, fb.domain).slice(0, 40),
     taglines,
+    pronunciation:    str(parsed.pronunciation, fb.pronunciation).slice(0, 120),
+    alternates:       arr(parsed.alternates, fb.alternates).slice(0, 3),
+    rationale:        str(parsed.rationale, fb.rationale).slice(0, 400),
+    oneLiner:         str(parsed.oneLiner, fb.oneLiner).slice(0, 280),
+    boilerplateShort: str(parsed.boilerplateShort, fb.boilerplateShort).slice(0, 200),
+    boilerplateLong:  str(parsed.boilerplateLong, fb.boilerplateLong).slice(0, 500),
+    dos:              arr(parsed.dos, fb.dos).slice(0, 3),
+    donts:            arr(parsed.donts, fb.donts).slice(0, 3),
     designAnchor: str(parsed.designAnchor, fb.designAnchor),
     consistencyRules: arr(parsed.consistencyRules, fb.consistencyRules),
     conceptVariants: Array.isArray(parsed.conceptVariants) && parsed.conceptVariants.length > 0
@@ -260,9 +287,12 @@ function parseKitResponse(rawText: string, topic: string): BrandKitDynamic {
 }
 
 export async function POST(request: Request) {
+  const guard = await guardAndSpend("brand_kit");
+  if (!guard.ok) return guardFailResponse(guard);
   try {
     const key = process.env.OPENAI_API_KEY?.trim();
     if (!key) {
+      await refund("brand_kit");
       return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
     }
 
@@ -276,7 +306,7 @@ export async function POST(request: Request) {
     const position = clampText(body.setup?.position, 1200);
     const context = clampText(body.setup?.context, 1200);
     const validationContent = clampText(body.validationContent, 7000);
-    if (!topic) return Response.json({ error: "Missing startup topic." }, { status: 400 });
+    if (!topic) { await refund("brand_kit"); return Response.json({ error: "Missing startup topic." }, { status: 400 }); }
 
     const brief = sanitizeLogoBrief(body.logoBrief);
     const briefText = brief
@@ -308,6 +338,14 @@ Return EXACTLY this JSON shape. No extra keys. No prose.
     "UPPERCASE TAGLINE 3.",
     "UPPERCASE TAGLINE 4."
   ],
+  "pronunciation": "how to say the name + the one-line reason it resonates",
+  "alternates": ["Alt name 1","Alt name 2","Alt name 3"],
+  "rationale": "2-3 sentences on why this name wins for this idea",
+  "oneLiner": "ONE positioning sentence: <brand> turns X into Y for Z",
+  "boilerplateShort": "one-sentence boilerplate",
+  "boilerplateLong": "2-3 sentence boilerplate",
+  "dos": ["phrase to say","phrase to say","phrase to say"],
+  "donts": ["phrase to NEVER say","phrase to NEVER say","phrase to NEVER say"],
   "designAnchor": "1-2 sentence direction anchor",
   "consistencyRules": ["rule 1","rule 2","rule 3","rule 4"],
   "conceptVariants": [
@@ -372,6 +410,7 @@ Rules:
     return Response.json(payload);
   } catch (error) {
     console.error("brand-kit route error:", error);
+    await refund("brand_kit");
     return Response.json({ error: "Failed to generate brand blueprint." }, { status: 500 });
   }
 }

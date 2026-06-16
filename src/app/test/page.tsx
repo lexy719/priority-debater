@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { notFound } from "next/navigation";
 import { ResultsDashboardProvider } from "@/context/results-dashboard-context";
 import type { ValidationSession } from "@/lib/types";
 import ResultsV2 from "@/components/v2/ResultsV2";
@@ -133,6 +134,8 @@ export default function Test10Page() {
       setReady(true);
     });
   }, []);
+
+  if (process.env.NODE_ENV === "production") notFound();
 
   if (!ready) {
     return (

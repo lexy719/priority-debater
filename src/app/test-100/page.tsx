@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, notFound } from "next/navigation";
 import { saveSession } from "@/lib/session";
 import type { ValidationSession } from "@/lib/types";
 
@@ -131,6 +131,8 @@ export default function Test100Page() {
     saveSession(mockSession);
     router.push("/results");
   }, [router]);
+
+  if (process.env.NODE_ENV === "production") notFound();
 
   return <div className="p-10 font-mono text-sm">Injecting 100/100 mock session and redirecting...</div>;
 }

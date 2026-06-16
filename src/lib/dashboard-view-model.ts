@@ -934,7 +934,8 @@ function buildFromStructured(session: ValidationSession, d: DashboardData): Dash
         price: safeStr(p?.price, "—"),
         terms: safeStr(p?.terms, "—"),
       }))
-    : mock.pricingModels;
+    // No pricing in the structured payload → honest placeholders, never mock prices.
+    : mock.pricingModels.map((p) => ({ ...p, price: "—", terms: "Pricing not yet modelled for this idea." }));
 
   const audienceSegments = Array.isArray(d.audience?.segments) && d.audience.segments.length > 0
     ? d.audience.segments.slice(0, 5).map((s, i) => ({
