@@ -34,6 +34,13 @@
   --c-magenta:        #ff2d87;
   --c-green:          #14b870;
 
+  /* Lovable raw tokens — let ported commerce JSX use var(--signal-*) verbatim */
+  --signal-red:       #ef4444;
+  --signal-blue:      #3b82f6;
+  --signal-green:     #22c55e;
+  --signal-amber:     #f59e0b;
+  --paper-foreground: var(--ink-0);
+
   /* Type — stark black hierarchy */
   --ink-0:            #000000;
   --ink-1:            #1a1a1a;
@@ -243,7 +250,8 @@ body {
 }
 
 /* Lovable highlight spans */
-.hl-red {
+.hl-red,
+.highlight-red {
   background: #ef4444;
   color: #fff;
   padding: 0.02em 0.15em;
@@ -383,6 +391,17 @@ section.bg-signal-yellow:not(.grid-paper-dark):not(.grid-paper)::before {
 .ticker-track {
   animation: ticker 35s linear infinite;
   will-change: transform;
+}
+
+/* Lovable commerce ticker — slower track + edge fade mask */
+.animate-ticker {
+  animation: ticker 60s linear infinite;
+  will-change: transform;
+}
+
+.ticker-mask {
+  mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
 }
 
 .ticker-row:hover .ticker-track,
@@ -642,6 +661,21 @@ html.has-custom-cursor * {
   100% { transform: translateY(100%); opacity: 0; }
 }
 .scroll-hint { animation: scrollDown 1.8s ease-in-out infinite; }
+
+/* Credit badge withdrawal / grant feedback */
+@keyframes creditPulse {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+.credit-pulse { animation: creditPulse 0.55s cubic-bezier(0.22, 1, 0.36, 1); }
+
+@keyframes creditFloat {
+  0%   { opacity: 0; transform: translateY(0); }
+  20%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-14px); }
+}
+.credit-float { animation: creditFloat 0.9s ease-out forwards; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

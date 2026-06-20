@@ -24,6 +24,8 @@ import { reveal, viewport } from "@/components/flow/anim";
 import { useFlowPayload } from "@/lib/flow/useFlowPayload";
 import { FLOW_CACHE } from "@/lib/flow/useFlowIdea";
 import { BRAND as MOCK_BRAND } from "@/lib/flow/flowMock";
+import { useGoogleFonts, fontStack } from "@/components/studio/useGoogleFonts";
+import { LogoImageButton } from "@/components/studio/LogoImageButton";
 import type { BrandKitFull } from "@/lib/flow/types";
 
 /* Raw shape the /api/brand-kit route returns (only the bits we read here). */
@@ -108,6 +110,15 @@ export default function BrandKitPage() {
   const cardText = brand.palette[1]?.hex || "#F3EEE3";
   const chipBg = brand.palette[3]?.hex || brand.palette[2]?.hex || "#C8A24B";
 
+  // Actually load + render the AI-chosen fonts so the kit is a live preview.
+  const displayFont = brand.type[0]?.font;
+  useGoogleFonts(brand.type.map((t) => t.font));
+
+  const logoPrompt = `Minimalist iconic vector logo for "${brand.name}", a brand for ${idea.title}. ${brand.rationale} Flat, modern, memorable mark; palette ${brand.palette
+    .slice(0, 3)
+    .map((c) => c.hex)
+    .join(", ")}; centered on a plain background, crisp, no lettering artifacts.`;
+
   return (
     <FlowGuard stage="brand">
     <div data-testid="brand-kit-page" className="bg-[#f4f4f0] min-h-screen">
@@ -155,7 +166,12 @@ export default function BrandKitPage() {
             <Card className="lg:col-span-7 flex flex-col justify-between">
               <div>
                 <div className="flex items-end gap-4 flex-wrap">
-                  <span className="font-display text-6xl sm:text-7xl uppercase tracking-tight">{brand.name}</span>
+                  <span
+                    className="text-6xl sm:text-7xl uppercase tracking-tight leading-none"
+                    style={{ fontFamily: fontStack(displayFont, "var(--app-font-display)") }}
+                  >
+                    {brand.name}
+                  </span>
                   <span className="font-mono text-[11px] text-black/45 mb-2">{brand.pronunciation}</span>
                 </div>
                 <p className="mt-5 text-sm text-black/70 font-body leading-relaxed max-w-xl">{brand.rationale}</p>
@@ -178,15 +194,23 @@ export default function BrandKitPage() {
               <div className="flex-1 grid place-items-center py-10">
                 <div className="text-center">
                   <span
-                    className="grid place-items-center mx-auto w-20 h-20 font-display text-5xl leading-none pt-1"
-                    style={{ background: chipBg, color: cardBg }}
+                    className="grid place-items-center mx-auto w-20 h-20 text-5xl leading-none pt-1"
+                    style={{ background: chipBg, color: cardBg, fontFamily: fontStack(displayFont, "var(--app-font-display)") }}
                   >
                     {brand.name.charAt(0) || "·"}
                   </span>
-                  <p className="mt-4 font-display text-3xl uppercase tracking-tight">{brand.name}</p>
+                  <p
+                    className="mt-4 text-3xl uppercase tracking-tight"
+                    style={{ fontFamily: fontStack(displayFont, "var(--app-font-display)") }}
+                  >
+                    {brand.name}
+                  </p>
                   <p className="font-mono text-[9px] uppercase tracking-[0.3em] mt-1" style={{ color: cardText, opacity: 0.6 }}>
                     {idea.title.slice(0, 36)}
                   </p>
+                  <div className="mt-5">
+                    <LogoImageButton prompt={logoPrompt} />
+                  </div>
                 </div>
               </div>
             </Card>
@@ -262,7 +286,13 @@ export default function BrandKitPage() {
                       <span className="font-body font-bold text-sm">{t.font}</span>
                       <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-black/40">{t.role}</span>
                     </div>
-                    <p className="text-xs text-black/55 font-body mt-1">{t.note}</p>
+                    {/* live sample rendered in the actual generated font */}
+                    <p className="mt-2 text-2xl leading-tight text-black" style={{ fontFamily: fontStack(t.font) }}>
+                      {brand.name}
+                    </p>
+                    <p className="text-sm leading-snug text-black/70" style={{ fontFamily: fontStack(t.font) }}>
+                      Ag — the quick brown fox jumps over 0123
+                    </p>
                   </div>
                 ))}
               </div>

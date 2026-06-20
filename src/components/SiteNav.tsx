@@ -24,25 +24,47 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { CreditBadge } from "@/components/credits/CreditBadge";
+import { AccountChip } from "@/components/account/AccountChip";
 
 const FLOW_ROUTES = ["/brand-kit", "/launch-kit", "/campaign", "/landing-builder", "/ship"];
 
 type NavLink = { label: string; href: string; active: boolean };
 
+type NavContext = "marketing" | "journey" | "commerce";
+
 const MARKETING_LINKS: NavLink[] = [
-  { label: "How it works", href: "/#how", active: false },
   { label: "The Chamber", href: "/#chamber", active: false },
+  { label: "The Dossier", href: "/#report", active: false },
+  { label: "How it works", href: "/#how", active: false },
   { label: "The Studio", href: "/#studio", active: false },
-  { label: "Pricing", href: "/#pricing", active: false },
-  { label: "FAQ", href: "/#faq", active: false },
+  { label: "Commerce", href: "/commerce", active: false },
+  { label: "Pricing", href: "/pricing", active: false },
+  { label: "FAQ", href: "/faq", active: false },
 ];
 
-function useNav() {
+function useNav(): { context: NavContext; links: NavLink[]; ctaLabel: string; ctaHref: string } {
   const path = usePathname() ?? "";
-  const isMarketing = path === "/";
 
-  if (isMarketing) {
-    return { isMarketing, links: MARKETING_LINKS };
+  const MARKETING_PAGES = ["/pricing", "/faq", "/about", "/privacy", "/terms", "/contact"];
+  if (path === "/" || MARKETING_PAGES.includes(path)) {
+    return { context: "marketing", links: MARKETING_LINKS, ctaLabel: "Validate my idea", ctaHref: "/#validate" };
+  }
+
+  // The second path — AI Commerce audit. Its own link set + "Run audit" CTA.
+  if (path.startsWith("/commerce")) {
+    const isToolkit = path.startsWith("/commerce/toolkit");
+    const links: NavLink[] = [
+      { label: "Validate", href: "/", active: false },
+      { label: "Audit", href: "/commerce", active: !isToolkit },
+      { label: "Toolkit", href: "/commerce/toolkit", active: isToolkit },
+      { label: "Simulation", href: "/commerce#simulation", active: false },
+    ];
+    return {
+      context: "commerce",
+      links,
+      ctaLabel: isToolkit ? "New audit" : "Fix toolkit",
+      ctaHref: isToolkit ? "/commerce" : "/commerce/toolkit",
+    };
   }
 
   const isDebate = path === "/debate";
@@ -57,7 +79,7 @@ function useNav() {
     { label: "Debate", href: "/debate", active: isDebate },
     { label: "Studio", href: "/brand-kit", active: isStudio },
   ];
-  return { isMarketing, links };
+  return { context: "journey", links, ctaLabel: "New validation", ctaHref: "/#validate" };
 }
 
 type SiteNavProps = {
@@ -68,15 +90,13 @@ type SiteNavProps = {
 };
 
 export function SiteNav({ subtitle, actions, sticky = true }: SiteNavProps) {
-  const { isMarketing, links } = useNav();
+  const { context, links, ctaLabel, ctaHref } = useNav();
   const [open, setOpen] = useState(false);
-
-  const ctaLabel = isMarketing ? "Validate my idea" : "New validation";
 
   return (
     <header
       data-testid="site-nav"
-      data-variant={isMarketing ? "marketing" : "journey"}
+      data-variant={context}
       className={`${sticky ? "sticky top-0 z-50" : ""} border-b border-white/15 bg-[#0a0a0a] text-white`}
     >
       <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4 px-5 py-3 lg:px-8">
@@ -112,9 +132,10 @@ export function SiteNav({ subtitle, actions, sticky = true }: SiteNavProps) {
         {/* Right: page actions or default CTA */}
         <div className="flex items-center gap-2">
           <CreditBadge />
+          <AccountChip />
           {actions ?? (
             <Link
-              href="/#validate"
+              href={ctaHref}
               data-testid="site-nav-cta"
               className="group hidden items-center gap-2 bg-[#ff3b30] px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-white hover:text-black sm:inline-flex"
             >
@@ -150,7 +171,7 @@ export function SiteNav({ subtitle, actions, sticky = true }: SiteNavProps) {
               </Link>
             ))}
             <Link
-              href="/#validate"
+              href={ctaHref}
               onClick={() => setOpen(false)}
               className="mt-2 inline-flex items-center justify-center gap-2 bg-[#ff3b30] px-4 py-3 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-white"
             >

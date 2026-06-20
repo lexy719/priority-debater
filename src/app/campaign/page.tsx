@@ -12,8 +12,9 @@
 
 import { motion } from "framer-motion";
 import { toast, Toaster } from "sonner";
-import { ArrowRight, Film, Clapperboard, Sparkles, Target, Wallet, Play } from "lucide-react";
+import { ArrowRight, Film, Clapperboard, Target, Wallet, Play } from "lucide-react";
 import { FlowNav } from "@/components/flow/FlowNav";
+import { AdVideoButton } from "@/components/studio/AdVideoButton";
 import { FlowTicker } from "@/components/flow/FlowTicker";
 import { FlowFooter } from "@/components/flow/FlowFooter";
 import { FlowStatusBanner } from "@/components/flow/FlowStatusBanner";
@@ -206,13 +207,7 @@ export default function CampaignPage() {
                     </div>
 
                     <div className="mt-3 grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => fire("AI video generation is a demo", "Wire a text-to-video model to render this cut automatically.")}
-                        data-testid={`generate-video-${i}`}
-                        className="inline-flex items-center justify-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] bg-[#ff3b30] text-white px-2.5 py-2 hover:bg-black transition-colors"
-                      >
-                        <Sparkles size={12} /> Generate
-                      </button>
+                      <AdVideoButton ad={ad} />
                       <button
                         onClick={() => fire(`${ad.platform} ad launch is a demo`, "Connect your ad account to publish this creative.")}
                         data-testid={`launch-ad-${i}`}

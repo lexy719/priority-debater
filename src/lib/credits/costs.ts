@@ -7,16 +7,25 @@
 /** Credits granted to a brand-new account (no card). */
 export const SIGNUP_GRANT = 50;
 
-/** Cost per metered AI action. Keys double as the ledger `reason`. */
+/**
+ * Cost per metered action. Keys double as the ledger `reason`. Priced to cover
+ * the underlying API spend with margin — text actions are cheap to run, AI video
+ * (Higgsfield) genuinely isn't, so it costs more. Everything runs on credits;
+ * there are no subscription tiers.
+ */
 export const CREDIT_COSTS = {
-  validation: 10,
-  debate: 10,
-  brand_kit: 15,
-  launch_kit: 15,
-  campaign: 15,
-  landing: 10,
-  pitch: 10,
+  validation: 15,
+  debate: 15,
   rescore: 5,
+  brand_kit: 20,
+  launch_kit: 20,
+  campaign: 20,
+  landing: 20,
+  pitch: 20,
+  commerce_audit: 15,
+  commerce_toolkit: 10,
+  logo_image: 20,
+  ad_video: 50,
   hd_voice: 1, // per spoken tribunal turn (ElevenLabs)
 } as const;
 

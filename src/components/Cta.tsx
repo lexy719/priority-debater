@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { Dot } from "./primitives";
+import { FooterNewsletter } from "./FooterNewsletter";
 
 export function Cta() {
   return (
@@ -35,9 +37,9 @@ export function Cta() {
         </div>
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3 font-mono text-[11px] uppercase tracking-[0.22em] text-paper/45">
-          <span className="flex items-center gap-2"><Dot color="red" /> No card</span>
+          <span className="flex items-center gap-2"><Dot color="red" /> No card to start</span>
           <span>·</span>
-          <span>Free during beta</span>
+          <span>50 free credits</span>
           <span>·</span>
           <span>Five agents, zero mercy</span>
         </div>
@@ -62,25 +64,26 @@ export function Footer() {
           <p className="mt-4 max-w-xs text-xs leading-relaxed text-paper/55">
             A decision panel for founders who'd rather lose an argument than a year.
           </p>
+          <FooterNewsletter />
         </div>
         {[
           { h: "Product", links: [
-            { l: "Validate an idea", href: "#validate" },
+            { l: "Validate an idea", href: "/#validate" },
+            { l: "AI Commerce audit", href: "/commerce" },
             { l: "The Chamber", href: "/debate" },
-            { l: "Sample dossier", href: "/resultstest" },
-            { l: "Pricing", href: "#pricing" },
+            { l: "Pricing", href: "/pricing" },
           ] },
-          { h: "Explore", links: [
-            { l: "How it works", href: "#how" },
-            { l: "The Dossier", href: "#report" },
-            { l: "FAQ", href: "#faq" },
+          { h: "Resources", links: [
+            { l: "How it works", href: "/#how" },
+            { l: "FAQ", href: "/faq" },
+            { l: "Sample dossier", href: "/resultstest" },
             { l: "Your report", href: "/results" },
           ] },
-          { h: "Engine", links: [
-            { l: "Five adversarial agents", href: "#chamber" },
-            { l: "Audited scoring", href: "#report" },
-            { l: "Web-enriched sources", href: "#report" },
-            { l: "Honest empty states", href: "#report" },
+          { h: "Company", links: [
+            { l: "About", href: "/about" },
+            { l: "Contact", href: "/contact" },
+            { l: "Privacy", href: "/privacy" },
+            { l: "Terms", href: "/terms" },
           ] },
         ].map((c) => (
           <div key={c.h}>
@@ -88,9 +91,9 @@ export function Footer() {
             <ul className="mt-4 space-y-2">
               {c.links.map((l) => (
                 <li key={l.l}>
-                  <a href={l.href} className="text-sm text-paper/80 transition-colors hover:text-signal-red">
+                  <Link href={l.href} className="text-sm text-paper/80 transition-colors hover:text-signal-red">
                     {l.l}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -100,7 +103,11 @@ export function Footer() {
       <div className="border-t border-paper/10">
         <div className="mx-auto flex max-w-[1120px] flex-wrap items-center justify-between gap-3 px-6 py-5 font-mono text-[10px] uppercase tracking-[0.22em] text-paper/40 lg:px-10">
           <span>© 2026 Priority Debater · v1.0</span>
-          <span>Built to disagree</span>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="hover:text-paper">Privacy</Link>
+            <Link href="/terms" className="hover:text-paper">Terms</Link>
+            <Link href="/contact" className="hover:text-paper">Contact</Link>
+          </div>
         </div>
       </div>
     </footer>

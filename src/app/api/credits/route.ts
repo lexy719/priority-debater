@@ -14,8 +14,10 @@ export async function GET() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return Response.json({ configured: true, authed: false, balance: null, email: null });
+    return Response.json({ configured: true, authed: false, balance: null, email: null, name: null });
   }
   const balance = await getBalanceForUser(user.id);
-  return Response.json({ configured: true, authed: true, balance, email: user.email ?? null });
+  const meta = user.user_metadata ?? {};
+  const name = (meta.display_name as string) || (meta.full_name as string) || (meta.name as string) || null;
+  return Response.json({ configured: true, authed: true, balance, email: user.email ?? null, name });
 }

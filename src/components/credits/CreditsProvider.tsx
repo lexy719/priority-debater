@@ -15,6 +15,7 @@ export type CreditsState = {
   authed: boolean;
   balance: number | null;
   email: string | null;
+  name: string | null;
   loading: boolean;
 };
 
@@ -24,7 +25,7 @@ type CreditsContextValue = {
   setBalance: (n: number | null) => void;
 };
 
-const INITIAL: CreditsState = { configured: false, authed: false, balance: null, email: null, loading: true };
+const INITIAL: CreditsState = { configured: false, authed: false, balance: null, email: null, name: null, loading: true };
 
 const CreditsContext = createContext<CreditsContextValue | null>(null);
 
@@ -40,6 +41,9 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
         authed: !!j.authed,
         balance: typeof j.balance === "number" ? j.balance : null,
         email: j.email ?? null,
+        name: j.name ?? null,
+        plan: j.plan ?? "free",
+        premium: !!j.premium,
         loading: false,
       });
     } catch {
@@ -49,6 +53,16 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refresh();
+    // Keep the balance fresh after a spend/top-up when the user returns to the tab.
+    function onFocus() {
+      if (document.visibilityState === "visible") void refresh();
+    }
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
   }, [refresh]);
 
   const setBalance = useCallback((n: number | null) => {

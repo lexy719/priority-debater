@@ -68,6 +68,61 @@ const THEMES: Record<ArchetypeId, Theme> = {
   },
 };
 
+/* ── brand-driven theming ─────────────────────────────────────────────────
+   Override the archetype's colors + fonts with the generated brand identity so
+   the landing page actually IS the brand (its palette + typography), not a
+   fixed template. Guarded by luminance so the page never becomes unreadable. */
+
+export type BrandThemeInput = {
+  palette?: { hex: string }[];
+  fonts?: { head?: string; body?: string };
+};
+
+function lum(hex: string): number {
+  const m = /^#?([0-9a-f]{6})$/i.exec((hex || "").trim());
+  if (!m) return 128;
+  const n = parseInt(m[1], 16);
+  return 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
+}
+function sat(hex: string): number {
+  const m = /^#?([0-9a-f]{6})$/i.exec((hex || "").trim());
+  if (!m) return 0;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+  return mx === 0 ? 0 : (mx - mn) / mx;
+}
+function fontQuery(name?: string): string | null {
+  const n = name?.trim();
+  if (!n) return null;
+  return `family=${encodeURIComponent(n).replace(/%20/g, "+")}:wght@400;500;600;700;800;900`;
+}
+
+function applyBrand(base: Theme, brand: BrandThemeInput): Theme {
+  const t: Theme = { ...base };
+  const pal = (brand.palette ?? []).map((c) => c.hex).filter((h) => /^#?[0-9a-f]{6}$/i.test(h || ""));
+  if (pal.length >= 2) {
+    const sorted = [...pal].sort((a, b) => lum(a) - lum(b));
+    const darkest = sorted[0];
+    const lightest = sorted[sorted.length - 1];
+    if (lum(lightest) > 200) { t.bg = lightest; t.card = "#ffffff"; }
+    if (lum(darkest) < 80) t.fg = darkest;
+    const accent = [...pal].filter((h) => h !== lightest).sort((a, b) => sat(b) - sat(a))[0];
+    if (accent) t.accent = accent;
+    const accent2 = [...pal].filter((h) => h !== lightest && h !== t.accent).sort((a, b) => sat(b) - sat(a))[0];
+    if (accent2) t.accent2 = accent2;
+    t.muted = lum(t.bg) > 140 ? "rgba(0,0,0,.55)" : "rgba(255,255,255,.6)";
+  }
+  const headQ = fontQuery(brand.fonts?.head);
+  const bodyQ = fontQuery(brand.fonts?.body);
+  if (headQ || bodyQ) {
+    t.fonts = [headQ, bodyQ].filter(Boolean).join("&");
+    if (brand.fonts?.head) t.head = `'${brand.fonts.head}', ${base.head.includes("serif") ? "serif" : "sans-serif"}`;
+    if (brand.fonts?.body) t.body = `'${brand.fonts.body}', sans-serif`;
+  }
+  return t;
+}
+
 function esc(s: string): string {
   return String(s ?? "")
     .replace(/&/g, "&amp;")
@@ -81,9 +136,10 @@ function domainSlug(name: string): string {
 
 export function buildLandingHtml(
   archetypeId: ArchetypeId,
-  args: { name: string; productPage: ProductPage },
+  args: { name: string; productPage: ProductPage; brand?: BrandThemeInput },
 ): string {
-  const t = THEMES[archetypeId] || THEMES.brutalist;
+  const baseTheme = THEMES[archetypeId] || THEMES.brutalist;
+  const t = args.brand ? applyBrand(baseTheme, args.brand) : baseTheme;
   const p = args.productPage;
   const name = (args.name || "BRAND").trim();
   const slug = domainSlug(name);

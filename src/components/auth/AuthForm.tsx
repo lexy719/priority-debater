@@ -24,7 +24,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    params.get("error") ? "Sign-in didn't complete — please try again." : null,
+  );
   const [info, setInfo] = useState<string | null>(null);
 
   const configured = supabaseConfigured();

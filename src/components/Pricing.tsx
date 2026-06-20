@@ -42,10 +42,10 @@ export function Pricing() {
           </div>
           <div className="lg:col-span-5">
             <div className="border-2 border-ink bg-signal-yellow p-6 shadow-[6px_6px_0_0_var(--color-ink)]">
-              <div className="font-display text-2xl uppercase tracking-wide text-ink">Free during beta</div>
+              <div className="font-display text-2xl uppercase tracking-wide text-ink">Start free.</div>
               <p className="mt-2 text-[13px] leading-relaxed text-ink/80">
-                No card, no credits needed yet — run validations and debates on us. The tiers below
-                are the planned pricing once billing goes live.
+                Every account gets 50 free credits — no card to begin. Upgrade to a monthly plan or
+                top up anytime. See full plans on the pricing page.
               </p>
             </div>
           </div>
@@ -81,14 +81,14 @@ export function Pricing() {
                 ))}
               </ul>
               <a
-                href="#validate"
+                href="/pricing"
                 className={`group mt-8 inline-flex items-center justify-center gap-2 px-5 py-3.5 font-mono text-[11px] font-bold uppercase tracking-[0.2em] transition-colors ${
                   t.popular
                     ? "bg-ink text-paper hover:bg-signal-red"
                     : "bg-signal-red text-paper hover:bg-ink"
                 }`}
               >
-                Start free — beta
+                Choose plan
                 <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
               </a>
             </div>

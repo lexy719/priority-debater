@@ -3,6 +3,8 @@ import { Inter, Anton, JetBrains_Mono } from "next/font/google";
 import { SmoothScroll } from "@/components/v2/smooth-scroll";
 import { Cursor } from "@/components/v2/cursor";
 import { CreditsProvider } from "@/components/credits/CreditsProvider";
+import { NewsletterModal } from "@/components/NewsletterModal";
+import { RouteProgress } from "@/components/RouteProgress";
 import "./globals.css";
 
 const sans = Inter({
@@ -32,7 +34,7 @@ export const metadata: Metadata = {
     template: "%s | Priority Debater",
   },
   description:
-    "Five expert personas debate your startup idea and return a scored verdict, objections, evidence gaps, a risk register, and a full strategic dossier.",
+    "Two paths: stress-test a startup idea with a ruthless five-persona AI panel, or audit how AI agents see your live store and ship the fixes that win the recommendation layer.",
   keywords: [
     "startup validation",
     "idea validator",
@@ -73,10 +75,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${sans.variable} ${mono.variable} ${display.variable} antialiased`}>
         <CreditsProvider>
+          <RouteProgress />
           <SmoothScroll>
             <Cursor />
             {children}
           </SmoothScroll>
+          <NewsletterModal />
         </CreditsProvider>
       </body>
     </html>

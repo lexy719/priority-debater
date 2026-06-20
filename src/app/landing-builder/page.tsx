@@ -52,15 +52,28 @@ export default function LandingBuilderPage() {
   const [tab, setTab] = useState<ExportTab>("html");
 
   // Pull real brand + product copy from the earlier stages' caches.
-  const brandName =
-    readFlowCache<{ projectCode?: string }>(FLOW_CACHE.brandKit, flow.input.topic)?.projectCode ||
-    flow.idea.brandName;
+  const cachedBrand = readFlowCache<{
+    projectCode?: string;
+    brandKit?: { palette?: { hex?: string }[]; typography?: Record<string, { family?: string }> };
+  }>(FLOW_CACHE.brandKit, flow.input.topic);
+
+  const brandName = cachedBrand?.projectCode || flow.idea.brandName;
   const productPage: ProductPage =
     readFlowCache<LaunchKitPayload>(FLOW_CACHE.launchKit, flow.input.topic)?.productPage || PRODUCT_PAGE;
 
+  // The landing adopts the generated brand's palette + fonts → it IS the brand.
+  const palette = (cachedBrand?.brandKit?.palette ?? [])
+    .map((c) => ({ hex: c?.hex ?? "" }))
+    .filter((c) => c.hex);
+  const typo = Object.values(cachedBrand?.brandKit?.typography ?? {});
+  const brandTheme =
+    palette.length || typo.length
+      ? { palette, fonts: { head: typo[0]?.family, body: typo[1]?.family ?? typo[0]?.family } }
+      : undefined;
+
   const html = useMemo(
-    () => buildLandingHtml(arch, { name: brandName, productPage }),
-    [arch, brandName, productPage],
+    () => buildLandingHtml(arch, { name: brandName, productPage, brand: brandTheme }),
+    [arch, brandName, productPage, brandTheme],
   );
 
   return (

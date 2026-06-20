@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { AuthForm } from "@/components/auth/AuthForm";
+import { AuthShell } from "@/components/auth/AuthShell";
 import { SiteNav } from "@/components/SiteNav";
 
 export const metadata: Metadata = {
@@ -12,11 +13,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <SiteNav />
-      <main className="mx-auto flex min-h-[calc(100vh-64px)] max-w-[1100px] items-center justify-center px-5 py-20">
+      <AuthShell mode="login">
         <Suspense fallback={null}>
           <AuthForm mode="login" />
         </Suspense>
-      </main>
+      </AuthShell>
     </div>
   );
 }
