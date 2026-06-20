@@ -24,6 +24,10 @@ const ACTION_LABELS: Record<CreditAction, string> = {
   pitch: "Pitch deck",
   rescore: "Re-score",
   hd_voice: "HD tribunal voice",
+  commerce_audit: "Commerce audit",
+  commerce_toolkit: "Commerce toolkit",
+  logo_image: "Logo image",
+  ad_video: "Ad video",
 };
 
 const ACTION_NOTE: Partial<Record<CreditAction, string>> = {
