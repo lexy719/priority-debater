@@ -15,6 +15,7 @@ import { CHAMBER_AGENTS, CHAMBER_IDS, type ChamberPersonaId } from "@/lib/chambe
 import type { ChamberGrounding } from "@/lib/chamber-grounding";
 import { useCreditsState } from "@/components/credits/CreditsProvider";
 import { CREDIT_COSTS } from "@/lib/credits/costs";
+import { buildCalibration } from "@/lib/chamber-stats";
 
 type Lean = "intrigued" | "skeptical" | "hostile";
 type Result = { challenge: string; read: string; lean: Lean };
@@ -58,7 +59,7 @@ export default function QuickCross({
       const res = await fetch("/api/chamber/quick", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea, personaId: id, grounding: grounding ?? undefined }),
+        body: JSON.stringify({ idea, personaId: id, grounding: grounding ?? undefined, calibration: buildCalibration() ?? undefined }),
       });
       if (!res.ok) {
         setError(res.status === 402 ? "Not enough credits for Quick Cross." : "The engine is unreachable — try again.");

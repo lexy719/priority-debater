@@ -62,6 +62,22 @@ export function killRate(personaId: string): number | null {
   return Math.round((s.killed / s.heard) * 100);
 }
 
+/**
+ * Assemble the calibration payload the client posts when arming the panel, so
+ * the agents attack with the memory of real prior sessions (§8 feedback loop).
+ * Returns null when there's no history worth sending.
+ */
+export function buildCalibration(): import("./chamber-calibration").Calibration | null {
+  const axes = topGapAxes(3);
+  const seats: Record<string, { killRate: number | null; heard: number }> = {};
+  for (const id of ["vk", "mr", "ht", "lv", "es"]) {
+    const s = getSeatStat(id);
+    if (s.heard > 0) seats[id] = { killRate: killRate(id), heard: s.heard };
+  }
+  if (axes.length === 0 && Object.keys(seats).length === 0) return null;
+  return { axes, seats };
+}
+
 /* ── Evidence Library seed (§8) ──────────────────────────────────────────── */
 
 const AXIS_KEY = "priority-debater-evidence-axes";

@@ -14,17 +14,13 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-import OpenAI from "openai";
 import { CHAMBER_AGENTS } from "@/lib/chamber-personas";
 import { formatGrounding, sanitizeGrounding } from "@/lib/chamber-grounding";
 import { requireAuth, guardFailResponse } from "@/lib/credits/server";
+import { runAgentJSON, hasOpenAIKey, clampStr as clamp } from "@/lib/agents/run";
 import type { DebriefContent } from "@/lib/chamber-handoff";
 
 export const maxDuration = 60;
-
-function clamp(v: unknown, max: number): string {
-  return String(v ?? "").slice(0, max).trim();
-}
 
 /** Coerce untrusted gaps from the client into a compact prompt block. */
 function renderGaps(input: unknown): string {
@@ -46,8 +42,7 @@ export async function POST(request: Request) {
   const auth = await requireAuth();
   if (!auth.ok) return guardFailResponse(auth);
   try {
-    const key = process.env.OPENAI_API_KEY?.trim();
-    if (!key) return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
+    if (!hasOpenAIKey()) return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
 
     const body = (await request.json()) as {
       idea?: string; survival?: number; gaps?: unknown; grounding?: unknown;
@@ -60,18 +55,12 @@ export async function POST(request: Request) {
     if (!idea) return Response.json({ error: "Missing idea." }, { status: 400 });
 
     const agent = CHAMBER_AGENTS.es;
-    const openai = new OpenAI({ apiKey: key });
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
+    const parsed = await runAgentJSON<Partial<DebriefContent>>({
+      system: agent.systemPrompt,
       temperature: 0.7,
-      max_completion_tokens: 500,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: agent.systemPrompt },
-        {
-          role: "user",
-          content: `The debate is over. You are NO LONGER attacking — the founder is sitting across from you and the room has cleared. Drop the interrogation frame. This is the private debrief, mentor to founder. Be warm, plain, and specific. Volunteer your own scars where it helps. Never flatter emptily.
+      maxTokens: 500,
+      user: `The debate is over. You are NO LONGER attacking — the founder is sitting across from you and the room has cleared. Drop the interrogation frame. This is the private debrief, mentor to founder. Be warm, plain, and specific. Volunteer your own scars where it helps. Never flatter emptily.
 
 Idea: ${idea}
 Final survival score: ${survival.toFixed(1)}/10
@@ -88,14 +77,9 @@ Give them the version a friend who's been through it would give. Return EXACTLY 
   "path": "revise OR proceed — 'revise' if a core axis will haunt every next stage, 'proceed' if the core held and they'll learn more by building.",
   "pathReason": "One sentence on why that path. <=200 chars."
 }`,
-        },
-      ],
     });
 
-    const raw = completion.choices[0]?.message?.content?.trim() ?? "";
-    let parsed: Partial<DebriefContent> = {};
-    try { parsed = JSON.parse(raw.replace(/^```json\s*|```$/g, "").trim()) as Partial<DebriefContent>; }
-    catch { return Response.json({ error: "No debrief produced." }, { status: 502 }); }
+    if (!parsed) return Response.json({ error: "No debrief produced." }, { status: 502 });
 
     const opening = clamp(parsed.opening, 600);
     const fixFirst = clamp(parsed.fixFirst, 320);

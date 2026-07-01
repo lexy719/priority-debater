@@ -26,18 +26,14 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-import OpenAI from "openai";
 import { CHAMBER_AGENTS, isChamberId } from "@/lib/chamber-personas";
 import { formatGrounding, sanitizeGrounding } from "@/lib/chamber-grounding";
 import { requireAuth, guardFailResponse } from "@/lib/credits/server";
+import { runAgentJSON, hasOpenAIKey, clampStr as clamp } from "@/lib/agents/run";
 
 export const maxDuration = 60;
 
 type HistoryItem = { who: string; body: string };
-
-function clamp(v: unknown, max: number): string {
-  return String(v ?? "").slice(0, max).trim();
-}
 
 function renderHistory(history: HistoryItem[]): string {
   if (!history.length) return "(start of session)";
@@ -54,8 +50,7 @@ export async function POST(request: Request) {
   const auth = await requireAuth();
   if (!auth.ok) return guardFailResponse(auth);
   try {
-    const key = process.env.OPENAI_API_KEY?.trim();
-    if (!key) return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
+    if (!hasOpenAIKey()) return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
 
     const body = (await request.json()) as {
       idea?: string; speakerId?: string; nextSpeakerId?: string;
@@ -76,20 +71,17 @@ export async function POST(request: Request) {
 
     const judge = CHAMBER_AGENTS[body.speakerId];
     const attacker = CHAMBER_AGENTS[body.nextSpeakerId];
-    const openai = new OpenAI({ apiKey: key });
     const transcript = renderHistory(history);
 
-    // Agent #1 — the current speaker judges the defence in character.
-    const judgeCall = openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      temperature: 0.5,
-      max_completion_tokens: 450,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: judge.systemPrompt },
-        {
-          role: "user",
-          content: `Idea under review: ${idea}
+    // Two independent agents run in parallel: the current speaker judges the
+    // defence; the next panellist prepares their follow-up attack.
+    const [judgeParsed, attackParsed] = await Promise.all([
+      // Agent #1 — the current speaker judges the defence in character.
+      runAgentJSON<{ strength?: unknown; reactionQuote?: unknown; flawCaught?: unknown; fix?: unknown }>({
+        system: judge.systemPrompt,
+        temperature: 0.5,
+        maxTokens: 450,
+        user: `Idea under review: ${idea}
 ${grounding}
 
 Recent exchanges in the chamber:
@@ -116,21 +108,13 @@ Return EXACTLY this JSON:
   "flawCaught": "the risk that still remains after this defence (<=180 chars)",
   "fix": "one concrete action the founder should ship within 7 days to close the gap (<=200 chars)"
 }`,
-        },
-      ],
-    });
-
-    // Agent #2 — the next panellist prepares their attack off the live transcript.
-    const attackCall = openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      temperature: 0.75,
-      max_completion_tokens: 450,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: attacker.systemPrompt },
-        {
-          role: "user",
-          content: `Idea under review: ${idea}
+      }),
+      // Agent #2 — the next panellist prepares their attack off the live transcript.
+      runAgentJSON<{ attack?: unknown; flaw?: unknown; severity?: unknown }>({
+        system: attacker.systemPrompt,
+        temperature: 0.75,
+        maxTokens: 450,
+        user: `Idea under review: ${idea}
 ${grounding}
 
 Recent exchanges in the chamber (most recent last):
@@ -140,49 +124,39 @@ FOUNDER: ${defence}
 
 ${judge.name} has finished. The floor passes to YOU. Attack from YOUR axis (${attacker.axis}) — do not repeat ground already covered; build on or exploit what the founder just said when possible.
 
+You are one seat on a PANEL, not a lone interrogator. When a colleague's unresolved point compounds with yours, NAME them and stack on it — e.g. "${judge.name.split(" ")[0]}'s point about X isn't closed, and from my seat it's worse because…". Reference other panelists by first name where it sharpens the pressure. Never agree just to be agreeable.
+
 Return EXACTLY this JSON:
 {
   "attack": "your attack, spoken to the founder, 2-4 short sentences ending in a direct question (<=420 chars)",
   "flaw": "the weakness this attack probes (<=140 chars)",
   "severity": "kill" or "warn" or "insight" — how lethal this line of attack is
 }`,
-        },
-      ],
-    });
-
-    const [judgeRes, attackRes] = await Promise.allSettled([judgeCall, attackCall]);
-
-    if (judgeRes.status === "rejected") console.error("chamber/respond judge agent failed:", judgeRes.reason instanceof Error ? judgeRes.reason.message : judgeRes.reason);
-    if (attackRes.status === "rejected") console.error("chamber/respond attack agent failed:", attackRes.reason instanceof Error ? attackRes.reason.message : attackRes.reason);
+      }),
+    ]);
 
     let evalOut: { strength: 1 | 2 | 3; reactionQuote: string; flawCaught: string; fix: string } | null = null;
-    if (judgeRes.status === "fulfilled") {
-      try {
-        const parsed = JSON.parse((judgeRes.value.choices[0]?.message?.content ?? "").replace(/^```json\s*|```$/g, "").trim());
-        const s = Number(parsed?.strength);
-        evalOut = {
-          strength: (s === 1 || s === 2 || s === 3 ? s : 2) as 1 | 2 | 3,
-          reactionQuote: clamp(parsed?.reactionQuote, 320) || `${judge.name.split(" ")[0]}: noted — but the underlying risk hasn't moved. Bring evidence.`,
-          flawCaught: clamp(parsed?.flawCaught, 220) || flaw,
-          fix: clamp(parsed?.fix, 240) || "Back the claim with a named source, a number and a 30-day check.",
-        };
-      } catch { /* leave null */ }
+    if (judgeParsed) {
+      const s = Number(judgeParsed.strength);
+      evalOut = {
+        strength: (s === 1 || s === 2 || s === 3 ? s : 2) as 1 | 2 | 3,
+        reactionQuote: clamp(judgeParsed.reactionQuote, 320) || `${judge.name.split(" ")[0]}: noted — but the underlying risk hasn't moved. Bring evidence.`,
+        flawCaught: clamp(judgeParsed.flawCaught, 220) || flaw,
+        fix: clamp(judgeParsed.fix, 240) || "Back the claim with a named source, a number and a 30-day check.",
+      };
     }
 
     let nextOut: { attack: string; flaw: string; severity: "kill" | "warn" | "insight" } | null = null;
-    if (attackRes.status === "fulfilled") {
-      try {
-        const parsed = JSON.parse((attackRes.value.choices[0]?.message?.content ?? "").replace(/^```json\s*|```$/g, "").trim());
-        const attack = clamp(parsed?.attack, 600);
-        if (attack) {
-          const sev = parsed?.severity;
-          nextOut = {
-            attack,
-            flaw: clamp(parsed?.flaw, 200),
-            severity: sev === "kill" || sev === "warn" || sev === "insight" ? sev : attacker.severity,
-          };
-        }
-      } catch { /* leave null */ }
+    if (attackParsed) {
+      const attack = clamp(attackParsed.attack, 600);
+      if (attack) {
+        const sev = attackParsed.severity;
+        nextOut = {
+          attack,
+          flaw: clamp(attackParsed.flaw, 200),
+          severity: sev === "kill" || sev === "warn" || sev === "insight" ? sev : attacker.severity,
+        };
+      }
     }
 
     if (!evalOut && !nextOut) {

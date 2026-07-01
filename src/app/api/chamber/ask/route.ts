@@ -11,18 +11,14 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-import OpenAI from "openai";
 import { CHAMBER_AGENTS, isChamberId } from "@/lib/chamber-personas";
 import { formatGrounding, sanitizeGrounding } from "@/lib/chamber-grounding";
 import { requireAuth, guardFailResponse } from "@/lib/credits/server";
+import { runAgentJSON, hasOpenAIKey, clampStr as clamp } from "@/lib/agents/run";
 
 export const maxDuration = 60;
 
 type HistoryItem = { who: string; body: string };
-
-function clamp(v: unknown, max: number): string {
-  return String(v ?? "").slice(0, max).trim();
-}
 
 function renderHistory(history: HistoryItem[]): string {
   if (!history.length) return "(start of session)";
@@ -38,8 +34,7 @@ export async function POST(request: Request) {
   const auth = await requireAuth();
   if (!auth.ok) return guardFailResponse(auth);
   try {
-    const key = process.env.OPENAI_API_KEY?.trim();
-    if (!key) return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
+    if (!hasOpenAIKey()) return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 });
 
     const body = (await request.json()) as {
       idea?: string; personaId?: string; question?: string; history?: HistoryItem[]; grounding?: unknown;
@@ -54,18 +49,12 @@ export async function POST(request: Request) {
     if (!question) return Response.json({ error: "Missing question." }, { status: 400 });
 
     const agent = CHAMBER_AGENTS[body.personaId];
-    const openai = new OpenAI({ apiKey: key });
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
+    const parsed = await runAgentJSON<{ answer?: string }>({
+      system: agent.systemPrompt,
       temperature: 0.6,
-      max_completion_tokens: 320,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: agent.systemPrompt },
-        {
-          role: "user",
-          content: `Idea under review: ${idea}
+      maxTokens: 320,
+      user: `Idea under review: ${idea}
 ${grounding}
 
 Recent exchanges in the chamber:
@@ -80,17 +69,9 @@ Answer them honestly, in YOUR voice and from YOUR axis (${agent.axis}). This is 
 
 Return EXACTLY this JSON:
 { "answer": "your spoken reply to the founder" }`,
-        },
-      ],
     });
 
-    const raw = completion.choices[0]?.message?.content?.trim() ?? "";
-    let answer = "";
-    try {
-      const parsed = JSON.parse(raw.replace(/^```json\s*|```$/g, "").trim());
-      answer = clamp(parsed?.answer, 420);
-    } catch { /* leave empty */ }
-
+    const answer = clamp(parsed?.answer, 420);
     if (!answer) return Response.json({ error: "No answer produced." }, { status: 502 });
     return Response.json({ answer });
   } catch (e) {

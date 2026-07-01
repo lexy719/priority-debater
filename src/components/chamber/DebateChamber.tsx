@@ -12,7 +12,7 @@ import {
 import { loadSession, saveDebateTranscript, saveDebateHandoff } from "@/lib/session";
 import { deriveHandoff } from "@/lib/chamber-handoff";
 import { openCase, saveSessionRecord, getSessionRecord, getCase, listCases, type RulingVerdict, type ChamberCase } from "@/lib/chamber-cases";
-import { recordRuling, recordGapAxes, killRate, getSeatStat, topGapAxes, MIN_SAMPLE } from "@/lib/chamber-stats";
+import { recordRuling, recordGapAxes, killRate, getSeatStat, topGapAxes, buildCalibration, MIN_SAMPLE } from "@/lib/chamber-stats";
 import { groundingFromDashboard, type ChamberGrounding } from "@/lib/chamber-grounding";
 import { useTribunalVoice } from "@/components/chamber/useTribunalVoice";
 import ChamberVerdict, { type VerdictPersona, type VerdictTurn } from "@/components/chamber/ChamberVerdict";
@@ -287,7 +287,7 @@ export default function DebateChamber() {
       const res = await fetch(`/api/chamber/open${revise ? "?mode=revise" : ""}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea: ideaText, grounding: ground ?? undefined }),
+        body: JSON.stringify({ idea: ideaText, grounding: ground ?? undefined, calibration: buildCalibration() ?? undefined }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const map = tailoredFromPayload(await res.json());

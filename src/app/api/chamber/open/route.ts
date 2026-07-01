@@ -11,35 +11,26 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-import OpenAI from "openai";
 import { guardAndSpend, guardFailResponse, refund } from "@/lib/credits/server";
 import { CHAMBER_AGENTS, CHAMBER_IDS, type ChamberAgent } from "@/lib/chamber-personas";
 import { formatGrounding, sanitizeGrounding } from "@/lib/chamber-grounding";
+import { sanitizeCalibration, formatCalibration, type Calibration } from "@/lib/chamber-calibration";
+import { runAgentJSON, hasOpenAIKey, clampStr as clamp } from "@/lib/agents/run";
 
 export const maxDuration = 60;
 
 type Seat = { lens: string; attack: string; flaw: string; severity: "kill" | "warn" | "insight" };
 
-function clamp(v: unknown, max: number): string {
-  return String(v ?? "").slice(0, max).trim();
-}
-
-async function openForAgent(openai: OpenAI, agent: ChamberAgent, idea: string, grounding: string): Promise<Seat | null> {
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      temperature: 0.7,
-      max_completion_tokens: 400,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: agent.systemPrompt },
-        {
-          role: "user",
-          content: `The founder has just entered the chamber with this idea:
+async function openForAgent(agent: ChamberAgent, idea: string, grounding: string, calibration: Calibration | null): Promise<Seat | null> {
+  const parsed = await runAgentJSON<{ lens?: string; attack?: string; flaw?: string; severity?: string }>({
+    system: agent.systemPrompt,
+    temperature: 0.7,
+    user: `The founder has just entered the chamber with this idea:
 """
 ${idea}
 """
 ${grounding}
+${formatCalibration(calibration, agent.id)}
 
 Prepare your seat. Return EXACTLY this JSON:
 {
@@ -48,24 +39,17 @@ Prepare your seat. Return EXACTLY this JSON:
   "flaw": "the underlying weakness your attack is probing (<=140 chars)",
   "severity": "${agent.severity}"
 }`,
-        },
-      ],
-    });
-    const raw = completion.choices[0]?.message?.content?.trim() ?? "";
-    const parsed = JSON.parse(raw.replace(/^```json\s*|```$/g, "").trim());
-    const attack = clamp(parsed?.attack, 600);
-    if (!attack) return null;
-    const sev = parsed?.severity;
-    return {
-      lens: clamp(parsed?.lens, 200),
-      attack,
-      flaw: clamp(parsed?.flaw, 200),
-      severity: sev === "kill" || sev === "warn" || sev === "insight" ? sev : agent.severity,
-    };
-  } catch (e) {
-    console.error(`chamber/open agent ${agent.id} failed:`, e instanceof Error ? e.message : e);
-    return null;
-  }
+  });
+  if (!parsed) return null;
+  const attack = clamp(parsed.attack, 600);
+  if (!attack) return null;
+  const sev = parsed.severity;
+  return {
+    lens: clamp(parsed.lens, 200),
+    attack,
+    flaw: clamp(parsed.flaw, 200),
+    severity: sev === "kill" || sev === "warn" || sev === "insight" ? sev : agent.severity,
+  };
 }
 
 export async function POST(request: Request) {
@@ -77,20 +61,19 @@ export async function POST(request: Request) {
   const guard = await guardAndSpend(action);
   if (!guard.ok) return guardFailResponse(guard);
   try {
-    const key = process.env.OPENAI_API_KEY?.trim();
-    if (!key) { await refund(action); return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 }); }
+    if (!hasOpenAIKey()) { await refund(action); return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 }); }
 
-    const body = (await request.json()) as { idea?: string; grounding?: unknown };
+    const body = (await request.json()) as { idea?: string; grounding?: unknown; calibration?: unknown };
     const idea = clamp(body.idea, 600);
     if (!idea) { await refund(action); return Response.json({ error: "Missing idea." }, { status: 400 }); }
 
     const grounding = formatGrounding(sanitizeGrounding(body.grounding));
+    const calibration = sanitizeCalibration(body.calibration);
 
-    const openai = new OpenAI({ apiKey: key });
-
-    // One independent agent per seat, all in parallel.
+    // One independent agent per seat, all in parallel — each armed with its own
+    // track record + the founder's recurring blind spots (§8 feedback loop).
     const results = await Promise.all(
-      CHAMBER_IDS.map(async (id) => [id, await openForAgent(openai, CHAMBER_AGENTS[id], idea, grounding)] as const),
+      CHAMBER_IDS.map(async (id) => [id, await openForAgent(CHAMBER_AGENTS[id], idea, grounding, calibration)] as const),
     );
 
     const seats: Record<string, Seat> = {};
