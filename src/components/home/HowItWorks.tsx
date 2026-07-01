@@ -4,11 +4,14 @@
  * icon, title and description. Every step links to the real surface.
  */
 
-import Link from "next/link";
-import { ArrowUpRight, FileText, Gavel, PenLine } from "lucide-react";
-import { Eyebrow } from "@/components/primitives";
+"use client";
 
-const STEPS = [
+import Link from "next/link";
+import { ArrowUpRight, FileText, Gavel, PenLine, Search, ShoppingBag, Wrench } from "lucide-react";
+import { Eyebrow } from "@/components/primitives";
+import { useFork } from "@/components/home/ForkContext";
+
+const VALIDATE_STEPS = [
   {
     n: "01",
     icon: PenLine,
@@ -35,7 +38,38 @@ const STEPS = [
   },
 ];
 
+const COMMERCE_STEPS = [
+  {
+    n: "01",
+    icon: ShoppingBag,
+    title: "Drop your URL",
+    body: "Paste your store link. We read your real catalogue, schema and signals — no setup, no plugin.",
+    meta: "~10 seconds",
+    href: "/commerce",
+  },
+  {
+    n: "02",
+    icon: Search,
+    title: "The AI shops you",
+    body: "We ask ChatGPT, Claude & Gemini where to buy — and show, verbatim, whether they name you or a competitor.",
+    meta: "Live buyer test",
+    href: "/commerce",
+  },
+  {
+    n: "03",
+    icon: Wrench,
+    title: "Ship the fix",
+    body: "Generate llms.txt, product schema, an agent feed and an outreach kit from your real store. Copy, paste, re-check.",
+    meta: "Fix Toolkit",
+    href: "/commerce",
+  },
+];
+
 export function HowItWorks() {
+  const { fork } = useFork();
+  const commerce = fork === "commerce";
+  const STEPS = commerce ? COMMERCE_STEPS : VALIDATE_STEPS;
+
   return (
     <section id="how" className="scroll-mt-20 border-b border-ink/15 bg-paper grid-paper">
       <div className="mx-auto max-w-[1120px] px-6 py-24 lg:px-10 lg:py-28">
@@ -43,12 +77,17 @@ export function HowItWorks() {
           <div>
             <Eyebrow index="— 05" label="How it works" className="mb-6" />
             <h2 className="font-display text-[clamp(2.25rem,5vw,4rem)] leading-[0.92] tracking-[-0.02em] text-ink">
-              Idea in. <span className="hl-red">Verdict out.</span>
+              {commerce ? (
+                <>Store in. <span className="hl-blue">Visibility out.</span></>
+              ) : (
+                <>Idea in. <span className="hl-red">Verdict out.</span></>
+              )}
             </h2>
           </div>
           <p className="max-w-sm text-sm leading-relaxed text-ink/65">
-            The debate is optional — but founders who survive it ship a sharper dossier. The
-            transcript folds straight into your report.
+            {commerce
+              ? "AI agents already recommend someone in your category. We find out who — and ship the fixes that make it you."
+              : "The debate is optional — but founders who survive it ship a sharper dossier. The transcript folds straight into your report."}
           </p>
         </div>
 

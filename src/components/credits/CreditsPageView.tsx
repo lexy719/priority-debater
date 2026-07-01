@@ -17,6 +17,8 @@ import type { LedgerEntry } from "@/components/account/AccountView";
 const ACTION_LABELS: Record<CreditAction, string> = {
   validation: "Idea validation",
   debate: "Chamber debate",
+  debate_revise: "Chamber revision",
+  quick_cross: "Quick Cross",
   brand_kit: "Brand kit",
   launch_kit: "Launch kit",
   campaign: "Campaign",
@@ -24,8 +26,10 @@ const ACTION_LABELS: Record<CreditAction, string> = {
   pitch: "Pitch deck",
   rescore: "Re-score",
   hd_voice: "HD tribunal voice",
-  commerce_audit: "Commerce audit",
-  commerce_toolkit: "Commerce toolkit",
+  commerce_scan: "Commerce report unlock",
+  commerce_rescan: "Weekly re-scan",
+  commerce_agent_action: "PD Agent action",
+  commerce_agent_chat: "PD Agent message",
   logo_image: "Logo image",
   ad_video: "Ad video",
 };

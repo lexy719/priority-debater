@@ -1,0 +1,103 @@
+{
+  "summary": "Frontend-only verification of the rewritten storyboard content + the two NEW interactive behaviors: (1) Scanning page AUTO-ADVANCE via setTimeout to /commerce/verdict, and (2) Agent page collapsible done-card file row with blue Copy -> 'Copied' button. Tested at 1440x900 desktop against the public REACT_APP_BACKEND_URL preview. 99% of storyboard checks pass. Found ONE real bug on the Agent Copy button that emits an UNHANDLED promise rejection (NotAllowedError) which triggers a webpack dev-server runtime-error overlay that blocks subsequent clicks in dev mode.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Agent.jsx -> FixCard.doCopy",
+        "issue": "navigator.clipboard.writeText() returns a Promise. The current try/catch (lines 96-104) does NOT catch the async rejection. In the sandboxed/cross-origin preview iframe the call rejects with 'NotAllowedError: Failed to execute writeText on Clipboard: Write permission denied.' That unhandled rejection is intercepted by webpack-dev-server's runtime-error overlay which paints a full-screen modal that blocks ALL subsequent pointer events (including the file toggle button, halfway submit, nav links). The UI label correctly toggles Copy -> Copied -> Copy, so the visual contract works; only the unhandled rejection is the problem. In a production build the overlay won't appear but the unhandled rejection still pollutes the console and could break analytics / error reporting.",
+        "selector": "[data-testid^='fix-copy-']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Monitor /commerce/monitor", "issues": ["Recharts still logs two non-blocking width(-1) / height(-1) warnings on initial mount (carried over from iteration_1, acceptable per spec)."]}
+    ]
+  },
+  "verified_checks": {
+    "landing": {
+      "headline_exact": "WHILE YOU WERE WORKING ON YOUR STORE, AI STARTED RECOMMENDING YOUR COMPETITORS",
+      "competitors_in_blue_box": "rgb(45, 107, 255)",
+      "counter_live_ticking": "2,418,499 -> 2,423,094 in 600ms",
+      "counter_color_blue": "rgb(45, 107, 255)",
+      "subtext_mentions": ["ChatGPT", "2.4 million shopping questions", "last 60 seconds"],
+      "cta_copy_exact": "SEE IF YOURS WAS ONE OF THEM",
+      "cta_navigates_to": "/commerce/scanning",
+      "no_social_proof_footer": true
+    },
+    "scanning_auto_advance": {
+      "scan_lines_0_to_4_appear_sequentially": true,
+      "line_0_contains": "Found your store... colchaoemma.pt",
+      "bare_score_22_red_no_label_no_button": true,
+      "buttons_in_main_count": 0,
+      "auto_redirected_to_verdict_without_click": true
+    },
+    "verdict": {
+      "fact_01_ai_chat_card_with_5_stores": true,
+      "fact_01_NOT_MENTIONED_0_OF_5_red": "rgb(232, 39, 42)",
+      "fact_02_cream_background": "rgb(237, 230, 216)",
+      "fact_02_340K_2800_present": true,
+      "fact_02_captured_zero_red": "rgb(232, 39, 42)",
+      "fact_02_14000_missed_mentioned": true,
+      "fact_03_gap_bars_values": ["62", "58", "51", "22"],
+      "fact_03_gap_bar_you_red": "rgb(232, 39, 42)",
+      "fact_03_other_bars_blue": "rgb(45, 107, 255)",
+      "fact_03_other_bars_count": 3,
+      "single_yellow_cta_count": 1,
+      "verdict_fix_button_text": "SEE WHY — AND WHAT THE AGENT FIXES FIRST",
+      "verdict_fix_button_bg": "rgb(245, 200, 66)",
+      "navigates_to_agent": true,
+      "no_numbered_steps_or_competitor_card_grid": true
+    },
+    "agent": {
+      "hero_intro_blocking_and_fixing_phrases_present": true,
+      "score_widget_shows_22_to_47_blue": true,
+      "fix_card_counts": {"done": 3, "progress": 1, "pending": 3},
+      "halfway_banner_after_3rd_done_card": true,
+      "halfway_submit_yellow_count_on_page": 1,
+      "done_card_file_row_collapsed_by_default": true,
+      "click_toggle_expands_code_block": true,
+      "copy_button_blue_bg": "rgb(45, 107, 255)",
+      "copy_button_text_toggles_Copy_to_Copied": true,
+      "copy_button_resets_after_1500ms": true,
+      "second_toggle_click_collapses": true,
+      "BUG_unhandled_clipboard_promise_rejection": true
+    },
+    "monitor": {
+      "ai_channel_feed_narrative_match": "23 times + 3 sessions + purchase intent",
+      "score_narrative_match": "invisible -> 2 of 5 buyer queries",
+      "chart_line_stroke": "#2d6bff",
+      "competitors_colmol_51_to_65": true,
+      "moving_up_pill_red": "rgb(232, 39, 42)",
+      "fastest_growth_pill_green": "rgb(34, 197, 94)",
+      "single_yellow_cta_outreach_button": true,
+      "active_nav_blue": "rgb(45, 107, 255)"
+    },
+    "global": {
+      "pd_logo_blue": true,
+      "active_nav_blue": true,
+      "non_recharts_console_errors_during_pure_navigation": 0,
+      "non_recharts_console_errors_after_clicking_copy": 1
+    }
+  },
+  "test_report_links": [],
+  "action_items": [
+    "FIX: Agent.jsx FixCard.doCopy — wrap or .catch() the navigator.clipboard.writeText() promise so the async rejection in sandboxed iframes does not bubble as an unhandled rejection. Suggested patch: `const doCopy = () => { Promise.resolve(navigator.clipboard?.writeText(fix.code || '')).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 1500); };` — the current try/catch only catches sync throws, not the returned promise's rejection.",
+    "Optional: silence Recharts width(-1)/height(-1) warnings on Monitor by giving the ResponsiveContainer parent an explicit min-height/aspect (carried over)."
+  ],
+  "critical_code_review_comments": [
+    "Agent.jsx doCopy uses synchronous try/catch around an async navigator.clipboard.writeText() — the rejection is uncaught. This is the root cause of the dev-server error overlay observed during testing.",
+    "Scanning.jsx setTimeout chain works correctly: 5 lines x 800ms = 4000ms, then score at 4800ms, then auto-nav at 7000ms. Cleanup via clearTimeout on unmount is correct.",
+    "Landing.jsx Counter setInterval(100ms) increments by 300-1200 per tick — that's 4500-18000 per second, which can drift very fast over a long visit (no upper bound). Cosmetic, not a bug.",
+    "Verdict.jsx still imports `Box` but the bottom CTA section uses an h3 with `<Box>why.</Box>` which is fine. No dead code added by this iteration."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (no backend)", "frontend": "All storyboard content checks pass. 1 high-priority interaction bug (Copy unhandled rejection)."},
+  "test_credentials": "None — static prototype.",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All storyboard CONTENT and the scanning AUTO-ADVANCE (most important new behavior) are verified working end-to-end. The Agent collapsible file toggle + Copy->Copied label toggle works visually. The single open bug is that clicking Copy in the preview iframe triggers an unhandled clipboard.writeText() promise rejection (NotAllowedError) which surfaces as a webpack-dev-server runtime-error overlay that subsequently blocks pointer events for the rest of the page. Fix in Agent.jsx FixCard.doCopy by attaching .catch() to the promise. After fix, retest by: open /commerce/agent -> click any data-testid='fix-file-toggle-llms.txt' -> click data-testid='fix-copy-llms.txt' -> verify NO error overlay appears AND that subsequent clicks (e.g., nav-link-monitor) still work.",
+  "rca_of_the_issue": "Root cause: In /app/frontend/src/pages/Agent.jsx line ~96-104, the doCopy handler is `const doCopy = () => { try { navigator.clipboard?.writeText(fix.code || ''); } catch (e) {} ... }`. Because writeText() returns a Promise, the synchronous try/catch never catches a rejection. In the Emergent preview iframe the Clipboard API rejects with 'NotAllowedError: Failed to execute writeText on Clipboard: Write permission denied.'. The unhandled rejection is picked up by react-error-overlay (webpack-dev-server) which renders a full-screen modal that intercepts all pointer events. Reproduction: navigate to /commerce/agent, expand any done card (fix-file-toggle-llms.txt), click the blue Copy button (fix-copy-llms.txt) — the overlay appears immediately. Mitigation: `.catch(() => {})` the writeText promise, OR await inside an async try/catch, OR use document.execCommand('copy') as fallback. The visible 'Copied' label toggling itself is unaffected and works correctly."
+}

@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
 import { SiteNav } from "@/components/SiteNav";
-import { CommerceAudit } from "@/components/commerce/CommerceAudit";
+import { Landing } from "@/components/commerce/Landing";
 
 export const metadata: Metadata = {
-  title: "AI Commerce Audit — Priority Debater",
+  title: "PD Commerce — See what AI says about your store",
   description:
-    "Score how ChatGPT, Claude, and Gemini see your store, simulate how buyer-agents shop it, and ship the fixes that make AI recommend you instead of your competitors.",
+    "We ask ChatGPT, Perplexity, and Google AI where to buy in your category, show you exactly who they recommend instead of you, and fix it. Free scan, ~45 seconds, no card.",
   openGraph: {
-    title: "AI Commerce Audit — Priority Debater",
-    description: "Eight modules that score, monitor, and fix your store for agentic commerce.",
+    title: "AI is recommending your competitors. Not you.",
+    description: "Run a free AI-visibility scan of your store in 45 seconds.",
   },
 };
 
 export default function CommercePage() {
   return (
-    <main className="min-h-screen bg-[#0c0c0f]">
-      <SiteNav subtitle="AI Commerce" />
-      <CommerceAudit />
+    <main className="min-h-screen bg-paper text-ink">
+      <SiteNav subtitle="PD Commerce" />
+      <Landing />
     </main>
   );
 }

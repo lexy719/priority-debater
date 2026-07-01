@@ -90,17 +90,21 @@ export type LaunchKitPayload = {
 /* ── Campaign (the /api/campaign payload) ────────────────────────────────── */
 export type CampaignKpi = { k: string; v: string; c: string };
 export type CampaignBudgetRow = { platform: string; pct: number; amount: string; color: string };
-export type CampaignScene = { t: string; visual: string; line: string };
+/**
+ * A single STATIC ad creative — pure copy + layout, no video, no people, no
+ * voiceover. `headline`/`subhead` are the words rendered ON the creative; the
+ * brand color fills the background. `adCopy` is the post text that ships beside
+ * the image in the ad manager.
+ */
 export type CampaignAd = {
   id: string;
   platform: string;
   color: string;
-  format: string;
-  duration: string;
+  format: string;   // e.g. "Static image", "Carousel card"
   aspect: string;
   concept: string;
-  hook: string;
-  scenes: CampaignScene[];
+  headline: string; // the big line set on the creative
+  subhead: string;  // supporting line on the creative
   adCopy: { headline: string; primary: string };
   cta: string;
 };

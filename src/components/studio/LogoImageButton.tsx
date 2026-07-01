@@ -8,9 +8,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Sparkles, Loader2, RotateCcw, Lock } from "lucide-react";
+import { Sparkles, Loader2, RotateCcw, Coins } from "lucide-react";
 
-type Status = "idle" | "working" | "done" | "error" | "locked" | "unconfigured";
+type Status = "idle" | "working" | "done" | "error" | "login" | "credits" | "unconfigured";
 
 export function LogoImageButton({ prompt }: { prompt: string }) {
   const [status, setStatus] = useState<Status>("idle");
@@ -34,7 +34,8 @@ export function LogoImageButton({ prompt }: { prompt: string }) {
         body: JSON.stringify({ prompt }),
       });
       const j = await res.json();
-      if (res.status === 401 || res.status === 402) return setStatus("locked");
+      if (res.status === 401) return setStatus("login");
+      if (res.status === 402) return setStatus("credits");
       if (res.status === 503) return setStatus("unconfigured");
       if (!res.ok || !j.id) throw new Error(j?.message || j?.error || "Failed.");
       await poll(j.id as string);
@@ -76,13 +77,14 @@ export function LogoImageButton({ prompt }: { prompt: string }) {
     );
   }
 
-  if (status === "locked") {
+  if (status === "login" || status === "credits") {
+    const credits = status === "credits";
     return (
       <Link
-        href="/pricing"
+        href={credits ? "/credits" : "/login?next=/brand-kit"}
         className="inline-flex items-center gap-1.5 border border-current px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.15em] opacity-90 hover:opacity-100"
       >
-        <Lock size={11} /> Pro — generate logo
+        <Coins size={11} /> {credits ? "Top up to generate" : "Sign in to generate"}
       </Link>
     );
   }

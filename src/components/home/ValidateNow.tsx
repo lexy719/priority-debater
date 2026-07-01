@@ -1,31 +1,31 @@
 "use client";
 
-/**
- * ValidateNow — the homepage's REAL validation entry point, styled to the
- * Emergent print: dark band, left headline + bullets + tags, right terminal
- * card with mac dots and a red RUN VALIDATION button. Runs the actual panel
- * validation, saves the session, routes to /results. Honest copy only.
- */
-
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Loader2, AlertTriangle } from "lucide-react";
-import { ideaCategoryFromSetup } from "@/lib/dossier-from-session";
+import { AlertTriangle, ArrowRight, Check, Loader2, ShoppingBag } from "lucide-react";
+import { OutOfCreditsModal } from "@/components/credits/OutOfCreditsModal";
+import { useCreditsState } from "@/components/credits/CreditsProvider";
+import { useFork } from "@/components/home/ForkContext";
 import { clearPanelFlowPersist } from "@/lib/panel-debate-session";
 import { saveSession } from "@/lib/session";
 import { streamDebateMarkdown } from "@/lib/stream-debate-markdown";
+import { CREDIT_COSTS } from "@/lib/credits/costs";
+import { ideaCategoryFromSetup } from "@/lib/dossier-from-session";
 import type { ValidationSession } from "@/lib/types";
 import { buildValidateDebateSetupFromSingleIdea } from "@/lib/validate-brief-setup";
-import { useCreditsState } from "@/components/credits/CreditsProvider";
-import { CREDIT_COSTS } from "@/lib/credits/costs";
-import { OutOfCreditsModal } from "@/components/credits/OutOfCreditsModal";
 
 const MIN_CHARS = 120;
 
-const bullets = [
-  "Five adversarial agents argue it — investor, customer, operator, adversary, mentor",
+const validationBullets = [
+  "Five adversarial agents argue it - investor, customer, operator, adversary, mentor",
   "Audited score: deterministic rubric, web-enriched, evidence-capped",
-  "No “great idea!” — ever",
+  "No soft applause - ever",
+];
+
+const commerceBullets = [
+  "Scores how AI shopping agents see your store",
+  "Opens your live dashboard with the URL already loaded",
+  "Per-product AI scores, the fix queue, and one-click optimisation",
 ];
 
 const tags = ["~2 min", "No card required", "Audited scoring", "Shareable report"];
@@ -37,19 +37,33 @@ function newId(): string {
 
 export function ValidateNow() {
   const router = useRouter();
+  const { fork } = useFork();
+  const commerce = fork === "commerce";
   const { state, refresh } = useCreditsState();
-  const [pitch, setPitch] = useState("");
+  const [value, setValue] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [creditGate, setCreditGate] = useState<{ balance: number } | null>(null);
 
-  const len = pitch.trim().length;
-  const canRun = len >= MIN_CHARS && !pending;
+  const len = value.trim().length;
+  const canRun = commerce ? !pending : len >= MIN_CHARS && !pending;
+  const accentText = commerce ? "text-signal-blue" : "text-signal-red";
+  const accentBg = commerce ? "bg-signal-blue" : "bg-signal-red";
+  const accentBorder = commerce ? "border-signal-blue/70" : "border-signal-red/70";
+  const accentShadow = commerce
+    ? "shadow-[8px_8px_0_0_var(--color-signal-blue)]"
+    : "shadow-[8px_8px_0_0_var(--color-signal-red)]";
 
   const run = useCallback(async () => {
     if (!canRun) return;
-    // Credits are enforced server-side inside /api/debate. Pre-check the cached
-    // balance for instant UX: sign in if logged out, modal if short.
+
+    if (commerce) {
+      const url = value.trim();
+      // PD Commerce: a URL runs a scan straight into the report; empty → the landing.
+      router.push(url ? `/commerce/results?url=${encodeURIComponent(url)}` : "/commerce");
+      return;
+    }
+
     if (state.configured && !state.authed) {
       router.push("/login?next=" + encodeURIComponent("/#validate"));
       return;
@@ -58,10 +72,11 @@ export function ValidateNow() {
       setCreditGate({ balance: state.balance ?? 0 });
       return;
     }
+
     setError(null);
     setPending(true);
     try {
-      const setup = buildValidateDebateSetupFromSingleIdea(pitch);
+      const setup = buildValidateDebateSetupFromSingleIdea(value);
       let scoreReconciliation: ValidationSession["scoreReconciliation"];
       const markdown = await streamDebateMarkdown(
         "start",
@@ -80,40 +95,55 @@ export function ValidateNow() {
       session.ideaCategory = ideaCategoryFromSetup(session);
       saveSession(session);
       clearPanelFlowPersist();
-      void refresh(); // pull the new server balance into the navbar badge
+      void refresh();
       router.push("/results");
     } catch (err) {
       setPending(false);
       const status = (err as { status?: number })?.status;
-      if (status === 401) { router.push("/login?next=" + encodeURIComponent("/#validate")); return; }
-      if (status === 402) { setCreditGate({ balance: state.balance ?? 0 }); return; }
+      if (status === 401) {
+        router.push("/login?next=" + encodeURIComponent("/#validate"));
+        return;
+      }
+      if (status === 402) {
+        setCreditGate({ balance: state.balance ?? 0 });
+        return;
+      }
       setError(err instanceof Error ? err.message : "The panel couldn't convene. Try again.");
     }
-  }, [canRun, pitch, router, state, refresh]);
+  }, [canRun, commerce, refresh, router, state, value]);
 
   return (
     <section id="validate" className="scroll-mt-20 border-b border-paper/10 bg-ink text-paper grid-paper-dark">
       <div className="mx-auto max-w-[1120px] px-6 py-24 lg:px-10 lg:py-32">
         <div className="grid gap-14 lg:grid-cols-12 lg:gap-12">
-          {/* Left */}
           <div className="lg:col-span-5">
             <div className="mb-6 font-mono text-[10px] uppercase tracking-[0.28em] text-paper/45">
-              — 02 / Input
+              {commerce ? "02 / Store audit" : "02 / Input"}
             </div>
             <h2 className="font-display text-[clamp(2.5rem,5.5vw,4.5rem)] leading-[0.94] tracking-[-0.01em] text-paper">
-              Drop the pitch. <br />
-              The panel handles{" "}
-              <span className="hl-yellow">the</span> <br />
-              <span className="hl-yellow">rest.</span>
+              {commerce ? (
+                <>
+                  Drop the URL. <br />
+                  The audit handles <span className="hl-blue">the</span> <br />
+                  <span className="hl-blue">rest.</span>
+                </>
+              ) : (
+                <>
+                  Drop the pitch. <br />
+                  The panel handles <span className="hl-yellow">the</span> <br />
+                  <span className="hl-yellow">rest.</span>
+                </>
+              )}
             </h2>
             <p className="mt-7 max-w-md text-[15px] leading-relaxed text-paper/65">
-              Tell us what you are building, who pays, and why now. The panel turns it into a
-              structured stress test, then the synthesis engine writes your dossier.
+              {commerce
+                ? "Enter a live store URL. Your AI-visibility dashboard opens with that URL, runs the audit, and lays out every fix plus per-product scores."
+                : "Tell us what you are building, who pays, and why now. The panel turns it into a structured stress test, then the synthesis engine writes your dossier."}
             </p>
             <ul className="mt-7 space-y-2.5 font-mono text-[12px] text-paper/80">
-              {bullets.map((b) => (
+              {(commerce ? commerceBullets : validationBullets).map((b) => (
                 <li key={b} className="flex items-start gap-2.5">
-                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-signal-red" /> {b}
+                  <Check className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${accentText}`} /> {b}
                 </li>
               ))}
             </ul>
@@ -126,55 +156,69 @@ export function ValidateNow() {
             </div>
           </div>
 
-          {/* Right — terminal card */}
           <div className="lg:col-span-7">
-            <div className="border border-signal-red/70 bg-[#15110f] shadow-[8px_8px_0_0_var(--color-signal-red)]">
-              {/* window bar */}
+            <div className={`border bg-[#15110f] ${accentBorder} ${accentShadow}`}>
               <div className="flex items-center justify-between border-b border-paper/10 px-5 py-3">
                 <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full bg-signal-red" />
+                  <span className={`h-3 w-3 rounded-full ${accentBg}`} />
                   <span className="h-3 w-3 rounded-full bg-signal-yellow" />
                   <span className="h-3 w-3 rounded-full bg-signal-green" />
                 </div>
                 <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-paper/45">
-                  idea-validation · panel.exe
+                  {commerce ? "commerce-audit / store.exe" : "idea-validation / panel.exe"}
                 </span>
-                <span className={`font-mono text-[10px] ${len >= MIN_CHARS ? "text-signal-green" : "text-paper/45"}`}>
-                  {Math.min(len, MIN_CHARS)}/{MIN_CHARS}+
-                </span>
+                {commerce ? (
+                  <span className="font-mono text-[10px] text-paper/45">URL</span>
+                ) : (
+                  <span className={`font-mono text-[10px] ${len >= MIN_CHARS ? "text-signal-green" : "text-paper/45"}`}>
+                    {Math.min(len, MIN_CHARS)}/{MIN_CHARS}+
+                  </span>
+                )}
               </div>
 
               <div className="p-5">
-                <div className="flex items-center gap-2 font-mono text-[11px] text-signal-red">
-                  <span className="text-paper/40">$</span> ./debate --idea
+                <div className={`flex items-center gap-2 font-mono text-[11px] ${accentText}`}>
+                  <span className="text-paper/40">$</span> {commerce ? "./audit --store-url" : "./debate --idea"}
                 </div>
-                <textarea
-                  value={pitch}
-                  onChange={(e) => setPitch(e.target.value)}
-                  disabled={pending}
-                  placeholder="Pitch your idea in one shot: what you are building, who pays, the pain, why now, and what is hard. We need enough signal to argue — aim for a few dense sentences."
-                  className="mt-3 h-60 w-full resize-none border border-paper/10 bg-[#0e0b0a] p-4 font-mono text-xs leading-relaxed text-paper/85 placeholder:text-paper/35 focus:border-signal-red/60 focus:outline-none disabled:opacity-60"
-                />
+                {commerce ? (
+                  <input
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    disabled={pending}
+                    placeholder="https://your-store.com"
+                    className="mt-3 w-full border border-paper/10 bg-[#0e0b0a] p-4 font-mono text-sm leading-relaxed text-paper/85 placeholder:text-paper/35 focus:border-signal-blue/60 focus:outline-none disabled:opacity-60"
+                  />
+                ) : (
+                  <textarea
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    disabled={pending}
+                    placeholder="Pitch your idea in one shot: what you are building, who pays, the pain, why now, and what is hard. We need enough signal to argue - aim for a few dense sentences."
+                    className="mt-3 h-60 w-full resize-none border border-paper/10 bg-[#0e0b0a] p-4 font-mono text-xs leading-relaxed text-paper/85 placeholder:text-paper/35 focus:border-signal-red/60 focus:outline-none disabled:opacity-60"
+                  />
+                )}
 
-                {error && (
+                {error && !commerce && (
                   <div className="mt-4 flex items-center gap-2 border border-signal-red/60 bg-signal-red/10 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.14em] text-signal-red">
                     <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {error}
                   </div>
                 )}
 
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-                  <p className={`font-mono text-[10px] uppercase tracking-[0.16em] ${pending ? "text-signal-yellow" : len >= MIN_CHARS ? "text-signal-green" : "text-paper/45"}`}>
-                    {pending
-                      ? "> convening the panel…"
-                      : len >= MIN_CHARS
-                        ? "> enough signal. ready to argue."
-                        : `> add ${MIN_CHARS - len} more characters`}
+                  <p className={`font-mono text-[10px] uppercase tracking-[0.16em] ${pending ? "text-signal-yellow" : commerce || len >= MIN_CHARS ? "text-signal-green" : "text-paper/45"}`}>
+                    {commerce
+                      ? "> ready to open your dashboard"
+                      : pending
+                        ? "> convening the panel..."
+                        : len >= MIN_CHARS
+                          ? "> enough signal. ready to argue."
+                          : `> add ${MIN_CHARS - len} more characters`}
                   </p>
                   <div className="flex items-center gap-3">
-                    {state.configured && (
+                    {state.configured && !commerce && (
                       <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-paper/55">
                         {state.authed
-                          ? `${CREDIT_COSTS.validation} credits · ${state.balance ?? 0} left`
+                          ? `${CREDIT_COSTS.validation} credits - ${state.balance ?? 0} left`
                           : `${CREDIT_COSTS.validation} credits`}
                       </span>
                     )}
@@ -182,12 +226,25 @@ export function ValidateNow() {
                       type="button"
                       onClick={run}
                       disabled={!canRun}
-                      className="group inline-flex items-center gap-2 bg-signal-red px-5 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-paper transition-colors hover:bg-paper hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+                      className={`group inline-flex items-center gap-2 px-5 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-paper transition-colors hover:bg-paper hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 ${
+                        commerce ? "bg-signal-blue" : "bg-signal-red"
+                      }`}
                     >
                       {pending ? (
-                        <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Panel in session…</>
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Panel in session...
+                        </>
+                      ) : commerce ? (
+                        <>
+                          Audit your store
+                          <ShoppingBag className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                        </>
                       ) : (
-                        <>Run validation <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" /></>
+                        <>
+                          Run validation
+                          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                        </>
                       )}
                     </button>
                   </div>

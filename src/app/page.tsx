@@ -8,6 +8,8 @@
 
 import { motion, useScroll, useSpring } from "framer-motion";
 import { SiteNav } from "@/components/SiteNav";
+import { ForkProvider } from "@/components/home/ForkContext";
+import { ForkToggle } from "@/components/home/ForkToggle";
 import { Hero } from "@/components/Hero";
 import { Ticker } from "@/components/Ticker";
 import { ValidateNow } from "@/components/home/ValidateNow";
@@ -31,17 +33,20 @@ export default function LandingPage() {
         style={{ scaleX: progress, width: "100%" }}
       />
       <SiteNav />
-      <Hero />
-      <Ticker />
-      <Reveal><ValidateNow /></Reveal>
-      <Reveal><TribunalShowcase /></Reveal>
-      <Reveal><DossierShowcase /></Reveal>
-      <Reveal><HowItWorks /></Reveal>
-      <Reveal><FlowShowcase /></Reveal>
-      <Reveal><Pricing /></Reveal>
-      <Reveal><Faq /></Reveal>
-      <Reveal><Cta /></Reveal>
-      <Footer />
+      <ForkProvider>
+        <Hero />
+        <ForkToggle />
+        <Ticker />
+        <Reveal><ValidateNow /></Reveal>
+        <Reveal><TribunalShowcase /></Reveal>
+        <Reveal><DossierShowcase /></Reveal>
+        <Reveal><HowItWorks /></Reveal>
+        <Reveal><FlowShowcase /></Reveal>
+        <Reveal><Pricing /></Reveal>
+        <Reveal><Faq /></Reveal>
+        <Reveal><Cta /></Reveal>
+        <Footer />
+      </ForkProvider>
     </main>
   );
 }

@@ -33,6 +33,7 @@ type Body = {
   context?: string;
   validationContent?: string;
   brandName?: string;
+  debateBrief?: string;
 };
 
 function clampText(value: unknown, max: number): string {
@@ -164,6 +165,7 @@ export async function POST(request: Request) {
     const context = clampText(body.context, 1200);
     const validationContent = clampText(body.validationContent, 7000);
     const brandName = clampText(body.brandName, 40);
+    const debateBrief = clampText(body.debateBrief, 1200);
 
     const openai = new OpenAI({ apiKey: key });
 
@@ -177,7 +179,7 @@ ${brandName ? `Brand name (use it): ${brandName}` : ""}
 Founder reasoning / position: ${position || "N/A"}
 Context: ${context || "N/A"}
 Validation summary: ${validationContent || "N/A"}
-
+${debateBrief ? `\nAdversarial debate — UNRESOLVED gaps the launch must answer head-on (not re-pitch around):\n${debateBrief}\n\nBake direct responses into the product-page value props, the offer's risk-reversal/guarantee, and the objection-handling in cold outreach. Turn each gap into proof, not a dodge.\n` : ""}
 Return EXACTLY this JSON shape. No extra keys. No prose.
 
 {

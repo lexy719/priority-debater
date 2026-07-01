@@ -32,7 +32,7 @@ export default async function AccountPage() {
 
   const [balance, profileRes] = await Promise.all([
     getBalanceForUser(user.id),
-    supabase.from("profiles").select("plan, created_at").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("created_at").eq("id", user.id).maybeSingle(),
   ]);
 
   const meta = user.user_metadata ?? {};
@@ -53,7 +53,6 @@ export default async function AccountPage() {
         user={{
           email: user.email ?? "",
           name,
-          plan: (profileRes.data?.plan as string) ?? "free",
           createdAt: (profileRes.data?.created_at as string) ?? user.created_at ?? "",
           provider,
         }}

@@ -21,10 +21,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { CreditBadge } from "@/components/credits/CreditBadge";
 import { AccountChip } from "@/components/account/AccountChip";
+import { getCurrentReport } from "@/lib/commerce/client-store";
 
 const FLOW_ROUTES = ["/brand-kit", "/launch-kit", "/campaign", "/landing-builder", "/ship"];
 
@@ -37,12 +38,11 @@ const MARKETING_LINKS: NavLink[] = [
   { label: "The Dossier", href: "/#report", active: false },
   { label: "How it works", href: "/#how", active: false },
   { label: "The Studio", href: "/#studio", active: false },
-  { label: "Commerce", href: "/commerce", active: false },
   { label: "Pricing", href: "/pricing", active: false },
   { label: "FAQ", href: "/faq", active: false },
 ];
 
-function useNav(): { context: NavContext; links: NavLink[]; ctaLabel: string; ctaHref: string } {
+function useNav(commerceReportId?: string): { context: NavContext; links: NavLink[]; ctaLabel: string; ctaHref: string } {
   const path = usePathname() ?? "";
 
   const MARKETING_PAGES = ["/pricing", "/faq", "/about", "/privacy", "/terms", "/contact"];
@@ -50,20 +50,26 @@ function useNav(): { context: NavContext; links: NavLink[]; ctaLabel: string; ct
     return { context: "marketing", links: MARKETING_LINKS, ctaLabel: "Validate my idea", ctaHref: "/#validate" };
   }
 
-  // The second path — AI Commerce audit. Its own link set + "Run audit" CTA.
+  // The second path — PD Commerce: Scan → Report → PD Agent. Once a report
+  // exists (carried in localStorage), the nav threads its id through so moving
+  // between Report and Agent keeps the same store.
   if (path.startsWith("/commerce")) {
-    const isToolkit = path.startsWith("/commerce/toolkit");
-    const links: NavLink[] = [
-      { label: "Validate", href: "/", active: false },
-      { label: "Audit", href: "/commerce", active: !isToolkit },
-      { label: "Toolkit", href: "/commerce/toolkit", active: isToolkit },
-      { label: "Simulation", href: "/commerce#simulation", active: false },
-    ];
+    const onResults = path.startsWith("/commerce/results");
+    const onAgent = path.startsWith("/commerce/agent");
+    const links: NavLink[] = commerceReportId
+      ? [
+          { label: "Report", href: `/commerce/results?r=${commerceReportId}`, active: onResults },
+          { label: "PD Agent", href: `/commerce/agent?reportId=${commerceReportId}`, active: onAgent },
+        ]
+      : [
+          { label: "Scan", href: "/commerce", active: path === "/commerce" || onResults },
+          { label: "PD Agent", href: "/commerce/agent", active: onAgent },
+        ];
     return {
       context: "commerce",
       links,
-      ctaLabel: isToolkit ? "New audit" : "Fix toolkit",
-      ctaHref: isToolkit ? "/commerce" : "/commerce/toolkit",
+      ctaLabel: commerceReportId ? "New scan" : "Run free scan",
+      ctaHref: "/commerce",
     };
   }
 
@@ -90,7 +96,15 @@ type SiteNavProps = {
 };
 
 export function SiteNav({ subtitle, actions, sticky = true }: SiteNavProps) {
-  const { context, links, ctaLabel, ctaHref } = useNav();
+  const path = usePathname() ?? "";
+  // Read the current commerce report from localStorage after mount (never during
+  // render — keeps SSR/first paint stable, then threads the store id into nav).
+  const [commerceReportId, setCommerceReportId] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    setCommerceReportId(path.startsWith("/commerce") ? getCurrentReport()?.shareId : undefined);
+  }, [path]);
+
+  const { context, links, ctaLabel, ctaHref } = useNav(commerceReportId);
   const [open, setOpen] = useState(false);
 
   return (

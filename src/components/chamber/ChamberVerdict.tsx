@@ -12,8 +12,9 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X, Download, Copy, RotateCcw, Gavel, ArrowRight, Check } from "lucide-react";
+import { X, Download, Copy, RotateCcw, Gavel, ArrowRight, Check, Coffee } from "lucide-react";
 import Link from "next/link";
+import { deriveHandoff, axisFor, type HandoffGap } from "@/lib/chamber-handoff";
 
 export type VerdictPersona = {
   id: string; name: string; role: string; initials: string;
@@ -94,12 +95,33 @@ function overallVerdict(survival: number): { word: string; tone: string; blurb: 
   return { word: "KILLED IN CHAMBER", tone: "var(--danger)", blurb: "The thesis broke. The chamber would not fund this in current form." };
 }
 
+/** One-line recommendation for the synthesis, keyed to score + how many axes stayed open. */
+function synthesisLead(survival: number, gapCount: number): string {
+  if (gapCount === 0)
+    return survival >= 6
+      ? "Worth building — the panel closed every axis it opened."
+      : "It survives, but the room ran short before any axis was cleanly closed.";
+  const n = `${gapCount} ${gapCount > 1 ? "axes" : "axis"}`;
+  if (survival >= 6) return `Worth building — but close ${n} before you raise or launch.`;
+  if (survival >= 4) return `Needs a different angle. ${n} stayed open under fire.`;
+  return `The thesis broke. ${n} collapsed and were never rebuilt.`;
+}
+
+const GAP_TONE: Record<HandoffGap["status"], string> = {
+  conceded: "var(--danger)", undefended: "var(--danger)", weak: "var(--warn)",
+};
+const GAP_VERB: Record<HandoffGap["status"], string> = {
+  conceded: "conceded outright", undefended: "kill-shot unanswered", weak: "not convincingly answered",
+};
+
 export default function ChamberVerdict({
-  idea, survival, round, totalRounds, personas, transcript, scores, onClose, onReset,
+  idea, survival, round, totalRounds, personas, transcript, scores, onClose, onReset, onDebrief, onRuling,
 }: {
   idea: string; survival: number; round: number; totalRounds: number;
   personas: VerdictPersona[]; transcript: VerdictTurn[]; scores?: Record<string, number[]>;
-  onClose: () => void; onReset: () => void;
+  onClose: () => void; onReset: () => void; onDebrief: () => void;
+  /** Fired once when the ruling is assembled, so the host can persist the Case File. */
+  onRuling?: (r: { overall: string; synthesisLead: string; verdicts: { personaId: string; name: string; ruling: string; line: string }[] }) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -116,11 +138,50 @@ export default function ChamberVerdict({
   const convinced = rulings.filter((r) => r.ruling === "CONVINCED").length;
   const kills = transcript.filter((t) => t.severity === "kill").length;
 
+  /**
+   * The traceable synthesis: which axes the founder HELD (a seat it convinced)
+   * vs. which stayed OPEN — each citing the seat's own line from the floor, so
+   * every claim in the ruling points back to a real exchange, not a score bucket.
+   * Reuses deriveHandoff so the "open" side is the exact same honest logic that
+   * seeds the downstream Brand/Launch flow.
+   */
+  const synthesis = useMemo(() => {
+    const gaps = deriveHandoff(
+      idea,
+      transcript,
+      personas.map((p) => ({ id: p.id, name: p.name, role: p.role })),
+      scores ?? {},
+      survival,
+    ).gaps;
+    const held = personas
+      .map((p) => {
+        const g = scores?.[p.id] ?? [];
+        const avg = g.length ? g.reduce((a, b) => a + b, 0) / g.length : null;
+        return { p, avg };
+      })
+      .filter((h) => h.avg !== null && h.avg >= 2.5)
+      .map((h) => ({ axis: axisFor(h.p.id, h.p.role), persona: h.p.name, quote: lineFor(h.p, "CONVINCED", transcript) }));
+    return { gaps, held };
+  }, [idea, transcript, personas, scores, survival]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  // Report the assembled ruling once so the host can persist the Case File (§3).
+  const reported = useRef(false);
+  useEffect(() => {
+    if (reported.current) return;
+    reported.current = true;
+    onRuling?.({
+      overall: overall.word,
+      synthesisLead: synthesisLead(survival, synthesis.gaps.length),
+      verdicts: rulings.map((r) => ({ personaId: r.p.id, name: r.p.name, ruling: r.ruling, line: r.line })),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const buildSvg = () => {
     const W = 1200, H = 675;
@@ -178,6 +239,10 @@ export default function ChamberVerdict({
       `Idea: ${idea}`,
       `Survival: ${survival.toFixed(1)}/10 · ${convinced}/5 convinced · ${kills} kill-shots`,
       "",
+      `Synthesis: ${synthesisLead(survival, synthesis.gaps.length)}`,
+      ...synthesis.held.map((h) => `HELD — ${h.axis} (${h.persona})`),
+      ...synthesis.gaps.map((g) => `OPEN — ${g.axis} (${g.persona}, ${GAP_VERB[g.status]}): "${g.quote}"`),
+      "",
       ...rulings.map((r) => `${r.p.name} (${r.p.role}): ${r.ruling}`),
       "",
       "Pressure-tested by 5 AI adversaries on Priority Debater.",
@@ -211,6 +276,39 @@ export default function ChamberVerdict({
             </div>
           </div>
 
+          {/* Traceable synthesis — every claim cites a real line from the floor. */}
+          <div className="mt-8 border border-ink-foreground/15 bg-ink-foreground/[0.03] p-5">
+            <div className="text-[10px] tracking-widest text-ink-foreground/55 mb-2">THE SYNTHESIS · TRACEABLE TO THE FLOOR</div>
+            <p className="font-display text-lg leading-snug" style={{ color: overall.tone }}>
+              {synthesisLead(survival, synthesis.gaps.length)}
+            </p>
+            <div className="mt-4 space-y-2.5">
+              {synthesis.held.map((h) => (
+                <div key={`held-${h.persona}`} className="flex items-start gap-3 text-sm">
+                  <span className="mt-0.5 text-[10px] tracking-widest font-bold shrink-0 w-11" style={{ color: "var(--success)" }}>HELD</span>
+                  <p className="min-w-0 leading-relaxed">
+                    <span className="text-ink-foreground font-bold">{h.axis}</span>
+                    <span className="text-ink-foreground/50"> — {h.persona} convinced.</span>
+                    {h.quote && <span className="text-ink-foreground/70 italic"> “{h.quote}”</span>}
+                  </p>
+                </div>
+              ))}
+              {synthesis.gaps.map((g) => (
+                <div key={`open-${g.personaId}`} className="flex items-start gap-3 text-sm">
+                  <span className="mt-0.5 text-[10px] tracking-widest font-bold shrink-0 w-11" style={{ color: GAP_TONE[g.status] }}>OPEN</span>
+                  <p className="min-w-0 leading-relaxed">
+                    <span className="text-ink-foreground font-bold">{g.axis}</span>
+                    <span className="text-ink-foreground/50"> — {g.persona}, {GAP_VERB[g.status]}.</span>
+                    {g.quote && <span className="text-ink-foreground/70 italic"> “{g.quote}”</span>}
+                  </p>
+                </div>
+              ))}
+              {synthesis.held.length === 0 && synthesis.gaps.length === 0 && (
+                <p className="text-sm text-ink-foreground/50">Not enough exchanges to synthesise — answer more seats for a fully traceable ruling.</p>
+              )}
+            </div>
+          </div>
+
           <div className="mt-8 space-y-2">
             {rulings.map((r) => (
               <div key={r.p.id} className="border border-ink-foreground/15 bg-ink-foreground/[0.03] p-4 flex items-start gap-4">
@@ -229,7 +327,14 @@ export default function ChamberVerdict({
             ))}
           </div>
 
-          <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-2">
+          {/* The warm beat — step out of the adversarial frame for a private debrief. */}
+          <button onClick={onDebrief}
+            className="mt-8 w-full px-5 py-4 bg-accent text-accent-foreground font-display text-sm tracking-widest hover:opacity-90 flex items-center justify-center gap-2.5">
+            <Coffee className="size-4" /> TALK IT THROUGH WITH YOUR MENTOR
+            <span className="hidden sm:inline text-accent-foreground/70 font-body tracking-normal text-xs">· what to fix first, what to ignore</span>
+          </button>
+
+          <div className="mt-2 flex flex-col sm:flex-row flex-wrap gap-2">
             <button onClick={downloadCard} disabled={downloading}
               className="px-5 py-3.5 bg-accent text-accent-foreground font-display text-sm tracking-widest hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2">
               <Download className="size-4" /> {downloading ? "RENDERING…" : "DOWNLOAD VERDICT CARD"}

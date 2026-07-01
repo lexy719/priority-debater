@@ -1,0 +1,334 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --pd-bg: #000000;
+  --pd-card: #0a0a0a;
+  --pd-white: #ffffff;
+  --pd-gray: #888888;
+  --pd-gray2: #555555;
+  --pd-blue: #2d6bff;
+  --pd-yellow: #f5c842;
+  --pd-cream: #ede6d8;
+  --pd-red: #e8272a;
+  --pd-border: #1a1a1a;
+  --pd-border2: #333333;
+  --pd-green: #22c55e;
+  --pd-amber: #f59e0b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #000000;
+  color: #ffffff;
+  font-family: "Inter", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: #2d6bff;
+  color: #ffffff;
+}
+
+.font-display {
+  font-family: "Anton", Impact, "Arial Narrow Bold", sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.font-bebas {
+  font-family: "Bebas Neue", Impact, sans-serif;
+}
+
+.font-mono {
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* The signature highlight box — electric blue (brand accent) */
+.pd-box {
+  background: #2d6bff;
+  color: #ffffff;
+  padding: 0 0.12em 0.04em;
+  display: inline-block;
+  line-height: 1;
+}
+
+/* Buttons */
+.pd-btn-primary {
+  background: #2d6bff;
+  color: #ffffff;
+  text-transform: uppercase;
+  font-weight: 700;
+  border: none;
+  border-radius: 0;
+  padding: 14px 26px;
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  letter-spacing: 0.03em;
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease;
+}
+.pd-btn-primary:hover {
+  background: #4b82ff;
+}
+.pd-btn-primary:active {
+  transform: translateY(1px);
+}
+
+.pd-btn-yellow {
+  background: #f5c842;
+  color: #000000;
+  text-transform: uppercase;
+  font-weight: 700;
+  border: none;
+  border-radius: 0;
+  padding: 14px 26px;
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  letter-spacing: 0.03em;
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease;
+}
+.pd-btn-yellow:hover {
+  background: #ffd84d;
+}
+.pd-btn-yellow:active {
+  transform: translateY(1px);
+}
+
+/* Secondary button on cream sections */
+.pd-btn-dark {
+  background: transparent;
+  color: #000000;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 0;
+  padding: 12px 22px;
+  text-transform: uppercase;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+.pd-btn-dark:hover {
+  border-color: #000000;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.pd-btn-secondary {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid #333333;
+  border-radius: 0;
+  padding: 12px 22px;
+  text-transform: uppercase;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+.pd-btn-secondary:hover {
+  border-color: #ffffff;
+  background: #0a0a0a;
+}
+
+.pd-input {
+  background: #000000;
+  border: 1px solid #333333;
+  border-radius: 0;
+  color: #ffffff;
+  padding: 14px 16px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+.pd-input::placeholder {
+  color: #555555;
+}
+.pd-input:focus {
+  border-color: #2d6bff;
+}
+
+.pd-card {
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+  border-radius: 0;
+}
+
+.pd-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #888888;
+  letter-spacing: 0.08em;
+}
+
+.pd-divider {
+  width: 100%;
+  height: 1px;
+  background: #e8272a;
+  border: none;
+}
+
+/* Status pills */
+.pd-pill {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  letter-spacing: 0.05em;
+  display: inline-block;
+  font-weight: 500;
+}
+.pd-pill-missing {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+.pd-pill-live {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+}
+.pd-pill-fail {
+  background: rgba(232, 39, 42, 0.12);
+  color: #e8272a;
+}
+
+/* Marquee ticker */
+.pd-marquee {
+  background: #e8272a;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 100%;
+}
+.pd-marquee-track {
+  display: inline-block;
+  white-space: nowrap;
+  animation: pd-scroll 28s linear infinite;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: #ffffff;
+  padding: 9px 0;
+  letter-spacing: 0.05em;
+}
+@keyframes pd-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Pulsing red for in-progress */
+.pd-pulse {
+  animation: pd-pulse 1s ease-in-out infinite;
+}
+@keyframes pd-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* Soft green glow for improved / positive numbers */
+.pd-glow-green {
+  animation: pd-glow-green 2.6s ease-in-out infinite;
+}
+@keyframes pd-glow-green {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+  50% {
+    box-shadow: 0 0 14px 0 rgba(34, 197, 94, 0.35);
+  }
+}
+
+/* Subtle blue glow for live elements */
+.pd-glow-blue {
+  animation: pd-glow-blue 2.8s ease-in-out infinite;
+}
+@keyframes pd-glow-blue {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(45, 107, 255, 0);
+  }
+  50% {
+    box-shadow: 0 0 14px 0 rgba(45, 107, 255, 0.35);
+  }
+}
+
+/* Blinking live dot */
+.pd-blink {
+  animation: pd-blink 1.4s steps(1) infinite;
+}
+@keyframes pd-blink {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  61%,
+  100% {
+    opacity: 0.2;
+  }
+}
+
+/* Staggered entrance — transform only so content stays visible even if
+   the browser throttles/pauses animations (never gates content behind opacity) */
+.pd-reveal {
+  animation: pd-reveal 0.5s ease both;
+}
+@keyframes pd-reveal {
+  from {
+    transform: translateY(10px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.pd-fade {
+  opacity: 0;
+  animation: pd-fade 0.6s ease forwards;
+}
+@keyframes pd-fade {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Progress bar fill */
+.pd-progress-track {
+  width: 100%;
+  height: 6px;
+  background: #1a1a1a;
+}
+.pd-progress-fill {
+  height: 100%;
+  background: #2d6bff;
+}
+
+/* hide scrollbar for nav indicators on mobile */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

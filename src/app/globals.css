@@ -41,6 +41,18 @@
   --signal-amber:     #f59e0b;
   --paper-foreground: var(--ink-0);
 
+  /* PD Commerce — exact brutalist palette (black/cream pages, single yellow CTA) */
+  --pd-black:         #0a0a0a;
+  --pd-ink:           #1a1a1a; /* hairline borders on dark */
+  --pd-cream:         #f5f0e8;
+  --pd-cream-2:       #e8e2d6; /* hairline borders on cream */
+  --pd-yellow:        #ffd600;
+  --pd-blue:          #1e6bff;
+  --pd-red:           #ff2d2d;
+  --pd-green:         #16b364;
+  --pd-amber:         #f5a623;
+  --pd-muted:         #8a8a8a; /* muted text on dark */
+
   /* Type — stark black hierarchy */
   --ink-0:            #000000;
   --ink-1:            #1a1a1a;
@@ -103,6 +115,18 @@
   --color-signal-amber:     #f59e0b;
   --color-signal-yellow:    #fbbf24;
 
+  /* PD Commerce palette → Tailwind utilities (bg-pd-black, text-pd-yellow, …) */
+  --color-pd-black:         var(--pd-black);
+  --color-pd-ink:           var(--pd-ink);
+  --color-pd-cream:         var(--pd-cream);
+  --color-pd-cream-2:       var(--pd-cream-2);
+  --color-pd-yellow:        var(--pd-yellow);
+  --color-pd-blue:          var(--pd-blue);
+  --color-pd-red:           var(--pd-red);
+  --color-pd-green:         var(--pd-green);
+  --color-pd-amber:         var(--pd-amber);
+  --color-pd-muted:         var(--pd-muted);
+
   /* Shadcn-style semantic tokens */
   --color-background:       var(--bg-paper);
   --color-foreground:       var(--ink-0);
@@ -133,6 +157,7 @@
   --animate-spotlight:      spotlight 2s ease 0.35s 1 forwards;
   --animate-marquee:        marquee 60s linear infinite;
   --animate-blink:          blink 1s step-end infinite;
+  --animate-pd-rise:        pd-rise 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 
   @keyframes accordion-down {
     from { height: 0; }
@@ -153,6 +178,10 @@
   @keyframes blink {
     0%, 100% { opacity: 1; }
     50%      { opacity: 0; }
+  }
+  @keyframes pd-rise {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 }
 
@@ -894,4 +923,223 @@ html.has-custom-cursor * {
 @media print {
   .chamber-scope .print\:hidden { display: none !important; }
   .chamber-scope { background: #fff !important; }
+}
+
+/* ============================================================
+   PD Commerce — Shopify rebuild design tokens (Phase 1+).
+   New keyless dashboard/optimise/video pages opt into these via the
+   primitives in commerce/dash/primitives.tsx. Additive: the older
+   pd-* classes below keep their own literal hexes untouched.
+   ============================================================ */
+:root {
+  --pd-black:        #0A0A0A;
+  --pd-cream:        #F5F0E8;
+  --pd-blue:         #1E6BFF;
+  --pd-yellow:       #FFD600;
+  --pd-red:          #FF2D2D;
+  --pd-amber:        #FF8C00;
+  --pd-green:        #00C853;
+  --pd-muted:        #888888;
+  --pd-border-dark:  #1A1A1A;
+  --pd-border-light: #E0D9CE;
+  --pd-card-dark:    #111111;
+}
+
+/* Rebuild buttons/inputs ("pd2-*"). Sharp, no shadow/gradient. Used by the
+   dash/primitives components + the new pages. */
+.pd2-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 0;
+  padding: 13px 22px;
+  font-family: var(--app-font-sans), 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.18s ease, opacity 0.18s ease, transform 0.08s ease;
+}
+.pd2-btn:active { transform: translateY(1px); }
+.pd2-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.pd2-btn-yellow { background: var(--pd-yellow); color: #0A0A0A; }
+.pd2-btn-yellow:hover { background: #ffe24d; }
+
+.pd2-btn-red { background: var(--pd-red); color: #ffffff; }
+.pd2-btn-red:hover { background: #ff4d4d; }
+
+.pd2-btn-ghost {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid var(--pd-border-dark);
+}
+.pd2-btn-ghost:hover { border-color: rgba(255, 255, 255, 0.55); }
+
+.pd2-input {
+  width: 100%;
+  background: var(--pd-black);
+  border: 1px solid var(--pd-border-dark);
+  border-radius: 0;
+  color: #ffffff;
+  padding: 14px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.18s ease;
+}
+.pd2-input::placeholder { color: #555555; }
+.pd2-input:focus { border-color: var(--pd-blue); }
+
+.pd2-marquee-track { animation: pd-scroll 30s linear infinite; padding: 9px 0; }
+@media (prefers-reduced-motion: reduce) {
+  .pd2-marquee-track { animation: none !important; }
+}
+
+/* ============================================================
+   AI Commerce flow ("pd-*") — editorial blue/cream design system
+   ported from the emergent prototype. Scoped by class name only;
+   pages opt in. Fonts (Anton/JetBrains/Inter) already loaded in layout.
+   ============================================================ */
+
+/* Signature highlight box — electric blue brand accent */
+.pd-box {
+  background: #2d6bff;
+  color: #ffffff;
+  padding: 0 0.12em 0.04em;
+  display: inline-block;
+  line-height: 1;
+}
+
+.pd-btn-primary {
+  background: #2d6bff;
+  color: #ffffff;
+  text-transform: uppercase;
+  font-weight: 700;
+  border: none;
+  border-radius: 0;
+  padding: 14px 26px;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.pd-btn-primary:hover { background: #4b82ff; }
+.pd-btn-primary:active { transform: translateY(1px); }
+
+.pd-btn-yellow {
+  background: #f5c842;
+  color: #000000;
+  text-transform: uppercase;
+  font-weight: 700;
+  border: none;
+  border-radius: 0;
+  padding: 14px 26px;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.pd-btn-yellow:hover { background: #ffd84d; }
+.pd-btn-yellow:active { transform: translateY(1px); }
+
+.pd-btn-secondary {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid #333333;
+  border-radius: 0;
+  padding: 12px 22px;
+  text-transform: uppercase;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.pd-btn-secondary:hover { border-color: #ffffff; background: #0a0a0a; }
+
+.pd-input {
+  background: #000000;
+  border: 1px solid #333333;
+  border-radius: 0;
+  color: #ffffff;
+  padding: 14px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+.pd-input::placeholder { color: #555555; }
+.pd-input:focus { border-color: #2d6bff; }
+
+.pd-card { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 0; }
+
+.pd-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #888888;
+  letter-spacing: 0.08em;
+}
+
+.pd-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  letter-spacing: 0.05em;
+  display: inline-block;
+  font-weight: 500;
+}
+.pd-pill-missing { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+.pd-pill-live { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
+.pd-pill-fail { background: rgba(232, 39, 42, 0.12); color: #e8272a; }
+
+.pd-marquee { background: #e8272a; overflow: hidden; white-space: nowrap; width: 100%; }
+.pd-marquee-track {
+  display: inline-block;
+  white-space: nowrap;
+  animation: pd-scroll 28s linear infinite;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #ffffff;
+  padding: 9px 0;
+  letter-spacing: 0.05em;
+}
+@keyframes pd-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+.pd-pulse { animation: pd-pulse 1s ease-in-out infinite; }
+@keyframes pd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+.pd-glow-green { animation: pd-glow-green 2.6s ease-in-out infinite; }
+@keyframes pd-glow-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+  50% { box-shadow: 0 0 14px 0 rgba(34, 197, 94, 0.35); }
+}
+
+.pd-blink { animation: pd-blink 1.4s steps(1) infinite; }
+@keyframes pd-blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.2; } }
+
+.pd-fade { opacity: 0; animation: pd-fade 0.6s ease forwards; }
+@keyframes pd-fade { to { opacity: 1; } }
+
+.pd-progress-track { width: 100%; height: 6px; background: #1a1a1a; }
+.pd-progress-fill { height: 100%; background: #2d6bff; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Indeterminate scan bar — a blue sweep that runs for the whole audit wait. */
+.pd-bar-track { position: relative; height: 3px; width: 100%; overflow: hidden; background: #1a1a1a; }
+.pd-bar-indeterminate { position: absolute; top: 0; left: -38%; height: 100%; width: 38%; background: #2d6bff; animation: pd-bar-slide 1.25s ease-in-out infinite; }
+@keyframes pd-bar-slide { 0% { left: -38%; } 100% { left: 100%; } }
+
+/* Respect reduced-motion: kill the looping commerce-flow animations. */
+@media (prefers-reduced-motion: reduce) {
+  .pd-marquee-track,
+  .pd-pulse,
+  .pd-glow-green,
+  .pd-blink { animation: none !important; }
+  .pd-fade { opacity: 1; animation: none !important; }
+  .pd-bar-indeterminate { animation: none !important; left: 0; width: 60%; }
 }

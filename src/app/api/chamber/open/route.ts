@@ -70,16 +70,19 @@ Prepare your seat. Return EXACTLY this JSON:
 
 export async function POST(request: Request) {
   // Entering the chamber is the metered "debate" action (charged once, here;
-  // respond/ask within the session are free).
-  const guard = await guardAndSpend("debate");
+  // respond/ask within the session are free). A revision re-enters at the
+  // discounted "debate_revise" rate since grounding is partially reused.
+  const url = new URL(request.url);
+  const action = url.searchParams.get("mode") === "revise" ? "debate_revise" as const : "debate" as const;
+  const guard = await guardAndSpend(action);
   if (!guard.ok) return guardFailResponse(guard);
   try {
     const key = process.env.OPENAI_API_KEY?.trim();
-    if (!key) { await refund("debate"); return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 }); }
+    if (!key) { await refund(action); return Response.json({ error: "OPENAI_API_KEY is not configured." }, { status: 503 }); }
 
     const body = (await request.json()) as { idea?: string; grounding?: unknown };
     const idea = clamp(body.idea, 600);
-    if (!idea) { await refund("debate"); return Response.json({ error: "Missing idea." }, { status: 400 }); }
+    if (!idea) { await refund(action); return Response.json({ error: "Missing idea." }, { status: 400 }); }
 
     const grounding = formatGrounding(sanitizeGrounding(body.grounding));
 
@@ -94,13 +97,13 @@ export async function POST(request: Request) {
     for (const [id, seat] of results) if (seat) seats[id] = seat;
 
     if (Object.keys(seats).length === 0) {
-      await refund("debate");
+      await refund(action);
       return Response.json({ error: "All agents failed to arm." }, { status: 502 });
     }
     return Response.json({ seats, balance: guard.balance });
   } catch (e) {
     console.error("chamber/open error:", e);
-    await refund("debate");
+    await refund(action);
     return Response.json({ error: "Failed to arm the chamber." }, { status: 500 });
   }
 }

@@ -16,8 +16,6 @@ export type CreditsState = {
   balance: number | null;
   email: string | null;
   name: string | null;
-  plan: string;
-  premium: boolean;
   loading: boolean;
 };
 
@@ -27,7 +25,7 @@ type CreditsContextValue = {
   setBalance: (n: number | null) => void;
 };
 
-const INITIAL: CreditsState = { configured: false, authed: false, balance: null, email: null, name: null, plan: "free", premium: false, loading: true };
+const INITIAL: CreditsState = { configured: false, authed: false, balance: null, email: null, name: null, loading: true };
 
 const CreditsContext = createContext<CreditsContextValue | null>(null);
 
@@ -44,8 +42,6 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
         balance: typeof j.balance === "number" ? j.balance : null,
         email: j.email ?? null,
         name: j.name ?? null,
-        plan: j.plan ?? "free",
-        premium: !!j.premium,
         loading: false,
       });
     } catch {

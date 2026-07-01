@@ -1,15 +1,16 @@
 /**
  * /api/campaign
  * ─────────────────────────────────────────────────────────────────────────
- * Turns the validated idea into a launch-ready video-ad campaign: objective,
- * angle, budget split, audience, KPIs, and 4 platform-specific ad cuts (hook +
- * scene-by-scene storyboard + ad copy).
+ * Turns the validated idea into a launch-ready STATIC-ad campaign: objective,
+ * angle, budget split, audience, KPIs, and 4 platform-specific static creatives
+ * (on-creative headline + subhead + post copy). No video, no people, no voice —
+ * simple image ads that sell.
  *
  * Mirrors /api/launch-kit: guards on OPENAI_API_KEY, gpt-4.1-mini + json_object,
  * defensive parse, and ALWAYS returns a renderable payload (MINUTA fallback).
- * The fixed platform/format scaffolding (placement, aspect, duration, colors)
- * comes from the fallback so the 4-cut layout stays clean; the model fills the
- * creative fields (concept, hook, scenes, ad copy).
+ * The fixed platform/format scaffolding (placement, aspect, colors) comes from
+ * the fallback so the 4-creative layout stays clean; the model fills the
+ * creative fields (concept, headline, subhead, ad copy).
  * ─────────────────────────────────────────────────────────────────────────
  */
 
@@ -27,6 +28,7 @@ type Body = {
   context?: string;
   validationContent?: string;
   brandName?: string;
+  debateBrief?: string;
 };
 
 function clampText(value: unknown, max: number): string {
@@ -48,24 +50,15 @@ function parsePayload(raw: string): CampaignPayload {
 
   const str = (v: unknown, d: string, max = 400) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : d);
 
-  // Merge model creative onto the fixed 4-cut scaffold so layout never breaks.
+  // Merge model creative onto the fixed 4-creative scaffold so layout never breaks.
   const ads: CampaignAd[] = fb.ads.map((scaffold, i) => {
     const a = Array.isArray(parsed.ads) ? parsed.ads[i] : undefined;
     if (!a) return scaffold;
-    const scenes =
-      Array.isArray(a.scenes) && a.scenes.length
-        ? a.scenes.slice(0, 4).map((s, si) => ({
-            t: str(s?.t, scaffold.scenes[si]?.t ?? "0:00", 8),
-            visual: str(s?.visual, scaffold.scenes[si]?.visual ?? "", 120),
-            line: str(s?.line, scaffold.scenes[si]?.line ?? "", 160),
-          }))
-        : scaffold.scenes;
-    while (scenes.length < scaffold.scenes.length) scenes.push(scaffold.scenes[scenes.length]);
     return {
       ...scaffold,
       concept: str(a.concept, scaffold.concept, 40),
-      hook: str(a.hook, scaffold.hook, 160),
-      scenes,
+      headline: str(a.headline, scaffold.headline, 80),
+      subhead: str(a.subhead, scaffold.subhead, 120),
       adCopy: {
         headline: str(a.adCopy?.headline, scaffold.adCopy.headline, 60),
         primary: str(a.adCopy?.primary, scaffold.adCopy.primary, 240),
@@ -127,20 +120,23 @@ export async function POST(request: Request) {
     const context = clampText(body.context, 1200);
     const validationContent = clampText(body.validationContent, 5000);
     const brandName = clampText(body.brandName, 40);
+    const debateBrief = clampText(body.debateBrief, 1200);
 
     const openai = new OpenAI({ apiKey: key });
 
     const systemPrompt =
-      "You are a senior performance-creative director. Return strict JSON only. No markdown. No backticks. Write scroll-stopping, specific ad creative — no generic placeholders.";
+      "You are a senior performance-creative director who writes STATIC image ads (no video, no people, no voiceover). Return strict JSON only. No markdown. No backticks. Write scroll-stopping, specific ad copy — no generic placeholders.";
 
-    const userPrompt = `Design a €500 video-ad test campaign for this validated startup idea. The output drives a live campaign page with 4 platform ad cuts (hook + storyboard + ad copy). There are exactly 4 cuts: a YouTube pre-roll (16:9, 0:15), an Instagram/TikTok reel (9:16, 0:20), a Meta feed testimonial (1:1, 0:30), and a LinkedIn founder POV (1:1, 0:25). Keep that order and those placements.
+    const userPrompt = `Design a €500 STATIC-ad test campaign for this validated startup idea. The output drives a live campaign page with 4 platform-specific static creatives (a bold on-creative headline + subhead set in the brand color, plus the post copy). There are exactly 4 creatives: a YouTube static display (16:9), an Instagram/TikTok story (9:16), a Meta feed square (1:1), and a LinkedIn square (1:1). Keep that order and those placements.
+
+These are SIMPLE STATIC IMAGE ADS — typographic creatives. Do NOT describe video, scenes, footage, actors, spokespeople, voiceover, or any human figures. The creative is just words on a colored background.
 
 Startup idea: ${topic}
 ${brandName ? `Brand name (use it): ${brandName}` : ""}
 Founder reasoning: ${position || "N/A"}
 Context: ${context || "N/A"}
 Validation summary: ${validationContent || "N/A"}
-
+${debateBrief ? `\nAdversarial debate — UNRESOLVED gaps: lead the ad ANGLE with the strongest counter to these, since they're the objections real buyers will raise:\n${debateBrief}\n` : ""}
 Return EXACTLY this JSON shape. No extra keys. No prose.
 
 {
@@ -150,8 +146,8 @@ Return EXACTLY this JSON shape. No extra keys. No prose.
   "audience": "exact targeting: roles, company size, geo, interests (<=45 words)",
   "kpis": [
     {"k":"Target CPA","v":"≤€NN"},
-    {"k":"Hook rate","v":">NN%"},
-    {"k":"Ad cuts","v":"4"},
+    {"k":"CTR","v":">N%"},
+    {"k":"Creatives","v":"4"},
     {"k":"Test budget","v":"€500"}
   ],
   "budgetSplit": [
@@ -161,16 +157,17 @@ Return EXACTLY this JSON shape. No extra keys. No prose.
     {"platform":"LinkedIn","pct":10}
   ],
   "ads": [
-    {"concept":"<=4 word concept","hook":"the spoken/on-screen hook line","scenes":[{"t":"0:00","visual":"what we see","line":"VO/on-screen line"},{"t":"0:04","visual":"...","line":"..."},{"t":"0:08","visual":"...","line":"..."},{"t":"0:12","visual":"...","line":"CTA line →"}],"adCopy":{"headline":"<=6 words","primary":"<=30 word primary text"},"cta":"button label"},
-    {"concept":"...","hook":"...","scenes":[ ...4 scenes... ],"adCopy":{"headline":"...","primary":"..."},"cta":"..."},
-    {"concept":"...","hook":"...","scenes":[ ...4 scenes... ],"adCopy":{"headline":"...","primary":"..."},"cta":"..."},
-    {"concept":"...","hook":"...","scenes":[ ...4 scenes... ],"adCopy":{"headline":"...","primary":"..."},"cta":"..."}
+    {"concept":"<=4 word concept","headline":"the bold on-creative headline (<=8 words, can be UPPERCASE)","subhead":"one supporting line on the creative (<=14 words)","adCopy":{"headline":"<=6 words","primary":"<=30 word primary post text"},"cta":"button label"},
+    {"concept":"...","headline":"...","subhead":"...","adCopy":{"headline":"...","primary":"..."},"cta":"..."},
+    {"concept":"...","headline":"...","subhead":"...","adCopy":{"headline":"...","primary":"..."},"cta":"..."},
+    {"concept":"...","headline":"...","subhead":"...","adCopy":{"headline":"...","primary":"..."},"cta":"..."}
   ]
 }
 
 Rules:
-- EXACTLY 4 ads in the stated placement order; each ad has EXACTLY 4 scenes.
-- Hooks must be specific to the idea's buyer pain — not generic.
+- EXACTLY 4 ads in the stated placement order.
+- headline + subhead are the words PRINTED on the static creative; make the headline punchy and specific to the idea's buyer pain — not generic.
+- No video/scene/voiceover/people language anywhere.
 - budgetSplit: keep the four platforms in that order; tune each pct to the audience (e.g. a B2B/LinkedIn-native buyer shifts budget toward LinkedIn) so the four values sum to 100.
 - No fake metrics in copy, no markdown — JSON only.`;
 

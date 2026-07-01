@@ -300,12 +300,14 @@ export async function POST(request: Request) {
       setup?: Setup;
       validationContent?: string;
       logoBrief?: unknown;
+      debateBrief?: string;
     };
 
     const topic = clampText(body.setup?.topic, 220);
     const position = clampText(body.setup?.position, 1200);
     const context = clampText(body.setup?.context, 1200);
     const validationContent = clampText(body.validationContent, 7000);
+    const debateBrief = clampText(body.debateBrief, 1200);
     if (!topic) { await refund("brand_kit"); return Response.json({ error: "Missing startup topic." }, { status: 400 }); }
 
     const brief = sanitizeLogoBrief(body.logoBrief);
@@ -324,7 +326,7 @@ Reasoning / position: ${position || "N/A"}
 Context: ${context || "N/A"}
 Validation summary: ${validationContent || "N/A"}
 Founder logo brief: ${briefText}
-
+${debateBrief ? `\nAdversarial debate — UNRESOLVED gaps the brand must actively answer:\n${debateBrief}\n\nWeave direct responses to these gaps into 'positioning', 'voice', 'dos'/'donts' and especially 'competitorGuardrails' (each guardrail's 'risk' should map to a gap above, its 'response' to how this identity closes it). Do NOT restate the gaps as weaknesses in customer-facing copy — turn them into confident positioning.\n` : ""}
 Return EXACTLY this JSON shape. No extra keys. No prose.
 
 {

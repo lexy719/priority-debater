@@ -12,7 +12,6 @@ export const metadata: Metadata = {
 
 export default async function PricingPage() {
   let authed = false;
-  let currentPlan = "free";
   let balance: number | null = null;
 
   if (supabaseConfigured()) {
@@ -22,8 +21,6 @@ export default async function PricingPage() {
     } = await supabase.auth.getUser();
     if (user) {
       authed = true;
-      const { data } = await supabase.from("profiles").select("plan").eq("id", user.id).maybeSingle();
-      currentPlan = (data?.plan as string) ?? "free";
       balance = await getBalanceForUser(user.id);
     }
   }
@@ -31,7 +28,7 @@ export default async function PricingPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <SiteNav />
-      <PricingView authed={authed} currentPlan={currentPlan} balance={balance} />
+      <PricingView authed={authed} balance={balance} />
     </div>
   );
 }

@@ -52,13 +52,14 @@ type TabId = (typeof OUTREACH_TABS)[number]["id"];
 export default function LaunchKitPage() {
   const [tab, setTab] = useState<TabId>("cold");
 
-  const { flow, data, status, regenerate } = useFlowPayload<LaunchKitPayload>({
+  const { flow, data, status, reason, regenerate } = useFlowPayload<LaunchKitPayload>({
     endpoint: "/api/launch-kit",
     cacheKey: FLOW_CACHE.launchKit,
     fallback: FALLBACK,
     buildBody: (f) => {
       const cachedBrand = readFlowCache<{ projectCode?: string }>(FLOW_CACHE.brandKit, f.input.topic);
-      return { ...f.input, brandName: cachedBrand?.projectCode || f.idea.brandName };
+      // Seed from what the Chamber left unresolved (§6) so the launch answers it.
+      return { ...f.input, brandName: cachedBrand?.projectCode || f.idea.brandName, debateBrief: f.debate?.brief || undefined };
     },
   });
 
@@ -69,7 +70,7 @@ export default function LaunchKitPage() {
     <FlowGuard stage="launch">
     <div data-testid="launch-kit-page" className="bg-[#f4f4f0] min-h-screen">
       <FlowNav current="launch" subtitle="v1.0 / 2026 — Launch Kit" />
-      <FlowStatusBanner status={status} noun="launch kit" onRegenerate={regenerate} />
+      <FlowStatusBanner status={status} reason={reason} noun="launch kit" onRegenerate={regenerate} />
 
       {/* Hero */}
       <section className="bg-[#0a0a0a] grid-bg-dark text-white py-16 lg:py-20 border-b-[1.5px] border-black">

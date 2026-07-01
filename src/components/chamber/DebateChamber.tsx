@@ -9,10 +9,16 @@ import {
   Quote, RotateCcw, Download, Copy, Pause, Play,
   Loader2, Wrench,
 } from "lucide-react";
-import { loadSession, saveDebateTranscript } from "@/lib/session";
+import { loadSession, saveDebateTranscript, saveDebateHandoff } from "@/lib/session";
+import { deriveHandoff } from "@/lib/chamber-handoff";
+import { openCase, saveSessionRecord, getSessionRecord, getCase, listCases, type RulingVerdict, type ChamberCase } from "@/lib/chamber-cases";
+import { recordRuling, recordGapAxes, killRate, getSeatStat, topGapAxes, MIN_SAMPLE } from "@/lib/chamber-stats";
 import { groundingFromDashboard, type ChamberGrounding } from "@/lib/chamber-grounding";
 import { useTribunalVoice } from "@/components/chamber/useTribunalVoice";
 import ChamberVerdict, { type VerdictPersona, type VerdictTurn } from "@/components/chamber/ChamberVerdict";
+import MentorDebrief from "@/components/chamber/MentorDebrief";
+import QuickCross from "@/components/chamber/QuickCross";
+import ChamberResearch from "@/components/chamber/ChamberResearch";
 import { JourneyStepper } from "@/components/flow/JourneyStepper";
 import { SiteNav } from "@/components/SiteNav";
 import { OutOfCreditsModal } from "@/components/credits/OutOfCreditsModal";
@@ -20,7 +26,7 @@ import { useRouter } from "next/navigation";
 import { useCreditsState } from "@/components/credits/CreditsProvider";
 import { CREDIT_COSTS } from "@/lib/credits/costs";
 import type { ChamberPersonaId } from "@/lib/chamber-personas";
-import { Volume2, VolumeX, Gavel } from "lucide-react";
+import { Volume2, VolumeX, Gavel, Zap } from "lucide-react";
 
 /* ============================= TYPES & SEEDS ============================= */
 // Credit-gated entry: the Chamber stays locked until the founder spends to unlock.
@@ -232,8 +238,21 @@ export default function DebateChamber() {
   const [elapsed, setElapsed] = useState(0);
   const [dossierId, setDossierId] = useState<string | null>(null);
   const [showVerdict, setShowVerdict] = useState(false);
+  const [showDebrief, setShowDebrief] = useState(false);
+  const [showQuickCross, setShowQuickCross] = useState(false);
+  // Silent research phase (§1.2) — shown while the panel arms on the real grounding.
+  const [researching, setResearching] = useState(false);
   // Credit gate — set when the founder tries to enter without enough credits.
   const [creditGate, setCreditGate] = useState<{ balance: number } | null>(null);
+
+  // Persistent Case File (§3) + Revise & Re-Enter arc (§5).
+  const [caseId, setCaseId] = useState<string | null>(null);
+  // When the current run revises a prior case, the arc against that parent.
+  const [revisionOf, setRevisionOf] = useState<{ label: string; parentLabel: string; parentFinal: number } | null>(null);
+  // Set by "revise" actions → the next startSession opens a linked child case.
+  const reviseParentRef = useRef<string | null>(null);
+  // Case ids whose ruling has been folded into the track record (avoid double-count).
+  const recordedCases = useRef<Set<string>>(new Set());
 
   // Live engine state
   const [tailored, setTailored] = useState<TailoredMap>({});
@@ -260,12 +279,12 @@ export default function DebateChamber() {
   const transcriptRef = useRef<HTMLDivElement>(null);
 
   /** Arm all five persona agents for this idea (cached per idea). */
-  const fetchTailored = useCallback(async (ideaText: string, ground: ChamberGrounding | null): Promise<TailoredMap | null> => {
+  const fetchTailored = useCallback(async (ideaText: string, ground: ChamberGrounding | null, revise = false): Promise<TailoredMap | null> => {
     const cached = readTailoredCache(ideaText);
     if (cached) { setTailored(cached); setTailoredUsed({}); setApiStatus("live"); return cached; }
     setApiStatus("loading");
     try {
-      const res = await fetch("/api/chamber/open", {
+      const res = await fetch(`/api/chamber/open${revise ? "?mode=revise" : ""}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idea: ideaText, grounding: ground ?? undefined }),
@@ -290,6 +309,23 @@ export default function DebateChamber() {
     // with real competitors/risks instead of generic improv.
     const ground = groundingFromDashboard(loadSession()?.dashboardData);
     const score = ground?.score;
+
+    // Open (or resume) the persistent case. A pending revise-parent forces a
+    // linked CHILD case (#0007-B) so the improvement arc is recorded.
+    const parentId = reviseParentRef.current;
+    reviseParentRef.current = null;
+    const openedCase = openCase(text, parentId);
+    setCaseId(openedCase.id);
+    if (openedCase.parentCaseId) {
+      const parent = getCase(openedCase.parentCaseId);
+      const parentRun = getSessionRecord(openedCase.parentCaseId);
+      setRevisionOf(parent && parentRun
+        ? { label: openedCase.label, parentLabel: parent.label, parentFinal: parentRun.finalSurvival }
+        : null);
+    } else {
+      setRevisionOf(null);
+    }
+
     setGrounding(ground);
     setPersonaScores({});
     setIdea(text);
@@ -307,13 +343,19 @@ export default function DebateChamber() {
     setPersonas(SEED_PERSONAS.map((p) => ({ ...p, pressure: seededPressure(p, score), killshot: seededKillshot(p, score) })));
     setActiveSpeaker("lv");
     setTranscript([]);
-    // arm the five agents with idea-specific challenges, then open with the adversary
-    const map = await fetchTailored(text, ground);
+    // Silent research phase (§1.2): surface the real grounding while the agents
+    // arm in the background. Hold a minimum beat so the log reads as real work.
+    setResearching(true);
+    const [map] = await Promise.all([
+      fetchTailored(text, ground, !!parentId),
+      new Promise((r) => setTimeout(r, 1700)),
+    ]);
     const opener = map?.lv
       ? { body: map.lv.challenge, severity: map.lv.severity, flaw: map.lv.flaw }
       : { ...ATTACK_TEMPLATES.lv(text), flaw: undefined };
     setTailoredUsed(map?.lv ? { lv: true } : {});
     setTranscript([{ id: Date.now(), who: "lv", role: "ADVERSARY", type: "attack", severity: opener.severity, body: opener.body, flaw: opener.flaw, ts: "00:00:00" }]);
+    setResearching(false);
   }, [fetchTailored]);
 
   /**
@@ -324,12 +366,16 @@ export default function DebateChamber() {
   const beginSession = useCallback((text: string) => {
     const idea = text.trim();
     if (!idea) return;
+    // A revision always opens a fresh (linked) case, so it's charged even if this
+    // idea's agents happen to be cached; the discount reflects reused grounding.
+    const revising = !!reviseParentRef.current;
+    const cost = revising ? CREDIT_COSTS.debate_revise : CREDIT_COSTS.debate;
     // A cached open means this idea's debate was already paid → free re-entry
-    // (the server charges "debate" only on a real /api/chamber/open call).
-    const alreadyOpened = !!readTailoredCache(idea);
+    // (the server charges only on a real /api/chamber/open call).
+    const alreadyOpened = !revising && !!readTailoredCache(idea);
     if (!alreadyOpened && creditsState.configured) {
       if (!creditsState.authed) { router.push("/login?next=/debate"); return; }
-      if ((creditsState.balance ?? 0) < CREDIT_COSTS.debate) { setCreditGate({ balance: creditsState.balance ?? 0 }); return; }
+      if ((creditsState.balance ?? 0) < cost) { setCreditGate({ balance: creditsState.balance ?? 0 }); return; }
     }
     void startSession(idea).then(() => { if (!alreadyOpened) void refreshCredits(); });
   }, [startSession, creditsState, router, refreshCredits]);
@@ -360,11 +406,22 @@ export default function DebateChamber() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft]);
 
-  // Persist the transcript so /results can fold the debate into the dossier (#4)
+  // Persist the transcript so /results can fold the debate into the dossier (#4),
+  // and derive the weak-point handoff so Brand/Launch/Campaign seed from what the
+  // panel actually exposed rather than starting from a blank pitch.
   useEffect(() => {
     if (!sessionActive || !idea || transcript.length === 0) return;
     saveDebateTranscript(idea, renderMarkdown(idea, transcript, personas, { round, survival, shieldsUsed }), survival);
-  }, [sessionActive, idea, transcript, personas, round, survival, shieldsUsed]);
+    saveDebateHandoff(
+      deriveHandoff(
+        idea,
+        transcript.map((t) => ({ who: t.who, type: t.type, severity: t.severity, body: t.body })),
+        personas.map((p) => ({ id: p.id, name: p.name, role: p.role })),
+        personaScores,
+        survival,
+      ),
+    );
+  }, [sessionActive, idea, transcript, personas, round, survival, shieldsUsed, personaScores]);
 
   // The agents speak their latest line aloud as it lands.
   useEffect(() => {
@@ -638,6 +695,31 @@ export default function DebateChamber() {
     beginSession(ideaDraft.trim());
   }, [ideaDraft, beginSession]);
 
+  /** Persist the full run into the Case File once the ruling is assembled (§3). */
+  const handleRuling = useCallback((r: { overall: string; synthesisLead: string; verdicts: RulingVerdict[] }) => {
+    if (!caseId) return;
+    const handoff = deriveHandoff(
+      idea,
+      transcript.map((t) => ({ who: t.who, type: t.type, severity: t.severity, body: t.body })),
+      personas.map((p) => ({ id: p.id, name: p.name, role: p.role })),
+      personaScores,
+      survival,
+    );
+    saveSessionRecord(caseId, {
+      roundCount: round,
+      finalSurvival: survival,
+      transcriptMd: renderMarkdown(idea, transcript, personas, { round, survival, shieldsUsed }),
+      ruling: { overall: r.overall, synthesisLead: r.synthesisLead, verdicts: r.verdicts, gaps: handoff.gaps },
+    });
+    // Fold this ruling into the persona track record + evidence axes — once per
+    // case, so re-opening the verdict modal doesn't inflate the counts (§2/§8).
+    if (!recordedCases.current.has(caseId)) {
+      recordedCases.current.add(caseId);
+      recordRuling(r.verdicts.map((v) => ({ personaId: v.personaId, ruling: v.ruling })));
+      recordGapAxes(handoff.gaps.map((g) => g.axis));
+    }
+  }, [caseId, idea, transcript, personas, personaScores, survival, round, shieldsUsed]);
+
   /** End the session and return the chamber to its idle state. No fake data. */
   const handleReset = useCallback(() => {
     setSessionActive(false);
@@ -649,7 +731,18 @@ export default function DebateChamber() {
     setTimeLeft(ROUND_SECONDS); setElapsed(0); setPaused(false);
     setLastEval(null); setTailoredUsed({});
     setGrounding(null); setPersonaScores({}); setComposerMode("defend"); setAsking(false);
+    setCaseId(null); setRevisionOf(null);
   }, []);
+
+  /** Revise & Re-Enter (§5): keep the idea in the composer, link the next run as a
+   *  child case, and return to idle so the founder can edit before re-entering. */
+  const handleRevise = useCallback(() => {
+    reviseParentRef.current = caseId;
+    setShowDebrief(false);
+    setShowVerdict(false);
+    setIdeaDraft(idea);          // handleReset clears `idea` but not the draft
+    handleReset();
+  }, [caseId, idea, handleReset]);
 
   const handleExportMarkdown = useCallback(async () => {
     const md = renderMarkdown(idea, transcript, personas, { round, survival, shieldsUsed });
@@ -703,16 +796,18 @@ export default function DebateChamber() {
         ideaDraft={ideaDraft} setIdeaDraft={setIdeaDraft} onEnter={handleEnterChamber}
         survival={survival} survivalDelta={survivalDelta} round={round}
         timeLeft={timeLeft} shieldsLeft={SHIELDS_TOTAL - shieldsUsed} verdict={verdictNow}
-        apiStatus={apiStatus} sessionActive={sessionActive}
-        unlockCost={creditsState.configured ? CREDIT_COSTS.debate : null}
+        apiStatus={apiStatus} sessionActive={sessionActive} revisionOf={revisionOf}
+        onQuickCross={ideaDraft.trim() ? () => setShowQuickCross(true) : undefined}
+        unlockCost={creditsState.configured ? (reviseParentRef.current ? CREDIT_COSTS.debate_revise : CREDIT_COSTS.debate) : null}
         balanceNote={
           creditsState.configured
             ? creditsState.authed
-              ? `Costs ${CREDIT_COSTS.debate} credits · you have ${creditsState.balance ?? 0}`
+              ? `Costs ${reviseParentRef.current ? CREDIT_COSTS.debate_revise : CREDIT_COSTS.debate} credits · you have ${creditsState.balance ?? 0}`
               : `Sign in to enter · ${CREDIT_COSTS.debate} credits per debate`
             : null
         }
       />
+      {!sessionActive && <CaseFilesStrip onReopen={(t) => { reviseParentRef.current = null; setIdeaDraft(t); }} onRevise={(id, t) => { reviseParentRef.current = id; setIdeaDraft(t); }} />}
       <PanelStrip personas={personas} activeSpeaker={sessionActive ? activeSpeaker : ""} onOpenDossier={setDossierId}
         speakingId={voiceOn ? voice.speakingId : null} sessionActive={sessionActive} />
       <div ref={transcriptRef} />
@@ -747,8 +842,33 @@ export default function DebateChamber() {
           transcript={transcript.map<VerdictTurn>((t) => ({ who: t.who, type: t.type, severity: t.severity, body: t.body }))}
           onClose={() => setShowVerdict(false)}
           onReset={() => { setShowVerdict(false); handleReset(); }}
+          onDebrief={() => setShowDebrief(true)}
+          onRuling={handleRuling}
         />
       )}
+      {showDebrief && (
+        <MentorDebrief
+          handoff={deriveHandoff(
+            idea,
+            transcript.map((t) => ({ who: t.who, type: t.type, severity: t.severity, body: t.body })),
+            personas.map((p) => ({ id: p.id, name: p.name, role: p.role })),
+            personaScores,
+            survival,
+          )}
+          grounding={grounding}
+          onClose={() => setShowDebrief(false)}
+          onRevise={handleRevise}
+        />
+      )}
+      {showQuickCross && (
+        <QuickCross
+          idea={ideaDraft.trim()}
+          grounding={groundingFromDashboard(loadSession()?.dashboardData)}
+          onClose={() => setShowQuickCross(false)}
+          onEnterFull={() => { setShowQuickCross(false); beginSession(ideaDraft.trim()); }}
+        />
+      )}
+      {researching && <ChamberResearch idea={idea} grounding={grounding} />}
     </div>
   );
 }
@@ -800,8 +920,8 @@ function TopBar({ sessionActive, onReset, onPause, paused, apiStatus, voiceOn, v
   );
 }
 
-function Hero({ ideaDraft, setIdeaDraft, onEnter, survival, survivalDelta, round, timeLeft, shieldsLeft, verdict, apiStatus, sessionActive, unlockCost, balanceNote }:
-  { ideaDraft: string; setIdeaDraft: (s: string) => void; onEnter: () => void; survival: number; survivalDelta: number; round: number; timeLeft: number; shieldsLeft: number; verdict: string; apiStatus: ApiStatus; sessionActive: boolean; unlockCost?: number | null; balanceNote?: string | null }) {
+function Hero({ ideaDraft, setIdeaDraft, onEnter, survival, survivalDelta, round, timeLeft, shieldsLeft, verdict, apiStatus, sessionActive, unlockCost, balanceNote, revisionOf, onQuickCross }:
+  { ideaDraft: string; setIdeaDraft: (s: string) => void; onEnter: () => void; survival: number; survivalDelta: number; round: number; timeLeft: number; shieldsLeft: number; verdict: string; apiStatus: ApiStatus; sessionActive: boolean; unlockCost?: number | null; balanceNote?: string | null; revisionOf?: { label: string; parentLabel: string; parentFinal: number } | null; onQuickCross?: () => void }) {
   const tone = survival >= 7 ? "text-success" : survival >= 5 ? "text-warn" : "text-danger";
   return (
     <section className="relative bg-ink text-ink-foreground border-y border-ink grid-bg-ink print:hidden">
@@ -835,11 +955,20 @@ function Hero({ ideaDraft, setIdeaDraft, onEnter, survival, survivalDelta, round
                 : <>{sessionActive ? "RE-ENTER" : "UNLOCK THE CHAMBER"}{!sessionActive && unlockCost ? ` · ${unlockCost} CR` : ""} <ArrowRight className="size-4" /></>}
             </button>
           </form>
-          {balanceNote && !sessionActive && (
-            <div className="mt-3 inline-block border border-ink-foreground/25 px-2.5 py-1 font-mono text-[10px] tracking-widest text-ink-foreground/70">
-              {balanceNote}
-            </div>
-          )}
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            {balanceNote && !sessionActive && (
+              <div className="inline-block border border-ink-foreground/25 px-2.5 py-1 font-mono text-[10px] tracking-widest text-ink-foreground/70">
+                {balanceNote}
+              </div>
+            )}
+            {/* Quick Cross (§7) — one seat, cheaper, before committing to the full room. */}
+            {!sessionActive && onQuickCross && (
+              <button type="button" onClick={onQuickCross}
+                className="inline-flex items-center gap-1.5 border border-data/50 text-data px-2.5 py-1 font-mono text-[10px] tracking-widest hover:bg-data/10">
+                <Zap className="size-3" /> QUICK CROSS · ONE SEAT
+              </button>
+            )}
+          </div>
           <div className="mt-3 text-[10px] tracking-widest text-ink-foreground/45">
             {apiStatus === "live" ? "◉ LIVE — FIVE AI AGENTS GENERATE EVERY ATTACK & SCORE FOR THIS IDEA"
               : apiStatus === "loading" ? "◌ ARMING FIVE AGENTS — EACH IS STUDYING YOUR IDEA"
@@ -848,7 +977,20 @@ function Hero({ ideaDraft, setIdeaDraft, onEnter, survival, survivalDelta, round
           </div>
         </div>
         <div className="border border-ink-foreground/25 bg-ink-foreground/5 p-6 self-start">
-          <div className="text-[10px] tracking-widest text-ink-foreground/55 mb-3">LIVE SURVIVAL SCORE</div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-[10px] tracking-widest text-ink-foreground/55">LIVE SURVIVAL SCORE</div>
+            {sessionActive && <div className="text-[10px] tracking-widest text-ink-foreground/40">CASE {revisionOf ? `#${revisionOf.label}` : ""}</div>}
+          </div>
+          {/* Revise & Re-Enter arc — this run against the parent case (§5). */}
+          {sessionActive && revisionOf && (
+            <div className="mb-3 flex items-center gap-2 border border-data/40 bg-data/[0.06] px-2.5 py-1.5 font-mono text-[10px] tracking-widest">
+              <span className="text-ink-foreground/60">#{revisionOf.parentLabel} → #{revisionOf.label}</span>
+              <span className="text-ink-foreground/40">·</span>
+              <span className={survival >= revisionOf.parentFinal ? "text-success" : "text-danger"}>
+                {revisionOf.parentFinal.toFixed(1)} → {survival.toFixed(1)} {survival >= revisionOf.parentFinal ? "▲" : "▼"}{Math.abs(survival - revisionOf.parentFinal).toFixed(1)}
+              </span>
+            </div>
+          )}
           <div className="flex items-end gap-4">
             {sessionActive ? (
               <div key={survival} className={`font-display text-[5.5rem] sm:text-[8rem] leading-none ${tone} chamber-pop`}>{survival.toFixed(1)}</div>
@@ -871,6 +1013,61 @@ function Hero({ ideaDraft, setIdeaDraft, onEnter, survival, survivalDelta, round
           </div>
           <div className="mt-5 text-[10px] tracking-widest text-ink-foreground/55 mb-2">CURRENT VERDICT</div>
           <p className="text-xs text-ink-foreground/80 leading-relaxed">{verdict}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Prior case files (§3 persistence + §5 re-entry). Reads the persistent case
+ * store on mount and lets the founder re-open an idea fresh, or revise it as a
+ * linked child case. Renders nothing until at least one case exists.
+ */
+function CaseFilesStrip({ onReopen, onRevise }: { onReopen: (idea: string) => void; onRevise: (parentId: string, idea: string) => void }) {
+  const [cases, setCases] = useState<ChamberCase[]>([]);
+  const [patterns, setPatterns] = useState<{ axis: string; count: number }[]>([]);
+  useEffect(() => { setCases(listCases()); setPatterns(topGapAxes(3)); }, []);
+  if (cases.length === 0) return null;
+  return (
+    <section className="bg-ink text-ink-foreground border-b border-ink print:hidden">
+      <div className="mx-auto max-w-[1100px] px-4 md:px-8 py-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-[10px] tracking-widest text-ink-foreground/45">YOUR CASE FILES · {cases.length}</div>
+          <div className="hidden sm:block text-[10px] tracking-widest text-ink-foreground/40">RE-OPEN TO RUN AGAIN · REVISE TO OPEN A LINKED CASE</div>
+        </div>
+        {/* Evidence Library seed (§8) — where YOUR ideas keep breaking. Becomes a
+            cross-user benchmark once the shared library is wired server-side. */}
+        {patterns.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-2 border border-ink-foreground/15 px-3 py-2">
+            <span className="text-[9px] tracking-widest text-ink-foreground/40">WHERE YOUR IDEAS BREAK MOST ·</span>
+            {patterns.map((p) => (
+              <span key={p.axis} className="font-mono text-[10px] tracking-widest text-ink-foreground/70">{p.axis} <span className="text-danger">×{p.count}</span></span>
+            ))}
+          </div>
+        )}
+        <div className="grid gap-2 sm:grid-cols-2">
+          {cases.slice(0, 6).map((c) => {
+            const rec = getSessionRecord(c.id);
+            const s = rec?.finalSurvival;
+            const tone = s == null ? "text-ink-foreground/40" : s >= 7 ? "text-success" : s >= 5 ? "text-warn" : "text-danger";
+            return (
+              <div key={c.id} className="flex items-center gap-3 border border-ink-foreground/15 px-3 py-2.5">
+                <div className="font-mono text-[11px] text-ink-foreground/50 shrink-0">#{c.label}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm text-ink-foreground/85">{c.ideaText}</div>
+                  <div className="text-[9px] tracking-widest text-ink-foreground/40 mt-0.5">
+                    {c.status === "ruled" ? <>RULED · <span className={tone}>{s?.toFixed(1)}/10</span></> : "OPEN · NO RULING YET"}
+                    {c.parentCaseId ? " · REVISION" : ""}
+                  </div>
+                </div>
+                <button onClick={() => onReopen(c.ideaText)} title="Load this idea to run again"
+                  className="shrink-0 px-2.5 py-1.5 border border-ink-foreground/25 text-ink-foreground/70 font-mono text-[9px] tracking-widest hover:bg-ink-foreground/5">RE-OPEN</button>
+                <button onClick={() => onRevise(c.id, c.ideaText)} title="Open a linked revision of this case"
+                  className="shrink-0 px-2.5 py-1.5 border border-data/50 text-data font-mono text-[9px] tracking-widest hover:bg-data/10">REVISE</button>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -1292,6 +1489,29 @@ function VerdictBar({ survival, round, onContinue, onReset, sessionActive, onVer
 
 /* ============================= DOSSIER MODAL ============================= */
 
+/** A seat's running track record from this device's ruled sessions (§2). */
+function TrackRecord({ personaId }: { personaId: string }) {
+  const [stat, setStat] = useState<{ heard: number; killed: number; passed: number } | null>(null);
+  const [rate, setRate] = useState<number | null>(null);
+  useEffect(() => { setStat(getSeatStat(personaId)); setRate(killRate(personaId)); }, [personaId]);
+  if (!stat || stat.heard === 0) return null;
+  return (
+    <div className="mt-6 border border-ink-foreground/20 p-4">
+      <div className="text-[10px] tracking-widest text-ink-foreground/55 mb-2">TRACK RECORD · THIS DEVICE</div>
+      {rate != null ? (
+        <p className="text-sm text-ink-foreground/85 leading-relaxed">
+          Has killed <span className="font-display text-danger">{rate}%</span> of the {stat.heard} idea{stat.heard === 1 ? "" : "s"} heard here
+          {" "}<span className="text-ink-foreground/50">({stat.killed} killed · {stat.passed} passed)</span>.
+        </p>
+      ) : (
+        <p className="text-sm text-ink-foreground/60 leading-relaxed">
+          {stat.heard} idea{stat.heard === 1 ? "" : "s"} heard so far — a kill rate appears after {MIN_SAMPLE}. Cross-user history arrives with the shared library.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function DossierModal({ persona, onClose }: { persona: Persona; onClose: () => void }) {
   const c = HUE[persona.hue];
   useEffect(() => {
@@ -1322,6 +1542,10 @@ function DossierModal({ persona, onClose }: { persona: Persona; onClose: () => v
             <Stat label="PRESSURE" value={`${persona.pressure}%`} tone={persona.hue} />
             <Stat label="KILL-SHOT PROB." value={`${persona.killshot}%`} tone={persona.killshot > 30 ? "danger" : "success"} />
           </div>
+
+          {/* Track record (§2) — the seat's real history on THIS device. Honest
+              about scope until the server aggregates it across all users. */}
+          <TrackRecord personaId={persona.id} />
 
           <div className="mt-6">
             <div className="text-[10px] tracking-widest text-ink-foreground/55 mb-2">SIGNATURE MOVE</div>

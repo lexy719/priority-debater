@@ -7,9 +7,9 @@
  * auth user_metadata, so no schema change or service-role key is needed.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { Coins, LogOut, ArrowRight, Check, Loader2, Pencil, KeyRound, Shield, Sparkles } from "lucide-react";
+import { Coins, LogOut, ArrowRight, Check, Loader2, Pencil, KeyRound, Shield } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCreditsState } from "@/components/credits/CreditsProvider";
 
@@ -21,7 +21,7 @@ export type LedgerEntry = {
 };
 
 type Props = {
-  user: { email: string; name: string; plan: string; createdAt: string; provider?: string };
+  user: { email: string; name: string; createdAt: string; provider?: string };
   balance: number | null;
   /** True only for email/password accounts — Google sign-ins have no password. */
   hasPassword: boolean;
@@ -49,18 +49,6 @@ export function AccountView({ user, balance, hasPassword, signOutAction }: Props
   const [pw, setPw] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
-
-  const [welcomePro, setWelcomePro] = useState(false);
-
-  // Celebrate + refresh right after a subscription completes (?sub=success).
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("sub") === "success") {
-      setWelcomePro(true);
-      void refresh();
-      window.history.replaceState({}, "", "/account");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   async function saveName() {
     setNameBusy(true);
@@ -98,17 +86,6 @@ export function AccountView({ user, balance, hasPassword, signOutAction }: Props
 
   return (
     <main className="mx-auto max-w-[860px] px-5 py-16 sm:py-20">
-      {welcomePro && (
-        <div className="mb-8 flex items-center gap-3 border border-[#32d74b]/40 bg-[#32d74b]/10 px-5 py-4 text-[#32d74b]">
-          <Sparkles className="h-5 w-5 shrink-0 credit-pulse" />
-          <div>
-            <div className="font-display text-lg uppercase">Welcome to Pro — unlocked.</div>
-            <div className="text-[12px] text-[#32d74b]/80">
-              Your monthly credits are in and every premium feature is now live.
-            </div>
-          </div>
-        </div>
-      )}
 
       <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">§ Account</p>
 
@@ -158,10 +135,6 @@ export function AccountView({ user, balance, hasPassword, signOutAction }: Props
           )}
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/55">
             <span className="break-all">{user.email}</span>
-            <span className="text-white/20">·</span>
-            <span className="inline-flex items-center gap-1.5 border border-white/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-white/70">
-              {user.plan} plan
-            </span>
             <span className="text-white/20">·</span>
             <span className="font-mono text-[11px] text-white/45">Member since {fmtDate(user.createdAt)}</span>
           </div>

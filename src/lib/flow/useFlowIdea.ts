@@ -15,7 +15,8 @@
  */
 
 import { useEffect, useState } from "react";
-import { loadSession } from "@/lib/session";
+import { loadSession, loadDebateHandoff } from "@/lib/session";
+import type { DebateHandoff } from "@/lib/chamber-handoff";
 import type { FlowIdea } from "./types";
 import { IDEA as MOCK_IDEA } from "./flowMock";
 
@@ -24,6 +25,11 @@ export type FlowSource = {
   idea: FlowIdea;
   /** Raw inputs forwarded to /api/{brand-kit,launch-kit,campaign}. */
   input: { topic: string; position: string; context: string; validationContent: string };
+  /**
+   * The weak-point handoff from the Chamber for THIS idea (null if the founder
+   * never debated it). Seeds downstream generation with what the panel exposed.
+   */
+  debate: DebateHandoff | null;
   /** True once the (client-only) session read has completed. */
   ready: boolean;
   /** True when we fell back to the demo idea (no validated idea on file). */
@@ -44,6 +50,7 @@ export function useFlowIdea(): FlowSource {
   const [state, setState] = useState<FlowSource>({
     idea: MOCK_IDEA,
     input: { topic: "", position: "", context: "", validationContent: "" },
+    debate: null,
     ready: false,
     isDemo: true,
     hasMetrics: true,
@@ -56,6 +63,9 @@ export function useFlowIdea(): FlowSource {
       setState((s) => ({ ...s, ready: true, isDemo: true, hasMetrics: true }));
       return;
     }
+
+    // The Chamber's weak-point handoff for this idea, if it was debated.
+    const debate = loadDebateHandoff(session.setup.topic);
 
     const { setup, validationContent, dashboardData } = session;
     const topic = setup.topic.trim();
@@ -95,6 +105,7 @@ export function useFlowIdea(): FlowSource {
         context: (setup.context || "").trim(),
         validationContent: (validationContent || "").trim(),
       },
+      debate,
       ready: true,
       isDemo: false,
       hasMetrics,

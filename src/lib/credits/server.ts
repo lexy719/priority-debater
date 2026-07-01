@@ -14,7 +14,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/supabase/config";
-import { CREDIT_COSTS, type CreditAction } from "./costs";
+import { CREDIT_COSTS, isOpenPreviewAction, type CreditAction } from "./costs";
 
 /** Read a user's current balance. null when not configured / no row. */
 export async function getBalanceForUser(userId: string): Promise<number | null> {
@@ -47,7 +47,12 @@ export async function guardAndSpend(action: CreditAction): Promise<GuardResult> 
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, status: 401, error: "not_authenticated" };
+  if (!user) {
+    // Studio preview routes stay free + unmetered for logged-out visitors so
+    // they show real AI output instead of a sample. Everything else requires auth.
+    if (isOpenPreviewAction(action)) return { ok: true, userId: null, balance: null };
+    return { ok: false, status: 401, error: "not_authenticated" };
+  }
 
   const cost = CREDIT_COSTS[action];
   const { data, error } = await supabase.rpc("spend_credits", {

@@ -80,7 +80,7 @@ export default function LandingBuilderPage() {
     <FlowGuard stage="landing">
     <div data-testid="landing-gen-page" className="bg-[#f4f4f0] min-h-screen">
       <FlowNav current="landing" subtitle="v1.0 / 2026 — Landing Page" />
-      <FlowStatusBanner status={flow.isDemo ? "fallback" : "ready"} noun="landing page" />
+      <FlowStatusBanner status={flow.isDemo ? "fallback" : "ready"} reason={flow.isDemo ? "demo" : null} noun="landing page" />
 
       {/* Hero */}
       <section className="bg-[#0a0a0a] grid-bg-dark text-white py-16 lg:py-20 border-b-[1.5px] border-black">

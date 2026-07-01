@@ -96,11 +96,17 @@ function resolveBrand(data: RawBrand | null): BrandKitFull {
 }
 
 export default function BrandKitPage() {
-  const { flow, data, status, regenerate } = useFlowPayload<RawBrand | null>({
+  const { flow, data, status, reason, regenerate } = useFlowPayload<RawBrand | null>({
     endpoint: "/api/brand-kit",
     cacheKey: FLOW_CACHE.brandKit,
     fallback: null,
-    buildBody: (f) => ({ setup: { topic: f.input.topic, position: f.input.position, context: f.input.context }, validationContent: f.input.validationContent }),
+    buildBody: (f) => ({
+      setup: { topic: f.input.topic, position: f.input.position, context: f.input.context },
+      validationContent: f.input.validationContent,
+      // Seed the brand from what the Chamber exposed, so voice + competitor
+      // guardrails answer the panel's unresolved gaps instead of the raw pitch.
+      debateBrief: f.debate?.brief || undefined,
+    }),
   });
 
   const brand = useMemo(() => resolveBrand(data), [data]);
@@ -123,7 +129,7 @@ export default function BrandKitPage() {
     <FlowGuard stage="brand">
     <div data-testid="brand-kit-page" className="bg-[#f4f4f0] min-h-screen">
       <FlowNav current="brand" subtitle="v1.0 / 2026 — Brand Kit" />
-      <FlowStatusBanner status={status} noun="brand kit" onRegenerate={regenerate} />
+      <FlowStatusBanner status={status} reason={reason} noun="brand kit" onRegenerate={regenerate} />
 
       {/* Hero band */}
       <section className="bg-[#0a0a0a] grid-bg-dark text-white py-16 lg:py-20 border-b-[1.5px] border-black">
@@ -141,7 +147,7 @@ export default function BrandKitPage() {
               say, a voice they trust, and a look that doesn&apos;t scream &ldquo;weekend project&rdquo;.
             </p>
           </div>
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-4 space-y-4">
             <div className="border border-white/20 p-4">
               <Label>
                 <span className="text-white/40">Idea under build</span>
@@ -154,6 +160,24 @@ export default function BrandKitPage() {
                 <span className="text-white/50">{idea.verdict}</span>
               </div>
             </div>
+
+            {/* Carried over from the Chamber — the gap the panel left open now
+                seeds this brand, so the identity answers it instead of ignoring it. */}
+            {flow.debate?.gaps?.length ? (
+              <div className="border border-[#ff3b30]/50 bg-[#ff3b30]/[0.06] p-4">
+                <Label>
+                  <span className="text-[#ff3b30]">Carried from the Chamber</span>
+                </Label>
+                <p className="mt-2 font-body text-sm text-white/80 leading-relaxed">
+                  The panel left <span className="text-white font-bold">{flow.debate.gaps[0].axis.toLowerCase()}</span>{" "}
+                  unresolved. This brand is built to answer it.
+                </p>
+                <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.15em] text-white/45">
+                  Survival {flow.debate.survival.toFixed(1)}/10 · {flow.debate.gaps.length} open gap
+                  {flow.debate.gaps.length > 1 ? "s" : ""}
+                </p>
+              </div>
+            ) : null}
           </div>
         </div>
       </section>

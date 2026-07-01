@@ -40,33 +40,14 @@ export async function POST(request: Request) {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.metadata?.userId;
-
-      if (userId && session.metadata?.planId) {
-        // Subscription: flip the plan, store the customer, grant monthly credits.
-        const planId = session.metadata.planId;
-        const monthly = Number(session.metadata.monthlyCredits ?? 0);
-        await admin
-          .from("profiles")
-          .update({ plan: planId, stripe_customer_id: (session.customer as string) ?? null })
-          .eq("id", userId);
-        if (monthly > 0) {
-          await admin.rpc("grant_credits", { p_user: userId, p_amount: monthly, p_reason: `sub_${planId}` });
-        }
-      } else if (userId && session.metadata?.packId) {
-        // One-time credit pack.
-        const credits = Number(session.metadata.credits ?? 0);
-        if (credits > 0) {
-          await admin.rpc("grant_credits", {
-            p_user: userId,
-            p_amount: credits,
-            p_reason: `pack_${session.metadata.packId}`,
-          });
-        }
+      const credits = Number(session.metadata?.credits ?? 0);
+      if (userId && credits > 0) {
+        await admin.rpc("grant_credits", {
+          p_user: userId,
+          p_amount: credits,
+          p_reason: `pack_${session.metadata?.packId ?? "topup"}`,
+        });
       }
-    } else if (event.type === "customer.subscription.deleted") {
-      // Cancellation → downgrade to free.
-      const sub = event.data.object as Stripe.Subscription;
-      await admin.from("profiles").update({ plan: "free" }).eq("stripe_customer_id", sub.customer as string);
     }
   } catch (error) {
     console.warn("[stripe] webhook apply failed:", error);

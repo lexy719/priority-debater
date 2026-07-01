@@ -1,4 +1,5 @@
 import type { ValidationSession } from "./types";
+import type { DebateHandoff } from "./chamber-handoff";
 
 const SESSION_KEY = "priority-debater-session";
 const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -86,6 +87,35 @@ export function loadDebateTranscript(idea: string): { transcript: string; surviv
     const parsed = JSON.parse(raw) as { idea?: string; transcript?: string; survival?: number };
     if (!parsed.transcript || parsed.idea?.trim() !== idea.trim()) return null;
     return { transcript: parsed.transcript, survival: typeof parsed.survival === "number" ? parsed.survival : 0 };
+  } catch {
+    return null;
+  }
+}
+
+const HANDOFF_KEY = "priority-debater-chamber-handoff";
+
+/**
+ * Persist the debate's derived weak-point handoff so the downstream flow
+ * (Brand → Launch → Campaign) can seed generation from what the panel actually
+ * exposed. Keyed by idea so a stale handoff from another idea is never reused.
+ */
+export function saveDebateHandoff(handoff: DebateHandoff): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(HANDOFF_KEY, JSON.stringify(handoff));
+  } catch {
+    // ignore
+  }
+}
+
+export function loadDebateHandoff(idea: string): DebateHandoff | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(HANDOFF_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DebateHandoff;
+    if (!parsed?.idea || parsed.idea.trim() !== idea.trim()) return null;
+    return parsed;
   } catch {
     return null;
   }
