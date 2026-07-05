@@ -1,87 +1,145 @@
 "use client";
 
 /**
- * Fork Picker (brief Page 1) — the site entry, before either main page. A
- * full-bleed split screen with two halves and nothing else: no header, no nav,
- * no footer. A persistent "PICK A FORK TO CONTINUE" sits top-center. Left →
- * Commerce, right → Validation. Hover is a hard cut (instant, no fade/ease);
- * clicking navigates instantly — no confirmation, no loading screen.
+ * Fork Picker — the site entry (route `/`).
+ *
+ * Full-bleed split screen, two halves, nothing else: no header, no nav,
+ * no footer. Its one job is picking a fork. See docs/pd-frontend-build-brief.md
+ * Page 1 (authoritative) and docs/design-system.md (hard rules).
+ *
+ * Colors are the canonical `--fk-*` tokens. Local fallbacks are supplied in each
+ * `var()` so the page renders correctly even before the tokens land in
+ * globals.css (this page never edits shared files).
  */
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-type Fork = "commerce" | "validation";
+// Canonical fork-picker tokens (with fallbacks). Never introduce raw hexes into
+// JSX beyond these + `#ffffff` for hover white, per the design system.
+const FK_BLACK = "var(--fk-black, #000000)";
+const FK_CREAM = "var(--fk-cream, #f0ebe3)";
+const FK_BLUE = "var(--fk-blue, #2f6bff)";
+const FK_RED = "var(--fk-red, #ff3b30)";
+const FK_WHITE = "var(--fk-white, #ffffff)";
 
-export default function ForkPicker() {
-  const router = useRouter();
-  const [hover, setHover] = useState<Fork | null>(null);
+type ForkHalfProps = {
+  eyebrow: string;
+  headline: string;
+  description: string;
+  ariaLabel: string;
+  /** Resting state colors. */
+  restBg: string;
+  restFg: string;
+  /** Hover / focus state colors (hard-cut). */
+  activeBg: string;
+  activeFg: string;
+  onSelect: () => void;
+};
 
-  const go = (fork: Fork) => router.push(fork === "commerce" ? "/commerce" : "/validation");
+function ForkHalf({
+  eyebrow,
+  headline,
+  description,
+  ariaLabel,
+  restBg,
+  restFg,
+  activeBg,
+  activeFg,
+  onSelect,
+}: ForkHalfProps) {
+  const [active, setActive] = useState(false);
+
+  const bg = active ? activeBg : restBg;
+  const fg = active ? activeFg : restFg;
 
   return (
-    <main className="relative h-[100dvh] w-full overflow-hidden" style={{ borderRadius: 0 }}>
-      {/* Persistent prompt, top-center, above both halves */}
-      <div className="pointer-events-none absolute left-1/2 top-6 z-20 -translate-x-1/2">
-        <span className="font-mono text-[11px] uppercase tracking-[0.4em] text-white mix-blend-difference">
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      onClick={onSelect}
+      onMouseEnter={() => setActive(true)}
+      onMouseLeave={() => setActive(false)}
+      onFocus={() => setActive(true)}
+      onBlur={() => setActive(false)}
+      className="group relative flex h-1/2 w-full flex-col justify-center px-8 py-12 text-left md:h-full md:w-1/2 md:px-14 md:py-16"
+      style={{
+        backgroundColor: bg,
+        color: fg,
+        borderRadius: 0,
+        // Hard cut — no fades/eases on the state swap.
+        transition: "none",
+      }}
+    >
+      <span className="font-mono text-[11px] uppercase tracking-[0.32em] opacity-70">
+        {eyebrow}
+      </span>
+      <h2 className="font-display mt-4 uppercase leading-[0.9] text-[clamp(2.75rem,7vw,6.5rem)]">
+        {headline}
+      </h2>
+      <p className="mt-5 max-w-[38ch] text-sm leading-snug md:text-base">
+        {description}
+      </p>
+    </button>
+  );
+}
+
+export default function ForkPickerPage() {
+  const router = useRouter();
+
+  return (
+    <main
+      className="relative flex h-[100dvh] w-full flex-col overflow-hidden md:flex-row"
+      style={{ borderRadius: 0 }}
+    >
+      {/* Persistent label — top center. Solid black chip + cream mono text so it
+          stays legible over BOTH the dark left half and the light right half.
+          Deliberately NOT mix-blend-difference. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-center pt-6">
+        <span
+          className="font-mono text-[11px] uppercase tracking-[0.32em]"
+          style={{
+            backgroundColor: FK_BLACK,
+            color: FK_CREAM,
+            padding: "8px 14px",
+            borderRadius: 0,
+          }}
+        >
           Pick a fork to continue
         </span>
       </div>
 
-      <div className="flex h-full w-full flex-col md:flex-row">
-        {/* LEFT — Commerce */}
-        <button
-          type="button"
-          onClick={() => go("commerce")}
-          onMouseEnter={() => setHover("commerce")}
-          onMouseLeave={() => setHover(null)}
-          className="group relative flex h-1/2 w-full flex-col items-center justify-center px-8 md:h-full md:w-1/2"
-          style={{
-            transition: "none",
-            background: hover === "commerce" ? "var(--fk-blue)" : "var(--fk-black)",
-            color: hover === "commerce" ? "#ffffff" : "var(--fk-cream)",
-            borderRadius: 0,
-          }}
-        >
-          <div className="mb-5 font-mono text-[11px] uppercase tracking-[0.32em] opacity-70">
-            01 — Live Product
-          </div>
-          <h2 className="font-display text-[clamp(2.75rem,7vw,6.5rem)] uppercase leading-[0.9] tracking-[-0.01em]">
-            Commerce
-          </h2>
-          <p className="mt-6 max-w-sm text-center font-mono text-[12px] leading-relaxed opacity-70">
-            AI shopping-agent visibility, fixes, and revenue recovery for online stores.
-          </p>
-        </button>
+      {/* LEFT — Commerce (live product). */}
+      <ForkHalf
+        eyebrow="01 — Live Product"
+        headline="Commerce"
+        description="AI shopping-agent visibility, fixes, and revenue recovery for online stores."
+        ariaLabel="Enter Commerce"
+        restBg={FK_BLACK}
+        restFg={FK_CREAM}
+        activeBg={FK_BLUE}
+        activeFg={FK_WHITE}
+        onSelect={() => router.push("/commerce")}
+      />
 
-        {/* Hairline divider */}
-        <div className="hidden w-px shrink-0 bg-white/15 md:block" />
+      {/* 1px hairline divider — hidden on the mobile vertical stack. */}
+      <div
+        aria-hidden="true"
+        className="hidden bg-white/15 md:block md:w-px md:self-stretch"
+      />
 
-        {/* RIGHT — Validation */}
-        <button
-          type="button"
-          onClick={() => go("validation")}
-          onMouseEnter={() => setHover("validation")}
-          onMouseLeave={() => setHover(null)}
-          className="group relative flex h-1/2 w-full flex-col items-center justify-center px-8 md:h-full md:w-1/2"
-          style={{
-            transition: "none",
-            background: hover === "validation" ? "var(--fk-red)" : "var(--fk-cream)",
-            color: hover === "validation" ? "#ffffff" : "var(--fk-black)",
-            borderRadius: 0,
-          }}
-        >
-          <div className="mb-5 font-mono text-[11px] uppercase tracking-[0.32em] opacity-70">
-            02 — Early Stage
-          </div>
-          <h2 className="font-display text-[clamp(2.75rem,7vw,6.5rem)] uppercase leading-[0.9] tracking-[-0.01em]">
-            Validation
-          </h2>
-          <p className="mt-6 max-w-sm text-center font-mono text-[12px] leading-relaxed opacity-70">
-            Test a new idea against the market before you build it.
-          </p>
-        </button>
-      </div>
+      {/* RIGHT — Validation (early stage). */}
+      <ForkHalf
+        eyebrow="02 — Early Stage"
+        headline="Validation"
+        description="Test a new idea against the market before you build it."
+        ariaLabel="Enter Validation"
+        restBg={FK_CREAM}
+        restFg={FK_BLACK}
+        activeBg={FK_RED}
+        activeFg={FK_WHITE}
+        onSelect={() => router.push("/validation")}
+      />
     </main>
   );
 }

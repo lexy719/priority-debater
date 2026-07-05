@@ -19,7 +19,7 @@ const TABS: { id: Fork; label: string; href: string }[] = [
 
 export function ForkTabBar({ active }: { active: Fork }) {
   return (
-    <div className="sticky top-0 z-50 w-full border-b border-white/15 bg-[--fk-black]">
+    <div className="sticky top-0 z-50 w-full border-b border-white/15 bg-fk-black">
       <div className="mx-auto flex max-w-[1400px] items-stretch">
         {TABS.map((t) => {
           const isActive = t.id === active;
@@ -30,8 +30,8 @@ export function ForkTabBar({ active }: { active: Fork }) {
               aria-current={isActive ? "page" : undefined}
               className={`flex-1 px-6 py-4 text-center font-mono text-[11px] uppercase tracking-[0.28em] no-underline ${
                 isActive
-                  ? "bg-white text-[--fk-black]"
-                  : "bg-[--fk-black] text-white/70 hover:text-white"
+                  ? "bg-white text-fk-black"
+                  : "bg-fk-black text-white/70 hover:text-white"
               }`}
               style={{ transition: "none", borderRadius: 0 }}
             >
