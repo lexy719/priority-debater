@@ -232,7 +232,8 @@ export function competitorScatterFromMatrix(
 
 export type AudienceSegment = { name: string; value: number; color: string };
 
-const AUDIENCE_PALETTE = ["#7dd3fc", "#0a0a0a", "#38bdf8", "#cfe9ff", "#9CFF6E", "#FF5C88"];
+/* fk design-system series palette (docs/design-system.md §2) */
+const AUDIENCE_PALETTE = ["#0047FF", "#0A0A0A", "#16B364", "#F5A623", "#FF2B2B", "#888888"];
 
 export function audienceSegmentsFromParsed(
   parsed: { name: string; share: number }[],

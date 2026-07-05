@@ -14,6 +14,12 @@ import { X, Loader2, Check, Mail } from "lucide-react";
 const STORAGE_KEY = "pd_newsletter";
 const HIDE_ON = ["/login", "/signup", "/account"];
 
+/** The fork picker is a chrome-free split screen — nothing may overlay it. */
+function hiddenFor(pathname: string): boolean {
+  if (pathname === "/") return true;
+  return HIDE_ON.some((p) => pathname.startsWith(p));
+}
+
 export function NewsletterModal() {
   const pathname = usePathname() ?? "";
   const [open, setOpen] = useState(false);
@@ -25,7 +31,7 @@ export function NewsletterModal() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (localStorage.getItem(STORAGE_KEY)) return;
-    if (HIDE_ON.some((p) => pathname.startsWith(p))) return;
+    if (hiddenFor(pathname)) return;
 
     let shown = false;
     const show = () => {
@@ -88,7 +94,7 @@ export function NewsletterModal() {
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={dismiss} />
-      <div className="relative w-full max-w-md border border-white/15 bg-[#0c0c0f] text-white shadow-[0_24px_80px_-20px_rgba(0,0,0,0.8)]">
+      <div className="relative w-full max-w-md border border-white/15 bg-[var(--fk-card-dark)] text-white shadow-[0_24px_80px_-20px_rgba(0,0,0,0.8)]">
         <button
           onClick={dismiss}
           aria-label="Close"
@@ -100,7 +106,7 @@ export function NewsletterModal() {
         <div className="p-7">
           {done ? (
             <div className="py-6 text-center">
-              <div className="mx-auto grid h-12 w-12 place-items-center bg-[#32d74b]/15 text-[#32d74b]">
+              <div className="mx-auto grid h-12 w-12 place-items-center bg-[var(--fk-green)]/15 text-[var(--fk-green)]">
                 <Check className="h-6 w-6" />
               </div>
               <h2 className="mt-4 font-display text-2xl uppercase">You&apos;re in.</h2>
@@ -110,14 +116,14 @@ export function NewsletterModal() {
             <>
               <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">§ Newsletter</p>
               <h2 className="mt-2 font-display text-3xl uppercase leading-[0.95]">
-                Get an edge <span className="bg-[#ff3b30] px-1.5">before AI eats retail.</span>
+                Get an edge <span className="bg-[var(--fk-red)] px-1.5">before AI eats retail.</span>
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-white/60">
                 Tactics on validating ideas and getting your store recommended by AI agents. One
                 email, occasionally. Unsubscribe anytime.
               </p>
               <form onSubmit={submit} className="mt-5 flex flex-col gap-3">
-                <label className="flex items-center gap-2 border border-white/20 bg-white/[0.04] px-3 focus-within:border-[#ff3b30]">
+                <label className="flex items-center gap-2 border border-white/20 bg-white/[0.04] px-3 focus-within:border-[var(--fk-red)]">
                   <Mail className="h-4 w-4 text-white/40" />
                   <input
                     type="email"
@@ -129,11 +135,11 @@ export function NewsletterModal() {
                     className="w-full bg-transparent py-3 text-sm text-white placeholder:text-white/30 focus:outline-none"
                   />
                 </label>
-                {err && <p className="text-[12px] text-[#ff3b30]">{err}</p>}
+                {err && <p className="text-[12px] text-[var(--fk-red)]">{err}</p>}
                 <button
                   type="submit"
                   disabled={busy}
-                  className="flex items-center justify-center gap-2 bg-[#ff3b30] px-5 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-white hover:text-black disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 bg-[var(--fk-red)] px-5 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-white hover:text-black disabled:opacity-50"
                 >
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Subscribe"}
                 </button>

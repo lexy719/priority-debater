@@ -1,53 +1,65 @@
-import { normalizeUrl, runScan } from "@/lib/commerce/scan";
-import { saveReport } from "@/lib/commerce/report-store";
-import { createClient } from "@/lib/supabase/server";
-import { supabaseConfigured } from "@/lib/supabase/config";
-
-// The live buyer test fans five queries through OpenAI web search, so allow more
-// head-room than the default serverless timeout.
-export const maxDuration = 60;
-
 /**
- * POST /api/commerce/scan — run a free AI-visibility scan for a store URL.
+ * POST /api/commerce/scan — the free-scan engine, streamed (Phase 7).
  *
- * No auth and no charge: the report is free to RUN (the reverse trial shows the
- * full thing, then blurs client-side). Credits are only spent to UNLOCK it, via
- * /api/commerce/unlock. The scan is associated with the signed-in user when one
- * exists, otherwise saved as an anonymous preview (user_id = null).
+ * Request: { url: string }
+ * Response: newline-delimited JSON events (SSE-shaped, `data: {...}` lines):
+ *   { type: "log", step, label, status, ts }   — one per real engine step
+ *   { type: "result", report: CommerceReport } — the full report
+ *   { type: "done" }                           — terminal marker
+ *   { type: "error", message }                 — hard failure only (bad URL)
+ *
+ * STATELESS by design (CLAUDE.md): this route never persists. The client
+ * writes the scan + products into the localStorage repository when `result`
+ * arrives. Partial provider failure degrades to `warn` log lines + an
+ * honestly-labelled report — never a hard error (§6.2).
  */
-export async function POST(request: Request) {
-  let body: { url?: string };
+
+import { runScan, type ScanLogEvent } from "@/lib/commerce/scan/engine";
+
+export const runtime = "nodejs";
+export const maxDuration = 120;
+
+function sse(payload: unknown): Uint8Array {
+  return new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+export async function POST(req: Request): Promise<Response> {
+  let url = "";
   try {
-    body = await request.json();
+    const body = (await req.json()) as { url?: string };
+    url = (body.url ?? "").trim();
   } catch {
-    return Response.json({ error: "Invalid JSON body." }, { status: 400 });
+    /* fall through to validation below */
+  }
+  if (!url) {
+    return Response.json({ error: "Enter your store URL to start the scan." }, { status: 400 });
   }
 
-  const normalized = normalizeUrl(String(body.url ?? ""));
-  if (!normalized) {
-    return Response.json({ error: "Enter a valid store URL (e.g. your-store.com)." }, { status: 400 });
-  }
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (payload: unknown) => {
+        try { controller.enqueue(sse(payload)); } catch { /* client gone */ }
+      };
+      const onProgress = (e: ScanLogEvent) =>
+        send({ type: "log", ...e, ts: new Date().toISOString() });
 
-  try {
-    const report = await runScan(normalized.url);
-
-    let userId: string | null = null;
-    if (supabaseConfigured()) {
       try {
-        const supabase = await createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        userId = user?.id ?? null;
-      } catch {
-        /* anonymous preview */
+        const report = await runScan(url, onProgress);
+        send({ type: "result", report });
+        send({ type: "done" });
+      } catch (e) {
+        send({ type: "error", message: e instanceof Error ? e.message : "Scan failed — try again." });
+      } finally {
+        try { controller.close(); } catch { /* already closed */ }
       }
-    }
+    },
+  });
 
-    await saveReport(report, userId).catch(() => {});
-    return Response.json({ report });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Scan failed.";
-    return Response.json({ error: message }, { status: 500 });
-  }
+  return new Response(stream, {
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+    },
+  });
 }

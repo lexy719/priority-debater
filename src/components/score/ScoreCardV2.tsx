@@ -18,19 +18,19 @@ import type { IdeaScoreV2, Band, Recommendation } from "@/lib/agents/idea-scorin
 const CACHE_KEY = "priority-debater-score-v2";
 
 const BAND_STYLES: Record<Band, { bg: string; fg: string; label: string }> = {
-  weak: { bg: "#ef4444", fg: "#fff", label: "WEAK" },
-  interesting: { bg: "#f59e0b", fg: "#000", label: "INTERESTING" },
-  viable: { bg: "#facc15", fg: "#000", label: "VIABLE" },
-  strong: { bg: "#22c55e", fg: "#000", label: "STRONG" },
-  exceptional: { bg: "#06b6d4", fg: "#000", label: "EXCEPTIONAL" },
+  weak: { bg: "var(--fk-red)", fg: "#fff", label: "WEAK" },
+  interesting: { bg: "var(--fk-amber)", fg: "#000", label: "INTERESTING" },
+  viable: { bg: "var(--fk-yellow)", fg: "#000", label: "VIABLE" },
+  strong: { bg: "var(--fk-green)", fg: "#000", label: "STRONG" },
+  exceptional: { bg: "var(--fk-blue)", fg: "#fff", label: "EXCEPTIONAL" },
 };
 
 const RECOMMENDATION_STYLES: Record<Recommendation, { bg: string; fg: string; label: string }> = {
-  proceed: { bg: "#22c55e", fg: "#000", label: "PROCEED" },
-  "proceed-cautiously": { bg: "#facc15", fg: "#000", label: "PROCEED CAUTIOUSLY" },
-  refine: { bg: "#7dd3fc", fg: "#000", label: "REFINE" },
-  pivot: { bg: "#f59e0b", fg: "#000", label: "PIVOT" },
-  reject: { bg: "#ef4444", fg: "#fff", label: "REJECT" },
+  proceed: { bg: "var(--fk-green)", fg: "#000", label: "PROCEED" },
+  "proceed-cautiously": { bg: "var(--fk-yellow)", fg: "#000", label: "PROCEED CAUTIOUSLY" },
+  refine: { bg: "var(--fk-blue)", fg: "#fff", label: "REFINE" },
+  pivot: { bg: "var(--fk-amber)", fg: "#000", label: "PIVOT" },
+  reject: { bg: "var(--fk-red)", fg: "#fff", label: "REJECT" },
 };
 
 const RELIANCE_STYLES: Record<
@@ -39,7 +39,7 @@ const RELIANCE_STYLES: Record<
 > = {
   none: {
     label: "USER-PROVIDED / 0 ASSUMPTIONS",
-    className: "border-[#22c55e] text-[#22c55e]",
+    className: "border-[#16B364] text-[#16B364]",
   },
   low: {
     label: "MOSTLY USER-PROVIDED / 1-2 ASSUMPTIONS",
@@ -51,7 +51,7 @@ const RELIANCE_STYLES: Record<
   },
   high: {
     label: "RESEARCH-HEAVY / ADD EVIDENCE TO LOCK",
-    className: "border-[#ef4444] text-[#ef4444]",
+    className: "border-[#FF2B2B] text-[#FF2B2B]",
   },
 };
 
@@ -195,8 +195,8 @@ export default function ScoreCardV2({
 
   if (status === "error") {
     return (
-      <div className={`border-2 border-[#ef4444] bg-black p-6 text-white ${className}`}>
-        <div className="flex items-center gap-2 font-mono text-[11px] font-semibold tracking-widest text-[#ef4444]">
+      <div className={`border-2 border-[#FF2B2B] bg-black p-6 text-white ${className}`}>
+        <div className="flex items-center gap-2 font-mono text-[11px] font-semibold tracking-widest text-[#FF2B2B]">
           <AlertTriangle className="h-4 w-4" /> SCORING FAILED
         </div>
         <p className="mt-2 text-sm">{errorMessage}</p>
@@ -376,8 +376,8 @@ export default function ScoreCardV2({
                   {dimension.why}
                 </div>
 
-                <div className="col-span-12 border-l-2 border-[#ef4444]/40 pl-3 font-mono text-[12px] leading-relaxed text-neutral-800 sm:col-span-3">
-                  <span className="block text-[9px] font-bold tracking-widest text-[#ef4444]">
+                <div className="col-span-12 border-l-2 border-[#FF2B2B]/40 pl-3 font-mono text-[12px] leading-relaxed text-neutral-800 sm:col-span-3">
+                  <span className="block text-[9px] font-bold tracking-widest text-[#FF2B2B]">
                     TOP GAP
                   </span>
                   {dimension.topGap}
@@ -424,7 +424,7 @@ export default function ScoreCardV2({
                   )}
                 </div>
                 <div className="col-span-12 border-l-2 border-black/20 pl-3 text-[13px] leading-relaxed text-neutral-800 sm:col-span-5">
-                  <span className="font-mono text-[9px] font-bold tracking-widest text-[#ef4444]">
+                  <span className="font-mono text-[9px] font-bold tracking-widest text-[#FF2B2B]">
                     EVIDENCE TO LOCK
                   </span>
                   <br />
@@ -440,14 +440,14 @@ export default function ScoreCardV2({
         <ListPanel
           icon={<CheckCircle2 className="h-4 w-4" />}
           title="TOP STRENGTHS"
-          color="#22c55e"
+          color="#16B364"
           empty="No clear strengths surfaced from the text."
           items={data.topStrengths}
         />
         <ListPanel
           icon={<AlertTriangle className="h-4 w-4" />}
           title="TOP RISKS"
-          color="#ef4444"
+          color="#FF2B2B"
           empty="No clear risks surfaced from the text."
           items={data.topRisks}
         />
@@ -460,7 +460,7 @@ export default function ScoreCardV2({
         <ol className="mt-3 grid gap-3 sm:grid-cols-3">
           {data.nextThreeMoves.slice(0, 3).map((move, index) => (
             <li key={`${move}-${index}`} className="border-2 border-black bg-white p-4">
-              <div className="font-mono text-[10px] font-bold tracking-widest text-[#ef4444]">
+              <div className="font-mono text-[10px] font-bold tracking-widest text-[#FF2B2B]">
                 MOVE {String(index + 1).padStart(2, "0")}
               </div>
               <p className="mt-2 text-[14px] leading-relaxed text-black">{move}</p>

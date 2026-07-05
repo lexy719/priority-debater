@@ -1,0 +1,87 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e4]:
+      - link "COMMERCE" [ref=e5] [cursor=pointer]:
+        - /url: /commerce
+      - link "VALIDATION" [ref=e6] [cursor=pointer]:
+        - /url: /validation
+    - generic [ref=e8]:
+      - heading "Your store is invisible to AI shoppers." [level=1] [ref=e9]
+      - paragraph [ref=e10]: AI-originated shopping orders have grown sharply in 2026 — most small stores have no idea if they show up at all.
+      - paragraph [ref=e11]:
+        - text: AI-driven traffic to Shopify stores grew 8× year-over-year, with AI-search orders up roughly 13× since January 2025.
+        - generic [ref=e12]: "Source: Shopify Q1 2026 earnings"
+      - link "Scan your store — free" [ref=e14] [cursor=pointer]:
+        - /url: /scan
+        - text: Scan your store — free
+        - img [ref=e15]
+      - generic [ref=e17]: € 128,400 recovered for merchants this month
+    - generic [ref=e19]:
+      - generic [ref=e20]: How it works
+      - heading "Scan. Verdict. Fix. Recover." [level=2] [ref=e21]
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: "01"
+          - heading "Scan" [level=3] [ref=e25]
+          - paragraph [ref=e26]: We check what ChatGPT, Gemini, and Perplexity say about your products.
+        - generic [ref=e27]:
+          - generic [ref=e28]: "02"
+          - heading "Verdict" [level=3] [ref=e29]
+          - paragraph [ref=e30]: "Plain language, not a score: invisible, at risk, or winning."
+        - generic [ref=e31]:
+          - generic [ref=e32]: "03"
+          - heading "Fix" [level=3] [ref=e33]
+          - paragraph [ref=e34]: We rewrite what's missing and push it live. You approve every change.
+        - generic [ref=e35]:
+          - generic [ref=e36]: "04"
+          - heading "Recover" [level=3] [ref=e37]
+          - paragraph [ref=e38]: Every euro traced back to a real order in your own store.
+    - generic [ref=e40]:
+      - generic [ref=e41]: Leaderboard
+      - heading "See how your category's brands rank" [level=2] [ref=e42]
+      - paragraph [ref=e43]: We're building a public leaderboard of who AI actually recommends, by category.
+      - generic [ref=e45]: Leaderboard — coming soon
+    - generic [ref=e47]:
+      - generic [ref=e48]: Pricing
+      - heading "Start free. Pay when it pays you back." [level=2] [ref=e49]
+      - generic [ref=e50]:
+        - link "Plan Free Scan €0 One-time audit, no card needed See pricing" [ref=e51] [cursor=pointer]:
+          - /url: /pricing
+          - generic [ref=e53]: Plan
+          - generic [ref=e54]: Free Scan
+          - generic [ref=e55]: €0
+          - paragraph [ref=e56]: One-time audit, no card needed
+          - generic [ref=e57]:
+            - text: See pricing
+            - img [ref=e58]
+        - link "Plan Starter €19/mo Full dashboard, weekly re-scan, manual fixes See pricing" [ref=e61] [cursor=pointer]:
+          - /url: /pricing
+          - generic [ref=e63]: Plan
+          - generic [ref=e64]: Starter
+          - generic [ref=e65]: €19/mo
+          - paragraph [ref=e66]: Full dashboard, weekly re-scan, manual fixes
+          - generic [ref=e67]:
+            - text: See pricing
+            - img [ref=e68]
+        - link "Recommended Popular Growth 0% base + performance fee Auto-push, competitor watch, content generation Choose Growth" [ref=e71] [cursor=pointer]:
+          - /url: /pricing
+          - generic [ref=e72]:
+            - generic [ref=e73]: Recommended
+            - generic [ref=e74]: Popular
+          - generic [ref=e75]: Growth
+          - generic [ref=e76]: 0% base + performance fee
+          - paragraph [ref=e77]: Auto-push, competitor watch, content generation
+          - generic [ref=e78]:
+            - text: Choose Growth
+            - img [ref=e79]
+    - generic [ref=e82]:
+      - generic [ref=e83]: © 2026 Priority Debater
+      - generic [ref=e84]:
+        - link "Pricing" [ref=e85] [cursor=pointer]:
+          - /url: /pricing
+        - link "Docs" [ref=e86] [cursor=pointer]:
+          - /url: /faq
+        - link "Validation" [ref=e87] [cursor=pointer]:
+          - /url: /validation
+  - button "Open Next.js Dev Tools" [ref=e93] [cursor=pointer]:
+    - img [ref=e94]

@@ -4,82 +4,46 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { Dot } from "./primitives";
 import { FooterNewsletter } from "./FooterNewsletter";
-import { useFork } from "@/components/home/ForkContext";
 
 export function Cta() {
-  const { fork } = useFork();
-  const commerce = fork === "commerce";
   return (
     <section id="cta" className="relative overflow-hidden border-b border-paper/10 bg-ink text-paper grid-paper-dark">
       <div className="mx-auto max-w-[1120px] px-6 py-28 text-center lg:px-10 lg:py-40">
         <div className="font-mono text-[11px] uppercase tracking-[0.32em] text-paper/50">
-          {commerce ? "— Final / The agents are shopping" : "— Final / The verdict awaits"}
+          — Final / The verdict awaits
         </div>
         <h2 className="mx-auto mt-8 max-w-5xl font-display text-[clamp(3rem,9vw,8rem)] leading-[0.9] tracking-[-0.02em]">
-          {commerce ? (
-            <>
-              Be the store <br />
-              AI <span className="hl-blue">recommends</span>
-              <span className="text-signal-blue">_</span>
-            </>
-          ) : (
-            <>
-              Ship the <br />
-              idea that <span className="hl-red">survives</span>
-              <span className="text-signal-red">_</span>
-            </>
-          )}
+          Ship the <br />
+          idea that <span className="hl-red">survives</span>
+          <span className="text-signal-red">_</span>
         </h2>
         <p className="mx-auto mt-10 max-w-xl text-base leading-relaxed text-paper/70">
-          {commerce
-            ? "Right now an AI agent is recommending a competitor in your category. Find out who — and ship the fixes that flip it to you."
-            : "Most founders confirm their bias. The honest ones run the debate first. Take a couple of minutes and find out which one you are."}
+          Most founders confirm their bias. The honest ones run the debate first. Take a couple of minutes and find out which one you are.
         </p>
 
         <div className="mt-12 flex flex-wrap items-center justify-center gap-4">
-          {commerce ? (
-            <>
-              <Link
-                href="/commerce"
-                className="group inline-flex items-center gap-3 border border-signal-blue bg-signal-blue px-7 py-4 font-mono text-xs uppercase tracking-[0.2em] text-ink transition-all hover:bg-paper hover:border-paper"
-              >
-                Audit my store
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-              <Link
-                href="/commerce"
-                className="group inline-flex items-center gap-3 border border-paper/30 px-7 py-4 font-mono text-xs uppercase tracking-[0.2em] text-paper transition-colors hover:bg-paper hover:text-ink"
-              >
-                See the dashboard
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </>
-          ) : (
-            <>
-              <a
-                href="#validate"
-                className="group inline-flex items-center gap-3 border border-signal-red bg-signal-red px-7 py-4 font-mono text-xs uppercase tracking-[0.2em] text-ink transition-all hover:bg-paper hover:border-paper"
-              >
-                Validate my idea
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </a>
-              <a
-                href="#chamber"
-                className="group inline-flex items-center gap-3 border border-paper/30 px-7 py-4 font-mono text-xs uppercase tracking-[0.2em] text-paper transition-colors hover:bg-paper hover:text-ink"
-              >
-                See the Chamber
-                <ArrowUpRight className="h-4 w-4" />
-              </a>
-            </>
-          )}
+          <Link
+            href="/validation"
+            className="group inline-flex items-center gap-3 border border-signal-red bg-signal-red px-7 py-4 font-mono text-xs uppercase tracking-[0.2em] text-ink transition-all hover:bg-paper hover:border-paper"
+          >
+            Validate my idea
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </Link>
+          <Link
+            href="/debate"
+            className="group inline-flex items-center gap-3 border border-paper/30 px-7 py-4 font-mono text-xs uppercase tracking-[0.2em] text-paper transition-colors hover:bg-paper hover:text-ink"
+          >
+            See the Chamber
+            <ArrowUpRight className="h-4 w-4" />
+          </Link>
         </div>
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3 font-mono text-[11px] uppercase tracking-[0.22em] text-paper/45">
-          <span className="flex items-center gap-2"><Dot color={commerce ? "blue" : "red"} /> No card to start</span>
+          <span className="flex items-center gap-2"><Dot color="red" /> No card to start</span>
           <span>·</span>
           <span>50 free credits</span>
           <span>·</span>
-          <span>{commerce ? "Found by ChatGPT, Claude & Gemini" : "Five agents, zero mercy"}</span>
+          <span>Five agents, zero mercy</span>
         </div>
       </div>
     </section>
@@ -106,13 +70,13 @@ export function Footer() {
         </div>
         {[
           { h: "Product", links: [
-            { l: "Validate an idea", href: "/#validate" },
+            { l: "Validate an idea", href: "/validation" },
             { l: "AI Commerce audit", href: "/commerce" },
             { l: "The Chamber", href: "/debate" },
             { l: "Pricing", href: "/pricing" },
           ] },
           { h: "Resources", links: [
-            { l: "How it works", href: "/#how" },
+            { l: "How it works", href: "/validation" },
             { l: "FAQ", href: "/faq" },
             { l: "Sample dossier", href: "/resultstest" },
             { l: "Your report", href: "/results" },

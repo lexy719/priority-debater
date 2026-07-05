@@ -9,11 +9,11 @@
    ============================================================= */
 
 :root {
-  /* Canvas — high-end paper finish */
-  --bg:               #f0ebe3;
-  --bg-paper:         #f0ebe3;
-  --bg-black:         #000000;
-  --bg-deep:          #0a0a0a;
+  /* Canvas — legacy surface tokens, aligned to the canonical fk palette below */
+  --bg:               var(--fk-cream);
+  --bg-paper:         var(--fk-cream);
+  --bg-black:         var(--fk-black);
+  --bg-deep:          var(--fk-black);
   --bg-elevated:      #ffffff;
   --surface-1:        #ffffff;
   --surface-2:        #f0f0f0;
@@ -27,31 +27,53 @@
   --hi-deep:          #38bdf8;
   --grid:             rgba(0, 0, 0, 0.06);
   --grid-dark:        rgba(255, 255, 255, 0.05);
-  --c-red:            #ff3b30;
-  --c-orange:         #ff8a00;
-  --c-blue:           #2f6bff;
-  --c-yellow:         #ffd60a;
-  --c-magenta:        #ff2d87;
-  --c-green:          #14b870;
+  /* ==========================================================
+     CANONICAL DESIGN TOKENS — the --fk-* family.
+     Source of truth: docs/design-system.md. Five hero colors +
+     supporting tokens. Everything that follows (--pd-*, --signal-*,
+     --c-*) is a FROZEN ALIAS of these for legacy call sites.
+     New code must use --fk-* vars / fk- Tailwind utilities only.
+     ========================================================== */
+  --fk-black:        #0A0A0A;
+  --fk-cream:        #F2EEE3;
+  --fk-yellow:       #FFD400; /* the single CTA per page — never decorative */
+  --fk-blue:         #0047FF; /* data / primary */
+  --fk-red:          #FF2B2B; /* fail / invisible states */
+  /* Supporting tokens — state + structure, never hero colors */
+  --fk-green:        #16B364; /* success / live states */
+  --fk-amber:        #F5A623; /* warn / pending states */
+  --fk-muted:        #888888; /* muted text on dark */
+  --fk-ink-border:   #1A1A1A; /* hairline border on black */
+  --fk-cream-border: #E0D9CE; /* hairline border on cream */
+  --fk-card-dark:    #111111; /* raised card surface on black */
 
-  /* Lovable raw tokens — let ported commerce JSX use var(--signal-*) verbatim */
-  --signal-red:       #ef4444;
-  --signal-blue:      #3b82f6;
-  --signal-green:     #22c55e;
-  --signal-amber:     #f59e0b;
+  /* Frozen aliases — legacy call sites only. Do NOT add new usages. */
+  --c-red:            var(--fk-red);
+  --c-orange:         #ff8a00;
+  --c-blue:           var(--fk-blue);
+  --c-yellow:         var(--fk-yellow);
+  --c-magenta:        #ff2d87;
+  --c-green:          var(--fk-green);
+
+  --signal-red:       var(--fk-red);
+  --signal-blue:      var(--fk-blue);
+  --signal-green:     var(--fk-green);
+  --signal-amber:     var(--fk-amber);
   --paper-foreground: var(--ink-0);
 
-  /* PD Commerce — exact brutalist palette (black/cream pages, single yellow CTA) */
-  --pd-black:         #0a0a0a;
-  --pd-ink:           #1a1a1a; /* hairline borders on dark */
-  --pd-cream:         #f5f0e8;
-  --pd-cream-2:       #e8e2d6; /* hairline borders on cream */
-  --pd-yellow:        #ffd600;
-  --pd-blue:          #1e6bff;
-  --pd-red:           #ff2d2d;
-  --pd-green:         #16b364;
-  --pd-amber:         #f5a623;
-  --pd-muted:         #8a8a8a; /* muted text on dark */
+  --pd-black:         var(--fk-black);
+  --pd-ink:           var(--fk-ink-border);
+  --pd-cream:         var(--fk-cream);
+  --pd-cream-2:       var(--fk-cream-border);
+  --pd-yellow:        var(--fk-yellow);
+  --pd-blue:          var(--fk-blue);
+  --pd-red:           var(--fk-red);
+  --pd-green:         var(--fk-green);
+  --pd-amber:         var(--fk-amber);
+  --pd-muted:         var(--fk-muted);
+  --pd-border-dark:   var(--fk-ink-border);
+  --pd-border-light:  var(--fk-cream-border);
+  --pd-card-dark:     var(--fk-card-dark);
 
   /* Type — stark black hierarchy */
   --ink-0:            #000000;
@@ -65,9 +87,9 @@
   --line-white:       rgba(255, 255, 255, 0.1);
 
   /* Semantic palette */
-  --go:               #22c55e;
-  --no-go:            #ef4444;
-  --caution:          #eab308;
+  --go:               var(--fk-green);
+  --no-go:            var(--fk-red);
+  --caution:          var(--fk-amber);
 
   /* Brand accent — Sky Blue */
   --accent:           #7dd3fc;
@@ -108,12 +130,12 @@
   --color-accent:           var(--accent);
   --color-on-accent:        var(--on-accent);
 
-  /* Lovable signal colors */
-  --color-signal-red:       #ef4444;
-  --color-signal-blue:      #3b82f6;
-  --color-signal-green:     #22c55e;
-  --color-signal-amber:     #f59e0b;
-  --color-signal-yellow:    #fbbf24;
+  /* Lovable signal colors — frozen aliases of the fk palette */
+  --color-signal-red:       var(--fk-red);
+  --color-signal-blue:      var(--fk-blue);
+  --color-signal-green:     var(--fk-green);
+  --color-signal-amber:     var(--fk-amber);
+  --color-signal-yellow:    var(--fk-yellow);
 
   /* PD Commerce palette → Tailwind utilities (bg-pd-black, text-pd-yellow, …) */
   --color-pd-black:         var(--pd-black);
@@ -126,6 +148,19 @@
   --color-pd-green:         var(--pd-green);
   --color-pd-amber:         var(--pd-amber);
   --color-pd-muted:         var(--pd-muted);
+
+  /* Canonical fk tokens → Tailwind utilities (bg-fk-black, text-fk-yellow, …) */
+  --color-fk-black:         var(--fk-black);
+  --color-fk-cream:         var(--fk-cream);
+  --color-fk-yellow:        var(--fk-yellow);
+  --color-fk-blue:          var(--fk-blue);
+  --color-fk-red:           var(--fk-red);
+  --color-fk-green:         var(--fk-green);
+  --color-fk-amber:         var(--fk-amber);
+  --color-fk-muted:         var(--fk-muted);
+  --color-fk-ink-border:    var(--fk-ink-border);
+  --color-fk-cream-border:  var(--fk-cream-border);
+  --color-fk-card-dark:     var(--fk-card-dark);
 
   /* Shadcn-style semantic tokens */
   --color-background:       var(--bg-paper);
@@ -278,10 +313,10 @@ body {
   font-family: Georgia, 'Times New Roman', serif;
 }
 
-/* Lovable highlight spans */
+/* Highlight spans — fk palette */
 .hl-red,
 .highlight-red {
-  background: #ef4444;
+  background: var(--fk-red);
   color: #fff;
   padding: 0.02em 0.15em;
   box-decoration-break: clone;
@@ -289,7 +324,7 @@ body {
 }
 
 .hl-blue {
-  background: #3b82f6;
+  background: var(--fk-blue);
   color: #fff;
   padding: 0.02em 0.15em;
   box-decoration-break: clone;
@@ -297,7 +332,7 @@ body {
 }
 
 .hl-yellow {
-  background: #fbbf24;
+  background: var(--fk-yellow);
   color: #000;
   padding: 0.02em 0.15em;
   box-decoration-break: clone;
@@ -926,24 +961,10 @@ html.has-custom-cursor * {
 }
 
 /* ============================================================
-   PD Commerce — Shopify rebuild design tokens (Phase 1+).
-   New keyless dashboard/optimise/video pages opt into these via the
-   primitives in commerce/dash/primitives.tsx. Additive: the older
-   pd-* classes below keep their own literal hexes untouched.
+   NOTE: the canonical --fk-* tokens (and the frozen --pd-* aliases
+   the classes below consume) are defined ONCE in the top :root block.
+   Do not redefine them here — see docs/design-system.md.
    ============================================================ */
-:root {
-  --pd-black:        #0A0A0A;
-  --pd-cream:        #F5F0E8;
-  --pd-blue:         #1E6BFF;
-  --pd-yellow:       #FFD600;
-  --pd-red:          #FF2D2D;
-  --pd-amber:        #FF8C00;
-  --pd-green:        #00C853;
-  --pd-muted:        #888888;
-  --pd-border-dark:  #1A1A1A;
-  --pd-border-light: #E0D9CE;
-  --pd-card-dark:    #111111;
-}
 
 /* Rebuild buttons/inputs ("pd2-*"). Sharp, no shadow/gradient. Used by the
    dash/primitives components + the new pages. */
@@ -1007,7 +1028,7 @@ html.has-custom-cursor * {
 
 /* Signature highlight box — electric blue brand accent */
 .pd-box {
-  background: #2d6bff;
+  background: var(--fk-blue);
   color: #ffffff;
   padding: 0 0.12em 0.04em;
   display: inline-block;
@@ -1015,7 +1036,7 @@ html.has-custom-cursor * {
 }
 
 .pd-btn-primary {
-  background: #2d6bff;
+  background: var(--fk-blue);
   color: #ffffff;
   text-transform: uppercase;
   font-weight: 700;
@@ -1030,7 +1051,7 @@ html.has-custom-cursor * {
 .pd-btn-primary:active { transform: translateY(1px); }
 
 .pd-btn-yellow {
-  background: #f5c842;
+  background: var(--fk-yellow);
   color: #000000;
   text-transform: uppercase;
   font-weight: 700;
@@ -1070,7 +1091,7 @@ html.has-custom-cursor * {
   transition: border-color 0.2s ease;
 }
 .pd-input::placeholder { color: #555555; }
-.pd-input:focus { border-color: #2d6bff; }
+.pd-input:focus { border-color: var(--fk-blue); }
 
 .pd-card { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 0; }
 
@@ -1091,11 +1112,11 @@ html.has-custom-cursor * {
   display: inline-block;
   font-weight: 500;
 }
-.pd-pill-missing { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
-.pd-pill-live { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
-.pd-pill-fail { background: rgba(232, 39, 42, 0.12); color: #e8272a; }
+.pd-pill-missing { background: rgba(245, 166, 35, 0.12); color: var(--fk-amber); }
+.pd-pill-live { background: rgba(22, 179, 100, 0.12); color: var(--fk-green); }
+.pd-pill-fail { background: rgba(255, 43, 43, 0.12); color: var(--fk-red); }
 
-.pd-marquee { background: #e8272a; overflow: hidden; white-space: nowrap; width: 100%; }
+.pd-marquee { background: var(--fk-red); overflow: hidden; white-space: nowrap; width: 100%; }
 .pd-marquee-track {
   display: inline-block;
   white-space: nowrap;
@@ -1123,15 +1144,15 @@ html.has-custom-cursor * {
 .pd-fade { opacity: 0; animation: pd-fade 0.6s ease forwards; }
 @keyframes pd-fade { to { opacity: 1; } }
 
-.pd-progress-track { width: 100%; height: 6px; background: #1a1a1a; }
-.pd-progress-fill { height: 100%; background: #2d6bff; }
+.pd-progress-track { width: 100%; height: 6px; background: var(--fk-ink-border); }
+.pd-progress-fill { height: 100%; background: var(--fk-blue); }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* Indeterminate scan bar — a blue sweep that runs for the whole audit wait. */
-.pd-bar-track { position: relative; height: 3px; width: 100%; overflow: hidden; background: #1a1a1a; }
-.pd-bar-indeterminate { position: absolute; top: 0; left: -38%; height: 100%; width: 38%; background: #2d6bff; animation: pd-bar-slide 1.25s ease-in-out infinite; }
+.pd-bar-track { position: relative; height: 3px; width: 100%; overflow: hidden; background: var(--fk-ink-border); }
+.pd-bar-indeterminate { position: absolute; top: 0; left: -38%; height: 100%; width: 38%; background: var(--fk-blue); animation: pd-bar-slide 1.25s ease-in-out infinite; }
 @keyframes pd-bar-slide { 0% { left: -38%; } 100% { left: 100%; } }
 
 /* Respect reduced-motion: kill the looping commerce-flow animations. */

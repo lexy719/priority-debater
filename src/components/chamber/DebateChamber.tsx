@@ -382,9 +382,15 @@ export default function DebateChamber() {
 
   // Boot — prefill the validated idea but DON'T auto-start. The Chamber stays
   // locked until the founder clicks Enter (which charges the "debate" credits).
+  // A ?idea= query param (carried from the /validation landing's VALIDATE CTA)
+  // takes precedence over any stored session topic.
   useEffect(() => {
-    const stored = loadSession()?.setup?.topic?.trim();
-    if (stored) setIdeaDraft(stored);
+    let fromQuery: string | null = null;
+    if (typeof window !== "undefined") {
+      fromQuery = new URLSearchParams(window.location.search).get("idea");
+    }
+    const seed = (fromQuery ?? loadSession()?.setup?.topic ?? "").trim();
+    if (seed) setIdeaDraft(seed);
   }, []);
 
   // Timer — only runs during an active session. Pauses while the founder is
