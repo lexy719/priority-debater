@@ -5,11 +5,11 @@ import { connectorFor } from "@/lib/commerce/connectors";
 import type { ConnectorOrder, ConnectorProduct } from "@/lib/commerce/connectors/types";
 import type { StoreProduct } from "@/lib/studio/aiStorefront";
 import {
-  loadConnected, loadSecret, priceNumber, saveConnected, saveSecret,
+  listConnectedFor, loadConnected, loadSecret, priceNumber, saveConnected, saveSecret,
   type ConnectedBusiness, type ConnectedPlatform,
 } from "@/lib/studio/connectedRepo";
 import { orderId, saveOrder, type StoreOrder } from "@/lib/studio/orderRepo";
-import { recordOwnership, slugify } from "@/lib/studio/storeRepo";
+import { listStoresFor, recordOwnership, slugify } from "@/lib/studio/storeRepo";
 
 /**
  * POST /api/commerce/connect/sync — bring a store PDR does not host under
@@ -156,9 +156,22 @@ export async function POST(req: Request) {
   });
 }
 
-/** GET ?slug= — what PDR currently knows about a connected business. */
+/** GET — the connected stores in this register. With ?slug=, just that one. */
 export async function GET(req: Request) {
   const slug = new URL(req.url).searchParams.get("slug") ?? "";
+  if (!slug) {
+    const ownerId = await currentOwnerId();
+    const roster = await listStoresFor(ownerId);
+    const connected = await listConnectedFor(roster.map((r) => r.slug));
+    return NextResponse.json({
+      ok: true,
+      connected: connected.map((c) => ({
+        slug: c.slug, platform: c.platform, domain: c.domain, siteUrl: c.siteUrl,
+        name: c.brand.fullName, products: c.products.length,
+        lastSyncedAt: c.lastSyncedAt, scopes: c.scopes, syncNote: c.syncNote,
+      })),
+    }, { headers: { "cache-control": "no-store" } });
+  }
   const biz = await loadConnected(slug);
   if (!biz) return NextResponse.json({ ok: false, error: "not connected" }, { status: 404 });
   return NextResponse.json({

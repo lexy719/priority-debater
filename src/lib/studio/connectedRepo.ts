@@ -100,3 +100,13 @@ export function priceNumber(raw: string | null): number | null {
   const n = Number(m[1].replace(",", "."));
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
 }
+
+/** Every connected business in one operator's register, newest first. */
+export async function listConnectedFor(slugs: string[]): Promise<ConnectedBusiness[]> {
+  const out: ConnectedBusiness[] = [];
+  for (const slug of slugs) {
+    const b = await loadConnected(slug);
+    if (b) out.push(b);
+  }
+  return out.sort((a, b) => (b.lastSyncedAt ?? b.createdAt).localeCompare(a.lastSyncedAt ?? a.createdAt));
+}
