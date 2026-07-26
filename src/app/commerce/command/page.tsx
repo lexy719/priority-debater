@@ -18,6 +18,7 @@ import {
 /* ── shapes ────────────────────────────────────────────────────────────── */
 type Biz = {
   roster: { slug: string; name: string }[];
+  estate: "owned" | "demo";
   business: { slug: string; code: string; createdAt: string; brand: { name: string; fullName: string; domain: string; oneLiner: string; audience?: string; positioning?: string }; catalog: { sku: string; name: string; price: string; priceValue?: number; availability: string; stock: number; provenance?: Record<string, string>; kind?: string; unit?: string }[]; manifest: { ships?: string; returns?: string }; source: string };
   traffic: { agents: number; humans: number; byAgent: Record<string, number>; byKind: Record<string, number>; byProduct: Record<string, number>; recent: { ts: string; agent: string; kind: string }[] };
   orders: { count: number; revenue: number; byAgent: Record<string, number>; bySku: Record<string, { qty: number; revenue: number }>; daily: { d: string; revenue: number; orders: number }[]; recent: { id: string; ts: string; productName: string; qty: number; price: string; channel: string; agent: string; status: string }[] };
@@ -503,6 +504,7 @@ export default function CommerceLedger() {
           <h1 className="mt-3 text-balance font-display text-[2.4rem] uppercase leading-[0.95]" style={{ color: INKB }}>No company under management</h1>
           <p className="mt-3 text-pretty text-[13.5px] leading-relaxed" style={{ color: DIMB }}>
             Studio manufactures the business; Commerce operates it. Fabricate a storefront and it opens here as a ledger.
+            You will only ever see companies you fabricated — an empty register means empty, never somebody else&apos;s business.
           </p>
           <a href="/studio" className="mt-6 inline-block px-5 py-3 text-[12px] font-semibold no-underline" style={{ backgroundColor: INKB, color: PAPER }}>OPEN THE STUDIO →</a>
         </div>
@@ -521,7 +523,17 @@ export default function CommerceLedger() {
         </div>
         <div className="px-5 pb-4">
           <div style={{ height: 2, backgroundColor: INKB }} />
-          <div className="pt-2" style={MICRO}>REGISTER</div>
+          <div className="flex flex-wrap items-center gap-2 pt-2">
+            <span style={MICRO}>REGISTER</span>
+            {/* Whose companies these are. A visitor must never mistake the
+                built-in examples for their own business. */}
+            {biz && <Stamp text={biz.estate === "demo" ? "demo estate" : "your companies"} color={biz.estate === "demo" ? WARNB : LIVE} />}
+          </div>
+          {biz?.estate === "demo" && (
+            <div className="pt-1.5 text-[11.5px] leading-snug" style={{ color: DIMB }}>
+              Example businesses, shown because you are not signed in. Sign in and Commerce shows only the companies you fabricated.
+            </div>
+          )}
           <div className="mt-1.5 flex max-h-[128px] flex-col overflow-auto">
             {biz?.roster.map((r) => (
               <button key={r.slug} onClick={() => { setSlug(r.slug); pull(r.slug); setView("DASHBOARD"); }}

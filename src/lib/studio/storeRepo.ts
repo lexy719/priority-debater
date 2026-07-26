@@ -22,6 +22,11 @@ export type PublishedStore = {
   spec?: string;
   store: StorefrontInput;
   manifest: StoreManifest;
+  /** The Supabase user who fabricated it. Absent = part of the DEMO ESTATE:
+      the built-in example businesses anyone may look at. A signed-in operator
+      must never see another operator's company, and must never be shown the
+      demo estate as if it were theirs. */
+  ownerId?: string;
 };
 
 const DIR = path.join(process.cwd(), ".data", "stores");
@@ -75,9 +80,58 @@ export async function adjustStock(slug: string, sku: string, qty: number): Promi
   return p.stock;
 }
 
-/** Every published business the platform knows — Supabase first, local merged
-    in (pre-migration stores), newest first. The Commerce command centre's
-    company roster. */
+/* ── who owns what ─────────────────────────────────────────────────────────
+   A register is per operator. Rather than open every store document to find
+   out who owns it, each owner keeps an index of their own slugs; the demo
+   estate keeps one too under a reserved key that is not a valid user id. */
+
+const DEMO_OWNER = "_demo";
+const ownerKey = (ownerId: string | null) => `owners/${ownerId ?? DEMO_OWNER}.json`;
+
+async function readOwnerIndex(ownerId: string | null): Promise<string[]> {
+  if (blobConfigured()) {
+    const idx = await getJson<{ slugs?: string[] }>(ownerKey(ownerId));
+    if (idx?.slugs) return idx.slugs.filter((s) => SLUG_RE.test(s));
+  }
+  try {
+    const raw = await fs.readFile(path.join(process.cwd(), ".data", ownerKey(ownerId)), "utf8");
+    return (JSON.parse(raw) as { slugs?: string[] }).slugs?.filter((s) => SLUG_RE.test(s)) ?? [];
+  } catch { return []; }
+}
+
+/** Claim a store for an owner (or for the demo estate). Idempotent. */
+export async function recordOwnership(ownerId: string | null, slug: string): Promise<void> {
+  if (!SLUG_RE.test(slug)) return;
+  const slugs = await readOwnerIndex(ownerId);
+  if (slugs.includes(slug)) return;
+  slugs.push(slug);
+  const payload = { slugs };
+  if (blobConfigured()) { await putJson(ownerKey(ownerId), payload); return; }
+  const file = path.join(process.cwd(), ".data", ownerKey(ownerId));
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, JSON.stringify(payload, null, 2), "utf8");
+}
+
+/**
+ * The register for ONE operator. A signed-in operator sees only companies they
+ * fabricated; a visitor with no session sees the demo estate. The two are never
+ * mixed — an empty register reads as "no company under management", never as
+ * somebody else's business.
+ */
+export async function listStoresFor(ownerId: string | null): Promise<{ slug: string; name: string }[]> {
+  const slugs = await readOwnerIndex(ownerId);
+  return slugs
+    .map((slug) => ({ slug, name: slug.replace(/-[a-z0-9]{6}$/, "").toUpperCase() }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** True when this store belongs to this operator (or is demo and nobody is in). */
+export async function ownsStore(ownerId: string | null, slug: string): Promise<boolean> {
+  return (await readOwnerIndex(ownerId)).includes(slug);
+}
+
+/** EVERY published business, ignoring ownership — for system-level passes only
+    (the scheduled tick). Never use it to build a register. */
 export async function listStores(): Promise<{ slug: string; name: string }[]> {
   const slugs = new Set<string>();
   if (blobConfigured()) {

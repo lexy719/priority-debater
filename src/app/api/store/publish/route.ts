@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { saveStore, slugify, type PublishedStore } from "@/lib/studio/storeRepo";
+import { currentOwnerId } from "@/lib/commerce/owner";
+import { recordOwnership, saveStore, slugify, type PublishedStore } from "@/lib/studio/storeRepo";
 import type { StorefrontInput } from "@/lib/studio/aiStorefront";
 
 /**
@@ -31,6 +32,9 @@ export async function POST(req: Request) {
   // Inventory: every SKU launches with stock on hand (Ops Agent manages it).
   store.products = store.products.map((p) => ({ ...p, stock: p.stock ?? 24 }));
   const slug = slugify(store.brand.name, hash6(store.brand.domain + store.products.length));
+  // Whoever fabricated it owns it. No session (or auth unreachable) means the
+  // business joins the demo estate rather than becoming nobody's.
+  const ownerId = await currentOwnerId();
   const published: PublishedStore = {
     slug,
     createdAt: new Date().toISOString(),
@@ -38,9 +42,11 @@ export async function POST(req: Request) {
     spec: typeof body.spec === "string" ? body.spec.slice(0, 300) : undefined,
     store,
     manifest: body.manifest ?? {},
+    ...(ownerId ? { ownerId } : {}),
   };
   try {
     await saveStore(published);
+    await recordOwnership(ownerId, slug);
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }

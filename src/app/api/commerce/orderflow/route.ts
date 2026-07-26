@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ownedStore } from "@/lib/commerce/owner";
 import { recordActivity } from "@/lib/studio/activityRepo";
 import { ORDER_FLOW, updateOrderStatus, type OrderStatus } from "@/lib/studio/orderRepo";
 
@@ -15,6 +16,8 @@ export async function POST(req: Request) {
   let body: { slug?: string; id?: string; status?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
   const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   const id = String(body.id ?? "");
   const status = String(body.status ?? "") as OrderStatus;
   if (!slug || !id || !(status in ORDER_FLOW)) return NextResponse.json({ ok: false, error: "bad input" }, { status: 400 });

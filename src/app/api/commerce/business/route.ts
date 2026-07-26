@@ -7,7 +7,8 @@ import { loadCosts } from "@/lib/studio/costRepo";
 import { listExpenses, summarizeExpenses } from "@/lib/studio/expenseRepo";
 import { loadTraffic } from "@/lib/studio/hitRepo";
 import { loadCustomers, loadOrdersSummary } from "@/lib/studio/orderRepo";
-import { listStores, loadStore } from "@/lib/studio/storeRepo";
+import { currentOwnerId } from "@/lib/commerce/owner";
+import { listStoresFor, loadStore } from "@/lib/studio/storeRepo";
 
 /**
  * GET /api/commerce/business[?slug=] — the SHARED BUSINESS INTELLIGENCE layer.
@@ -35,7 +36,10 @@ type Proposal = {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const slugParam = url.searchParams.get("slug");
-  const roster = await listStores();
+  // The register belongs to whoever is asking: their companies, or the demo
+  // estate when nobody is signed in. Never both.
+  const ownerId = await currentOwnerId();
+  const roster = await listStoresFor(ownerId);
   const slug = slugParam && roster.some((r) => r.slug === slugParam) ? slugParam : roster[0]?.slug;
   if (!slug) return NextResponse.json({ ok: false, error: "no published businesses yet", roster: [] });
 
@@ -212,6 +216,9 @@ export async function GET(req: Request) {
   return NextResponse.json({
     ok: true,
     roster,
+    /** Whose register this is. `demo` = the built-in example businesses, shown
+        because nobody is signed in — never presented as the visitor's own. */
+    estate: ownerId ? "owned" : "demo",
     business: {
       slug, code,
       brand: store.store.brand,

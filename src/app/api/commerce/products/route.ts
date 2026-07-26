@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ownedStore } from "@/lib/commerce/owner";
 import { addProduct, restoreProduct, retireProduct, updateProduct } from "@/lib/studio/catalogOps";
 import { loadStore } from "@/lib/studio/storeRepo";
 
@@ -22,6 +23,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const slug = new URL(req.url).searchParams.get("slug") ?? "";
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   const s = await loadStore(slug);
   if (!s) return NextResponse.json({ ok: false, error: "store not found" }, { status: 404 });
   return NextResponse.json({ ok: true, products: s.store.products }, { headers: { "cache-control": "no-store" } });
@@ -30,7 +33,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   let body: { slug?: string; name?: string; description?: string; price?: string; category?: string; stock?: number; provenance?: Record<string, unknown>; kind?: string; unit?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
-  const r = await addProduct(String(body.slug ?? ""), {
+  const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
+  const r = await addProduct(slug, {
     name: String(body.name ?? ""), description: String(body.description ?? ""),
     price: String(body.price ?? ""), category: body.category, stock: body.stock, provenance: body.provenance,
     kind: body.kind, unit: body.unit,
@@ -42,6 +48,8 @@ export async function PUT(req: Request) {
   let body: { slug?: string; sku?: string; op?: string; price?: string; stock?: number; description?: string; category?: string; availability?: string; provenance?: Record<string, unknown>; kind?: string; unit?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
   const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   const sku = String(body.sku ?? "");
   const op = String(body.op ?? "update");
   const r = op === "retire" ? await retireProduct(slug, sku)

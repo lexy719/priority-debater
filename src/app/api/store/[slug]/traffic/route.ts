@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ownedStore } from "@/lib/commerce/owner";
 import { loadTraffic } from "@/lib/studio/hitRepo";
 
 /**
@@ -11,6 +12,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   const t = await loadTraffic(slug);
   return NextResponse.json({ ok: true, slug, ...t }, { headers: { "cache-control": "no-store" } });
 }

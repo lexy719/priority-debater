@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ownedStore } from "@/lib/commerce/owner";
 import {
   ACTION_TYPES, addAutomation, approvePending, dismissPending, listAutomations, METRIC_META,
   previewAutomations, removeAutomation, toggleAutomation,
@@ -41,6 +42,8 @@ async function currentMetrics(slug: string) {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const slug = url.searchParams.get("slug") ?? "";
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   const rules = await listAutomations(slug);
   if (url.searchParams.get("preview") !== "1") {
     return NextResponse.json({ ok: true, rules }, { headers: { "cache-control": "no-store" } });
@@ -89,6 +92,8 @@ export async function POST(req: Request) {
   let body: { slug?: string; if?: { metric?: string; op?: string; value?: number }; then?: unknown; requireApproval?: boolean };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
   const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   const metric = body.if?.metric as AutoMetric;
   const op = body.if?.op as AutoOp;
   const value = Number(body.if?.value);
@@ -106,6 +111,8 @@ export async function PUT(req: Request) {
   let body: { slug?: string; id?: string; op?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
   const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   const id = String(body.id ?? "");
   const op = String(body.op ?? "toggle");
   const rules = op === "approve" ? await approvePending(slug, id)
@@ -117,6 +124,9 @@ export async function PUT(req: Request) {
 export async function DELETE(req: Request) {
   let body: { slug?: string; id?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
-  const rules = await removeAutomation(String(body.slug ?? ""), String(body.id ?? ""));
+  const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
+  const rules = await removeAutomation(slug, String(body.id ?? ""));
   return NextResponse.json({ ok: true, rules });
 }

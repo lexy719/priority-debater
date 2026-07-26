@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ownedStore } from "@/lib/commerce/owner";
 import { blobConfigured, getJson, putJson } from "@/lib/studio/blobStore";
 import { loadBrain } from "@/lib/studio/brainRepo";
 import { loadTraffic } from "@/lib/studio/hitRepo";
@@ -32,6 +33,8 @@ const cachePath = (slug: string) => `analysis/${slug}.json`;
 
 export async function GET(req: Request) {
   const slug = new URL(req.url).searchParams.get("slug") ?? "";
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   if (!slug) return NextResponse.json({ ok: false, error: "slug required" }, { status: 400 });
   const cached = blobConfigured() ? await getJson<Analysis>(cachePath(slug)) : null;
   return NextResponse.json({ ok: true, analysis: cached }, { headers: { "cache-control": "no-store" } });

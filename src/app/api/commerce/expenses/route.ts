@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ownedStore } from "@/lib/commerce/owner";
 import { recordActivity } from "@/lib/studio/activityRepo";
 import { addExpense, listExpenses, removeExpense, summarizeExpenses } from "@/lib/studio/expenseRepo";
 
@@ -14,6 +15,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const slug = new URL(req.url).searchParams.get("slug") ?? "";
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   const expenses = await listExpenses(slug);
   return NextResponse.json({ ok: true, expenses, summary: summarizeExpenses(expenses) }, { headers: { "cache-control": "no-store" } });
 }
@@ -22,6 +25,8 @@ export async function POST(req: Request) {
   let body: { slug?: string; label?: string; amount?: number; category?: string; date?: string; recurring?: boolean };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
   const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   const e = await addExpense(slug, {
     label: String(body.label ?? ""), amount: Number(body.amount), category: String(body.category ?? "other"),
     date: body.date, recurring: body.recurring,
@@ -36,6 +41,8 @@ export async function DELETE(req: Request) {
   let body: { slug?: string; id?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
   const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   const expenses = await removeExpense(slug, String(body.id ?? ""));
   return NextResponse.json({ ok: true, expenses, summary: summarizeExpenses(expenses) });
 }

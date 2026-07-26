@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ownedStore } from "@/lib/commerce/owner";
 import { recordActivity } from "@/lib/studio/activityRepo";
 import {
   CAMPAIGN_FLOW, addVariant, createCampaign, deleteCampaign, fatigued, listCampaigns,
@@ -29,6 +30,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const slug = new URL(req.url).searchParams.get("slug") ?? "";
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   const campaigns = await listCampaigns(slug);
   return NextResponse.json(
     { ok: true, campaigns: campaigns.map((c) => ({ ...c, fatigued: fatigued(c).map((v) => v.id) })) },
@@ -40,6 +43,8 @@ export async function POST(req: Request) {
   let body: { slug?: string; id?: string; action?: string; name?: string; objective?: string; channels?: string[]; budgetCap?: number; platform?: string; angle?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
   const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   if (!slug) return NextResponse.json({ ok: false, error: "slug required" }, { status: 400 });
 
   // ── write a creative variant into an existing campaign ──
@@ -88,6 +93,8 @@ export async function PUT(req: Request) {
   let body: { slug?: string; id?: string; status?: string; variantId?: string; winner?: boolean; retire?: boolean };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
   const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   const id = String(body.id ?? "");
   if (!slug || !id) return NextResponse.json({ ok: false, error: "slug and id required" }, { status: 400 });
 
@@ -122,6 +129,9 @@ export async function PUT(req: Request) {
 export async function DELETE(req: Request) {
   let body: { slug?: string; id?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
-  const campaigns = await deleteCampaign(String(body.slug ?? ""), String(body.id ?? ""));
+  const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
+  const campaigns = await deleteCampaign(slug, String(body.id ?? ""));
   return NextResponse.json({ ok: true, campaigns });
 }

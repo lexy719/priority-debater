@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ownedStore } from "@/lib/commerce/owner";
 import { recordActivity } from "@/lib/studio/activityRepo";
 import { loadBrain } from "@/lib/studio/brainRepo";
 import { deleteLanding, listLandings, saveLanding } from "@/lib/studio/landingRepo";
@@ -21,6 +22,8 @@ const MODEL = "claude-sonnet-5";
 
 export async function GET(req: Request) {
   const slug = new URL(req.url).searchParams.get("slug") ?? "";
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   return NextResponse.json({ ok: true, landings: await listLandings(slug) }, { headers: { "cache-control": "no-store" } });
 }
 
@@ -31,6 +34,8 @@ export async function POST(req: Request) {
   let body: { slug?: string; sku?: string; campaignId?: string; audience?: string; objective?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
   const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   const store = await loadStore(slug);
   if (!store) return NextResponse.json({ ok: false, error: "store not found" }, { status: 404 });
 
@@ -95,6 +100,9 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   let body: { slug?: string; id?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
-  const landings = await deleteLanding(String(body.slug ?? ""), String(body.id ?? ""));
+  const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
+  const landings = await deleteLanding(slug, String(body.id ?? ""));
   return NextResponse.json({ ok: true, landings });
 }

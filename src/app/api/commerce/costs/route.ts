@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ownedStore } from "@/lib/commerce/owner";
 import { recordActivity } from "@/lib/studio/activityRepo";
 import { loadCosts, saveCosts, type CostMap } from "@/lib/studio/costRepo";
 
@@ -13,6 +14,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const slug = new URL(req.url).searchParams.get("slug") ?? "";
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   return NextResponse.json({ ok: true, costs: await loadCosts(slug) }, { headers: { "cache-control": "no-store" } });
 }
 
@@ -20,6 +23,8 @@ export async function POST(req: Request) {
   let body: { slug?: string; costs?: CostMap };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
   const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   if (!slug || typeof body.costs !== "object" || !body.costs) return NextResponse.json({ ok: false, error: "slug and costs required" }, { status: 400 });
   try {
     const costs = await saveCosts(slug, body.costs);

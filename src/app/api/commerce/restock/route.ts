@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ownedStore } from "@/lib/commerce/owner";
 import { recordActivity } from "@/lib/studio/activityRepo";
 import { loadStore, saveStore } from "@/lib/studio/storeRepo";
 
@@ -15,6 +16,8 @@ export async function POST(req: Request) {
   let body: { slug?: string; sku?: string; qty?: number };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 }); }
   const slug = String(body.slug ?? "");
+  const own = await ownedStore(slug);
+  if (!own.ok) return NextResponse.json({ ok: false, error: own.error }, { status: own.status });
   const sku = String(body.sku ?? "");
   const qty = Math.max(1, Math.min(500, Number(body.qty) || 12));
   if (!slug || !sku) return NextResponse.json({ ok: false, error: "slug and sku required" }, { status: 400 });
