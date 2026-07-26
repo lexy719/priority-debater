@@ -3,9 +3,16 @@
 Next.js App Router + Tailwind v4 + TypeScript. Two product forks behind a split-screen fork
 picker at `/`:
 
+> **Working on PD Studio (`/studio`)?** Read `docs/pd-studio-status.md` FIRST — it is the
+> single source of truth (feature board with % done, locked decisions, architecture map,
+> next-moves queue). **Update its % column + session log at the end of every session.**
+
 - **Commerce** (`/commerce/*`, `/scan`) — AI Commerce Intelligence: scan → verdict → fix →
   recover loop for online stores. Product spec: `docs/pd-commerce-full-design.md` (authoritative
   for copy, pricing, thresholds, data model). Frontend brief: `docs/pd-frontend-build-brief.md`.
+  **North star (settled 2026-07-24): `docs/pdr-commerce-vision.md`** — PDR Commerce = the
+  autonomous OPERATOR of Studio-built businesses (AI workers over shared business intelligence);
+  the scan product is one instrument inside that, not the whole product.
 - **Validation** (`/validation`, `/debate`, `/results`, studio flow pages) — idea validation via
   the five-persona debate chamber.
 

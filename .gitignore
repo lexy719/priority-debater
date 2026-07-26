@@ -38,6 +38,9 @@ next-dev.err.log*
 # vercel
 .vercel
 
+# studio local persistence (published stores + marketing brains)
+/.data/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
@@ -47,3 +50,11 @@ next-env.d.ts
 
 *storybook.log
 storybook-static
+
+# browser-automation leftovers (console dumps + verification screenshots)
+/.playwright-mcp/
+/wave*.png
+/*-verify.png
+
+# stray verification screenshots
+/machine-market.png

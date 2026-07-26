@@ -30,11 +30,11 @@ const display = Anton({
 export const metadata: Metadata = {
   metadataBase: new URL("https://priority-debater.vercel.app"),
   title: {
-    default: "Priority Debater - A verdict on your idea before you commit.",
-    template: "%s | Priority Debater",
+    default: "PDR — The Operating System for AI-Native Businesses",
+    template: "%s | PDR",
   },
   description:
-    "Two paths: stress-test a startup idea with a ruthless five-persona AI panel, or audit how AI agents see your live store and ship the fixes that win the recommendation layer.",
+    "Precision Dynamics builds businesses for the AI-agent economy. One platform across the full lifecycle — Validation, Studio, Commerce — from idea to autonomous company.",
   keywords: [
     "startup validation",
     "idea validator",

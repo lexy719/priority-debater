@@ -1,248 +1,206 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { ForkTabBar } from "@/components/fork/ForkTabBar";
+
+/**
+ * PDR Commerce — landing (`/commerce`).
+ * One question: "What happens after your business launches?"
+ * Validation proves it · Studio builds it · Commerce runs it.
+ * Swiss Editorial Ledger (docs/pdr-commerce-design.md v3): warm paper, 2px ink
+ * rules, numbered sections, Anton figures, one LIVE blue for measured data.
+ * Server-rendered, zero client JS.
+ */
 
 export const metadata: Metadata = {
-  title: "AI Commerce — Is your store visible to AI shoppers?",
+  title: "PDR Commerce — The operating system for AI-native businesses",
   description:
-    "AI-originated shopping orders are growing fast. Scan your store free and find out whether ChatGPT, Gemini and Perplexity can even see your products — then fix what's missing.",
+    "Validation proves the business. Studio builds it. Commerce runs it — autonomous marketing, social, operations, finance and AI-agent commerce under one operating system. Every number measured.",
 };
 
-/* Route: the free scan lives at /scan (see CLAUDE.md — Commerce owns /scan). */
-const SCAN_HREF = "/scan";
-/* Commerce pricing is its own fork route — never the validation /pricing page. */
-const PRICING_HREF = "/commerce/pricing";
+const PAPER = "#F5F3ED", INKB = "#111111", HAIRB = "#CFC9BC", DIMB = "#6B6659", FAINTB = "#9B968A";
+const LIVE = "#0047FF", OKB = "#1F7A44", WARNB = "#B45309", INSETB = "#ECE8DE";
+const MONO = "var(--app-font-mono), ui-monospace, monospace";
+const MICRO: React.CSSProperties = { fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: FAINTB };
 
-/* docs/pd-commerce-full-design.md §4.1 — four steps, verbatim copy. */
-const STEPS = [
-  { n: "01", title: "Scan", line: "We check what ChatGPT, Gemini, and Perplexity say about your products." },
-  { n: "02", title: "Verdict", line: "Plain language, not a score: invisible, at risk, or winning." },
-  { n: "03", title: "Fix", line: "We rewrite what's missing and push it live. You approve every change." },
-  { n: "04", title: "Recover", line: "Every euro traced back to a real order in your own store." },
-] as const;
-
-/* §4.1 — three pricing tiers, verbatim copy. Growth is the recommended card. */
-type Tier = {
-  name: string;
-  price: string;
-  note: string;
-  featured?: boolean;
-};
-
-const PRICING: Tier[] = [
-  { name: "Free Scan", price: "€0", note: "One-time audit, no card needed" },
-  { name: "Starter", price: "€19/mo", note: "Full dashboard, weekly re-scan, manual fixes" },
-  {
-    name: "Growth",
-    price: "0% base + performance fee",
-    note: "Auto-push, competitor watch, content generation",
-    featured: true,
-  },
-];
+function Sec({ n, title, right, children }: { n: string; title: string; right?: string; children: React.ReactNode }) {
+  return (
+    <section className="mt-14">
+      <div style={{ height: 2, backgroundColor: INKB }} />
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-3">
+        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.14em", color: LIVE, fontWeight: 700 }}>№{n}</span>
+        <h2 className="text-balance font-display text-[clamp(1.4rem,3vw,2rem)] uppercase leading-[0.98]">{title}</h2>
+        {right && <span className="ml-auto" style={MICRO}>{right}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 export default function CommerceLanding() {
   return (
-    <main style={{ borderRadius: 0 }}>
-      {/* Sticky cross-fork switch — always the first element on both landings. */}
-      <ForkTabBar active="commerce" />
+    <main style={{ backgroundColor: PAPER, color: INKB, fontFamily: "var(--app-font-sans), system-ui, sans-serif" }}>
+      <div className="mx-auto max-w-[1040px] px-6 pb-24">
+        {/* masthead */}
+        <header className="flex flex-wrap items-baseline gap-x-6 gap-y-2 py-5" style={{ borderBottom: `1px solid ${HAIRB}` }}>
+          <Link href="/" className="font-display text-[1.2rem] uppercase leading-none no-underline" style={{ color: INKB }}>PDR</Link>
+          <span className="text-[13px] font-semibold" style={{ color: LIVE }}>Commerce</span>
+          <span style={MICRO}>THE OPERATING SYSTEM FOR AI-NATIVE BUSINESSES</span>
+          <Link href="/commerce/visibility" className="ml-auto text-[12px] font-semibold no-underline" style={{ color: LIVE }}>Free AI-visibility audit</Link>
+          <Link href="/commerce/command" className="px-4 py-2 text-[12px] font-semibold no-underline" style={{ backgroundColor: INKB, color: PAPER }}>OPEN THE OS →</Link>
+        </header>
 
-      {/* ── SECTION 1 · HERO — BLACK band (fixes the invisible cream-hero defect) ── */}
-      <section className="grid-paper-dark bg-fk-black text-fk-cream">
-        <div className="mx-auto max-w-[1120px] px-6 py-24 lg:px-10 lg:py-36">
-          <h1 className="max-w-4xl font-display text-[clamp(2.75rem,8vw,7rem)] uppercase leading-[0.95] tracking-[-0.02em]">
-            Your store is <span className="text-fk-yellow">INVISIBLE</span> to AI shoppers.
+        {/* ── HERO ── */}
+        <section className="pt-14">
+          <div style={MICRO}>PRECISION DYNAMICS · VOLUME III</div>
+          <h1 className="mt-4 max-w-[18ch] text-balance font-display text-[clamp(2.6rem,8vw,5.4rem)] uppercase leading-[0.9]">
+            What happens after your business launches?
           </h1>
-
-          <p className="mt-8 max-w-xl text-base leading-relaxed text-white/60">
-            AI-originated shopping orders have grown sharply in 2026 — most small stores have no
-            idea if they show up at all.
+          <p className="mt-7 max-w-[54ch] text-pretty text-[16px] leading-[1.65]" style={{ color: DIMB }}>
+            Validation proves the business. Studio builds it. <b style={{ color: INKB }}>Commerce runs it</b> — an
+            operating system closer to an AI COO than a dashboard: it watches every measurable part of the company,
+            explains what is happening, recommends improvements, executes approved work through specialised AI
+            workers, and gets smarter from every outcome.
           </p>
-
-          {/* Sourced stat block — blue left rule marks it as real data. */}
-          <div className="mt-8 max-w-xl border-l-2 border-fk-blue pl-4">
-            <p className="font-mono text-[12px] leading-relaxed text-white/75">
-              AI-driven traffic to Shopify stores grew 8x year-over-year, with AI-search orders up
-              roughly 13x since January 2025.
-            </p>
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-fk-muted">
-              Source: Shopify Q1 2026 earnings
-            </p>
+          <div className="mt-9 flex flex-wrap items-center gap-4">
+            <Link href="/commerce/visibility" className="px-6 py-3.5 text-[12.5px] font-semibold no-underline" style={{ backgroundColor: INKB, color: PAPER }}>CHECK IF AI CAN BUY FROM YOU — FREE →</Link>
+            <Link href="/commerce/command" className="px-6 py-3.5 text-[12.5px] font-semibold no-underline" style={{ border: `1px solid ${HAIRB}`, color: DIMB }}>Open the operating system ↗</Link>
           </div>
-
-          {/* THE single yellow element on the entire page. */}
-          <div className="mt-12">
-            <Link
-              href={SCAN_HREF}
-              className="group inline-flex items-center gap-3 bg-fk-yellow px-8 py-4 font-mono text-[12px] font-bold uppercase tracking-[0.2em] text-fk-black no-underline"
-              style={{ borderRadius: 0 }}
-            >
-              Scan your store — free
-              <ArrowRight
-                className="h-4 w-4 group-hover:translate-x-1"
-                style={{ transition: "transform 150ms" }}
-              />
-            </Link>
-          </div>
-
-          {/* Mono metadata counter strip — the one sanctioned placeholder. */}
-          <div className="mt-16 border-t border-white/10 pt-6 font-mono text-[11px] uppercase tracking-[0.22em] text-fk-muted">
-            €128,400 recovered for merchants this month
-          </div>
-        </div>
-      </section>
-
-      {/* ── SECTION 2 · HOW IT WORKS — CREAM band ── */}
-      <section className="grid-paper bg-fk-cream text-fk-black">
-        <div className="mx-auto max-w-[1120px] px-6 py-16 lg:px-10 lg:py-24">
-          <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-black/45">
-            How it works
-          </p>
-          <h2 className="mt-6 max-w-3xl font-display text-[clamp(2rem,5vw,4rem)] uppercase leading-[0.95] tracking-[-0.01em]">
-            Scan. Verdict. Fix. Recover.
-          </h2>
-
-          {/* gap-px over a hairline-tinted grid draws the dividers — no icons. */}
-          <div className="mt-12 grid gap-px border border-black/10 bg-black/10 sm:grid-cols-2 lg:grid-cols-4">
-            {STEPS.map((step) => (
-              <div key={step.n} className="bg-fk-cream p-8">
-                <div className="font-mono text-[11px] uppercase tracking-[0.24em] text-black/40">
-                  {step.n}
-                </div>
-                <h3 className="mt-5 text-xl font-semibold leading-tight">{step.title}</h3>
-                <p className="mt-4 font-mono text-[12px] leading-relaxed text-black/60">
-                  {step.line}
-                </p>
+          <div className="mt-3" style={MICRO}>NO ACCOUNT · ANY STORE URL · EVERY FINDING A REAL HTTP RESPONSE</div>
+          <div className="mt-12 grid gap-y-6" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", borderTop: `1px solid ${HAIRB}`, borderBottom: `1px solid ${HAIRB}`, paddingTop: 18, paddingBottom: 18 }}>
+            {[["VALIDATION", "CONFIDENCE", DIMB], ["STUDIO", "ASSETS", DIMB], ["COMMERCE", "RESULTS", LIVE]].map(([a, b, c]) => (
+              <div key={a}>
+                <div style={MICRO}>{a}</div>
+                <div className="mt-1 font-display text-[clamp(1.5rem,3vw,2.1rem)] uppercase leading-none" style={{ color: c as string }}>{b}</div>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── SECTION 3 · SOCIAL PROOF / LEADERBOARD TEASER — BLACK band ── */}
-      {/* NOTE: the public leaderboard route is not built yet — this only teases it. */}
-      <section className="grid-paper-dark bg-fk-black text-fk-cream">
-        <div className="mx-auto max-w-[1120px] px-6 py-16 text-center lg:px-10 lg:py-24">
-          <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-white/45">
-            Leaderboard
-          </p>
-          <h2 className="mx-auto mt-6 max-w-3xl font-display text-[clamp(2rem,5.5vw,4.5rem)] uppercase leading-[0.95] tracking-[-0.01em]">
-            See how skincare brands rank.
-          </h2>
-          <p className="mx-auto mt-6 max-w-lg font-mono text-[12px] leading-relaxed text-white/55">
-            A public leaderboard of who AI actually recommends, by category — going live soon.
-          </p>
-
-          {/* Ghost / disabled-looking secondary link — deliberately NOT yellow. */}
-          <div className="mt-10">
-            <span
-              aria-disabled="true"
-              className="inline-flex cursor-not-allowed items-center gap-2 border border-white/20 px-6 py-3 font-mono text-[11px] uppercase tracking-[0.2em] text-white/45"
-            >
-              Leaderboard — coming soon
-            </span>
+        {/* ── 01 LOOP ── */}
+        <Sec n="01" title="The autonomous operating loop" right="OBSERVE → ANALYSE → DECIDE → EXECUTE → LEARN">
+          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
+            {[
+              ["OBSERVE", "Revenue, orders, stock, customers, and every AI-agent read of your storefront.", OKB],
+              ["ANALYSE", "A situational read that cites its numbers and refuses to conclude from thin data.", LIVE],
+              ["DECIDE", "Workers propose; nothing ships without your review or a limit you set.", WARNB],
+              ["EXECUTE", "One click — or an automation you armed, inside bounds you defined.", LIVE],
+              ["LEARN", "Outcomes become rules in the Business Brain. The company remembers.", OKB],
+            ].map(([t, d, c], i) => (
+              <div key={t} className="py-4 pr-6" style={{ borderTop: i > 0 ? "none" : "none", borderLeft: i === 0 ? "none" : `1px solid ${HAIRB}`, paddingLeft: i === 0 ? 0 : 18 }}>
+                <div className="text-[12.5px] font-bold uppercase tracking-[0.06em]" style={{ color: c as string }}>{t}</div>
+                <p className="mt-2 text-pretty text-[12.5px] leading-[1.6]" style={{ color: DIMB }}>{d}</p>
+              </div>
+            ))}
           </div>
-        </div>
-      </section>
+        </Sec>
 
-      {/* ── SECTION 4 · PRICING TEASER — CREAM band ── */}
-      <section className="grid-paper bg-fk-cream text-fk-black">
-        <div className="mx-auto max-w-[1120px] px-6 py-16 lg:px-10 lg:py-24">
-          <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-black/45">
-            Pricing
-          </p>
-          <h2 className="mt-6 max-w-3xl font-display text-[clamp(2rem,5vw,4rem)] uppercase leading-[0.95] tracking-[-0.01em]">
-            Start free. Pay when it pays you back.
-          </h2>
+        {/* ── 02 CAPABILITIES ── */}
+        <Sec n="02" title="What Commerce does" right="ONE SYSTEM · NOT A STACK OF TOOLS">
+          <div className="grid gap-x-10" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))" }}>
+            {[
+              ["Autonomous marketing", "Measures performance across every connected channel and drafts campaigns, creatives, landing pages, videos and advertisements grounded in business knowledge and measured results — approved manually or executed automatically within predefined limits."],
+              ["Social presence", "Continuous content generation, short-form video specs and a maintained posting cadence — the same brand brain governing every word."],
+              ["Operations & inventory", "Orders through their full lifecycle; stock that decrements with every sale and flips availability so agents and humans are never misled; replenishment on your approval or a rule you armed."],
+              ["Financial intelligence", "Revenue, COGS, margin per product, inventory value, recurring versus one-off, average order value. Unit costs are yours to enter — Commerce will never estimate them."],
+              ["Website management", "Commerce operates the storefront: pricing, availability, policies, products and content. Every change appears instantly in the live pages, structured data and product feed."],
+              ["AI commerce", "The agent funnel — crawls, product retrievals, feed pulls, agent orders — plus a readiness score and per-product visibility. The instrument nobody else has."],
+            ].map(([t, d]) => (
+              <div key={t} className="py-5" style={{ borderTop: `1px solid ${HAIRB}` }}>
+                <h3 className="text-[14.5px] font-semibold">{t}</h3>
+                <p className="mt-2 text-pretty text-[13px] leading-[1.65]" style={{ color: DIMB }}>{d}</p>
+              </div>
+            ))}
+          </div>
+        </Sec>
 
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {PRICING.map((tier) => {
-              const featured = tier.featured ?? false;
-              return (
-                <div
-                  key={tier.name}
-                  className={
-                    featured
-                      ? "shadow-hard flex flex-col border border-fk-black bg-fk-black p-8 text-fk-cream"
-                      : "shadow-hard flex flex-col border border-black/15 bg-fk-cream p-8 text-fk-black"
-                  }
-                  style={{ borderRadius: 0 }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`font-mono text-[10px] uppercase tracking-[0.24em] ${
-                        featured ? "text-white/50" : "text-black/40"
-                      }`}
-                    >
-                      {featured ? "Recommended" : "Plan"}
-                    </span>
-                    {featured && (
-                      /* Accent is BLUE, not yellow — yellow is reserved for the hero CTA. */
-                      <span className="border border-fk-blue px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-fk-blue">
-                        Best value
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-6 font-display text-2xl uppercase leading-tight">
-                    {tier.name}
-                  </div>
-                  <div
-                    className={`mt-2 font-mono text-[13px] ${
-                      featured ? "text-white/75" : "text-black/65"
-                    }`}
-                  >
-                    {tier.price}
-                  </div>
-                  <p
-                    className={`mt-4 flex-1 font-mono text-[12px] leading-relaxed ${
-                      featured ? "text-white/55" : "text-black/55"
-                    }`}
-                  >
-                    {tier.note}
-                  </p>
-
-                  {/* Card CTAs are ghost/blue links — never yellow. */}
-                  <Link
-                    href={PRICING_HREF}
-                    className={`group mt-8 inline-flex items-center gap-2 self-start border px-5 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.2em] no-underline ${
-                      featured
-                        ? "border-white/30 text-fk-cream hover:border-white"
-                        : "border-fk-blue text-fk-blue hover:bg-fk-blue hover:text-fk-cream"
-                    }`}
-                    style={{ borderRadius: 0, transition: "background-color 150ms, border-color 150ms, color 150ms" }}
-                  >
-                    {featured ? "Choose Growth" : `Choose ${tier.name}`}
-                    <ArrowRight
-                      className="h-3.5 w-3.5 group-hover:translate-x-1"
-                      style={{ transition: "transform 150ms" }}
-                    />
-                  </Link>
+        {/* ── 03 WORKFORCE ── */}
+        <Sec n="03" title="An AI workforce, not a dashboard" right="YOU SUPERVISE · THEY OPERATE">
+          <div className="grid gap-x-10" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))" }}>
+            {[
+              ["MARKETING", "Campaigns, creatives, copy, audience learning", LIVE, true],
+              ["OPERATIONS", "Orders, inventory, fulfilment, store health", OKB, true],
+              ["FINANCE", "Margin, COGS, inventory value, pricing signals", INKB, true],
+              ["SALES · SUPPORT · ADVERTISING · ANALYTICS · MERCHANDISING · LOGISTICS", "Designed for — each plugs into the same intelligence and the same review discipline", FAINTB, false],
+            ].map(([t, d, c, active]) => (
+              <div key={t as string} className="py-4" style={{ borderTop: `1px solid ${HAIRB}` }}>
+                <div className="flex items-center gap-2">
+                  <span className="px-1.5 py-[2px]" style={{ fontFamily: MONO, fontSize: 9, letterSpacing: "0.12em", fontWeight: 700, border: `1px solid ${c as string}`, color: active ? PAPER : (c as string), backgroundColor: active ? (c as string) : "transparent" }}>
+                    {active ? "ACTIVE" : "PLANNED"}
+                  </span>
+                  <span className="text-[12.5px] font-bold uppercase tracking-[0.04em]" style={{ color: active ? INKB : FAINTB }}>{t}</span>
                 </div>
-              );
-            })}
+                <p className="mt-2 text-pretty text-[12.5px] leading-[1.6]" style={{ color: DIMB }}>{d}</p>
+              </div>
+            ))}
           </div>
-        </div>
-      </section>
+        </Sec>
 
-      {/* ── FOOTER — minimal, mono ── */}
-      <footer className="bg-fk-black text-white/50">
-        <div className="mx-auto flex max-w-[1120px] flex-wrap items-center justify-between gap-4 px-6 py-8 font-mono text-[10px] uppercase tracking-[0.22em] lg:px-10">
-          <span>© 2026 Priority Debater</span>
-          <div className="flex items-center gap-6">
-            <Link href={PRICING_HREF} className="no-underline hover:text-white" style={{ transition: "color 150ms" }}>
-              Pricing
-            </Link>
-            {/* Docs route not built yet — placeholder anchor per spec. */}
-            <Link href="#" className="no-underline hover:text-white" style={{ transition: "color 150ms" }}>
-              Docs
-            </Link>
-            <Link href="/validation" className="no-underline hover:text-white" style={{ transition: "color 150ms" }}>
-              Validation
-            </Link>
+        {/* ── 04 TELEMETRY ── */}
+        <Sec n="04" title="A real day in the ledger" right="EVENTS FROM AN OPERATED BUSINESS">
+          <div style={{ backgroundColor: INSETB }}>
+            {[
+              ["09:14", "MARKETING", "Draft written through 13 brain rules — sells Stoneware Dinner Plate Set at €96", LIVE],
+              ["09:42", "OPERATIONS", "Order ORD-63303324 → SHIPPED · Alpha Plan ×3 · stock 21", OKB],
+              ["10:01", "OPERATIONS", "AUT-01 auto-restocked 2 low SKUs +12 each · availability reopened", OKB],
+              ["10:33", "AGENT", "PerplexityBot read the product feed · GPTBot placed an order, €25", LIVE],
+              ["11:05", "FINANCE", "Margin recomputed on new unit costs — gross 59% on €75 revenue", INKB],
+              ["11:20", "SYSTEM", "Situational analysis: posture GROW — agent conversion improving", DIMB],
+            ].map(([t, w, d, c]) => (
+              <div key={t as string} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-2.5" style={{ borderBottom: `1px solid ${HAIRB}` }}>
+                <span className="tabular-nums" style={{ fontFamily: MONO, fontSize: 11, color: FAINTB }}>{t}</span>
+                <span className="px-1.5 py-[2px]" style={{ fontFamily: MONO, fontSize: 9, letterSpacing: "0.12em", fontWeight: 700, border: `1px solid ${c as string}`, color: c as string }}>{w}</span>
+                <span className="min-w-0 text-pretty text-[12.5px]" style={{ color: DIMB }}>{d}</span>
+              </div>
+            ))}
           </div>
-        </div>
-      </footer>
+          <div className="mt-3" style={MICRO}>EVERY NUMBER ON A COMMERCE SURFACE IS MEASURED · NOTHING IS SIMULATED</div>
+        </Sec>
+
+        {/* ── 05 AI COMMERCE ── */}
+        <Sec n="05" title="Your next customer might not be human" right="BUT HUMANS STILL MATTER">
+          <div className="grid gap-x-12" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))" }}>
+            <div className="py-5" style={{ borderTop: `1px solid ${HAIRB}` }}>
+              <p className="max-w-[46ch] text-pretty text-[13.5px] leading-[1.7]" style={{ color: DIMB }}>
+                AI assistants already discover products, compare specifications, read policies and place orders.
+                Commerce measures that entire funnel per agent and per product — and keeps the storefront legible
+                to them. It serves both surfaces: structured information that AI systems and humans can both
+                understand, rather than search-engine tricks or vanity metrics.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {["GPTBot", "ClaudeBot", "PerplexityBot", "Gemini", "Google-Extended", "Human visitors"].map((a) => (
+                  <span key={a} className="px-2 py-1" style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.08em", border: `1px solid ${HAIRB}`, color: a === "Human visitors" ? DIMB : LIVE }}>{a}</span>
+                ))}
+              </div>
+            </div>
+            <div className="py-5" style={{ borderTop: `1px solid ${HAIRB}` }}>
+              <div style={MICRO}>READINESS · CHECKED CONTINUOUSLY</div>
+              <div className="mt-3 flex flex-col gap-2 text-[12.5px]" style={{ color: DIMB }}>
+                {["Server-rendered pages with complete structured data", "Merchant-grade product feed", "llms.txt and machine-readable catalog", "robots that welcome AI agents", "Guest checkout an agent can complete", "Structured order-intent API"].map((c) => (
+                  <div key={c} className="flex items-baseline gap-2"><span style={{ color: OKB, fontFamily: MONO }}>✓</span>{c}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Sec>
+
+        {/* ── CTA ── */}
+        <section className="mt-16">
+          <div style={{ height: 2, backgroundColor: INKB }} />
+          <div className="py-12 text-center">
+            <div style={MICRO}>IDEA → VALIDATION → STUDIO → COMMERCE</div>
+            <h2 className="mx-auto mt-4 max-w-[22ch] text-balance font-display text-[clamp(2rem,5vw,3.4rem)] uppercase leading-[0.94]">
+              From a single idea to a self-operating company
+            </h2>
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
+              <Link href="/commerce/command" className="px-7 py-3.5 text-[12.5px] font-semibold no-underline" style={{ backgroundColor: INKB, color: PAPER }}>OPEN THE OPERATING SYSTEM →</Link>
+              <Link href="/studio" className="px-7 py-3.5 text-[12.5px] font-semibold no-underline" style={{ border: `1px solid ${HAIRB}`, color: DIMB }}>Fabricate a business ↗</Link>
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-between gap-4 pt-4" style={{ borderTop: `1px solid ${HAIRB}` }}>
+            <span style={MICRO}>PDR COMMERCE · PRECISION DYNAMICS</span>
+            <span style={MICRO}>MEASURED ONLY · REVIEW BEFORE PUBLISH</span>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
