@@ -449,10 +449,51 @@ function GenericPanel({ busy, onBack, onSubmit }: { busy: boolean; onBack: () =>
   );
 }
 
-export default function ConnectPage() {
+function LegacyConnectPage() {
   return (
     <Suspense fallback={null}>
       <ConnectInner />
     </Suspense>
+  );
+}
+
+/**
+ * GATE — this page connected a store into the OLD commerce data layer
+ * (localStorage), which the Commerce OS never reads. A merchant who completed
+ * it saw products import and then found an empty operating system: a promise
+ * the product could not keep, live in production.
+ *
+ * The real path is /api/commerce/connect/sync, which brings a Shopify or
+ * WooCommerce catalogue into the same repositories every worker reads. Until
+ * the UI for that ships, this says so plainly instead of taking someone through
+ * a flow that leads nowhere. `LegacyConnectPage` is kept, unrouted, because the
+ * OAuth and import code in it is what the new flow will reuse.
+ */
+export default function ConnectPage() {
+  const enabled = process.env.NEXT_PUBLIC_ENABLE_LEGACY_CONNECT === "1";
+  if (enabled) return <LegacyConnectPage />;
+  return (
+    <main className="flex min-h-dvh items-center justify-center px-6" style={{ backgroundColor: "#F5F3ED", color: "#111111" }}>
+      <div className="max-w-[520px]">
+        <div style={{ height: 2, backgroundColor: "#111111" }} />
+        <div className="pt-3" style={{ fontFamily: "var(--app-font-mono)", fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "#9B968A" }}>
+          PDR COMMERCE · CONNECTION
+        </div>
+        <h1 className="mt-3 text-balance font-display text-[2.2rem] uppercase leading-[0.95]">Connecting an existing store is being rebuilt</h1>
+        <p className="mt-3 text-pretty text-[13.5px] leading-relaxed" style={{ color: "#6B6659" }}>
+          This flow imported a catalogue into an earlier data layer that the operating system does not read — you would have
+          connected a store and then found Commerce empty. Rather than leave that live, it is closed.
+        </p>
+        <p className="mt-3 text-pretty text-[13.5px] leading-relaxed" style={{ color: "#6B6659" }}>
+          What works today: the free AI-visibility audit on any store URL, and — for a Shopify or WooCommerce catalogue —
+          a server-side sync that brings the real products and orders into Commerce, publishes the agent layer for them,
+          and stays read-only until write access is granted.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <a href="/commerce/visibility" className="px-5 py-3 text-[12px] font-semibold no-underline" style={{ backgroundColor: "#111111", color: "#F5F3ED" }}>RUN THE FREE AUDIT →</a>
+          <a href="/commerce/command" className="px-5 py-3 text-[12px] font-semibold no-underline" style={{ border: "1px solid #CFC9BC", color: "#111111" }}>OPEN COMMERCE</a>
+        </div>
+      </div>
+    </main>
   );
 }

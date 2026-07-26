@@ -105,6 +105,11 @@ export type StoreProduct = {
   kind?: SellableKind;
   /** What one unit of the price buys. Absent = one item. */
   unit?: PricingUnit;
+  /** Canonical product URL on the merchant's OWN domain, for a business PDR
+      operates but does not host. Absent = PDR hosts the page. Feeds, JSON-LD
+      and the MCP tools must send agents here, never to a copy of somebody
+      else's shop. */
+  url?: string;
 };
 
 export type StorefrontBrand = {

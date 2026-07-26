@@ -4,7 +4,8 @@ import { isStocked, shipsPhysically } from "@/lib/studio/aiStorefront";
 import { orderConfirmation, send as sendMail } from "@/lib/studio/mailer";
 import { classifyAgent, recordHit } from "@/lib/studio/hitRepo";
 import { loadFulfilmentRecord, orderId, saveOrder, type StoreOrder } from "@/lib/studio/orderRepo";
-import { adjustStock, loadStore } from "@/lib/studio/storeRepo";
+import { adjustStock,  } from "@/lib/studio/storeRepo";
+import { loadBusiness, loadBusinessStore } from "@/lib/studio/businessSource";
 
 /**
  * /store/[slug]/mcp — the store as an MCP SERVER.
@@ -36,7 +37,7 @@ const textResult = (data: unknown) => ({ content: [{ type: "text", text: JSON.st
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   // A GET is a discovery courtesy: describe the endpoint rather than 405.
   const { slug } = await params;
-  const s = await loadStore(slug);
+  const s = await loadBusinessStore(slug);
   if (!s) return NextResponse.json({ error: "not found" }, { status: 404 });
   const base = `${new URL(req.url).origin}/store/${slug}`;
   return NextResponse.json({
@@ -49,7 +50,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
 
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const s = await loadStore(slug);
+  const s = await loadBusinessStore(slug);
   if (!s) return err(null, -32001, "store not found");
 
   let body: RpcReq;
@@ -153,7 +154,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
           category: p.category ?? null,
           kind: p.kind ?? "good", pricingUnit: p.unit ?? "item", ships: shipsPhysically(p.kind),
           provenance: p.provenance ?? null,
-          url: `${base}/p/${p.sku}`,
+          url: p.url ?? `${base}/p/${p.sku}`,
         })),
         sellerRecord: `${base}/.well-known/seller-record.json`,
       }));
@@ -168,7 +169,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
         sku: p.sku, name: p.name, description: p.description, price: p.price, priceValue: p.priceValue ?? null,
         currency: p.currency ?? "EUR", availability: p.availability ?? "InStock",
         stock: isStocked(p.kind) ? p.stock ?? null : null,
-        category: p.category ?? null, brand: s.store.brand.name, url: `${base}/p/${p.sku}`,
+        category: p.category ?? null, brand: s.store.brand.name, url: p.url ?? `${base}/p/${p.sku}`,
         image: `${base}/img/${p.sku}.svg`,
         kind: p.kind ?? "good", pricingUnit: p.unit ?? "item", ships: shipsPhysically(p.kind),
         ...(shipsPhysically(p.kind) ? {} : { deliveryNote: p.kind === "service" ? "work booked — scheduling confirmed with the buyer after the order" : "delivered to the buyer's email; no shipping address needed" }),
@@ -219,6 +220,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       const address = String(args.address ?? "").trim();
       const p = products.find((x) => x.sku === sku);
       if (!p) return ok(id, textResult({ ok: false, error: `No product with sku "${sku}".` }));
+      // PDR publishes the agent layer for a connected merchant, but the sale is
+      // theirs: send the agent to the real checkout rather than take an order we
+      // cannot fulfil.
+      const biz = await loadBusiness(slug);
+      if (biz?.buyAt === "merchant") {
+        return ok(id, textResult({
+          ok: false,
+          error: `${s.store.brand.fullName} completes orders on its own checkout, not through this endpoint.`,
+          buyAt: p.url ?? biz.connection?.siteUrl ?? null,
+          note: "PDR publishes this store's agent layer (catalogue, provenance, seller record). Follow buyAt to purchase.",
+        }));
+      }
       // Nothing ships for a file, an hour or a pass — do not demand an address
       // the buyer has no reason to hand over.
       const needsAddress = shipsPhysically(p.kind);

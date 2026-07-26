@@ -1,13 +1,13 @@
 import { buildLlmsTxt } from "@/lib/studio/aiStorefront";
 import { recordHit } from "@/lib/studio/hitRepo";
-import { loadStore } from "@/lib/studio/storeRepo";
+import { loadBusinessStore } from "@/lib/studio/businessSource";
 
 /** llms.txt for the published store — emitted as a bonus, never the channel. */
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const s = await loadStore(slug);
+  const s = await loadBusinessStore(slug);
   if (!s) return new Response("not found", { status: 404 });
   await recordHit(slug, "llms", `/store/${slug}/llms.txt`, req.headers.get("user-agent"));
   const base = `/store/${slug}`;

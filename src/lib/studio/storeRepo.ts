@@ -160,7 +160,7 @@ export function buildFeedJsonl(s: PublishedStore, origin: string): string {
       id: p.sku ?? p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
       title: p.name,
       description: p.description,
-      link: `${base}/p/${p.sku}`,
+      link: p.url ?? `${base}/p/${p.sku}`,
       // Raster, not SVG: Merchant Center and Meta reject vector images.
       image_link: `${base}/img/${p.sku}/png`,
       price: p.priceValue != null ? `${p.priceValue.toFixed(2)} ${p.currency ?? "EUR"}` : p.price,

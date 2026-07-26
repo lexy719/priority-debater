@@ -19,7 +19,8 @@ import "server-only";
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { loadStore, ownsStore, type PublishedStore } from "@/lib/studio/storeRepo";
+import { loadBusinessStore } from "@/lib/studio/businessSource";
+import { ownsStore, type PublishedStore } from "@/lib/studio/storeRepo";
 
 /** The operator making this request, or null for the demo estate. */
 export async function currentOwnerId(): Promise<string | null> {
@@ -50,7 +51,8 @@ export async function ownedStore(slug: string): Promise<OwnedStore> {
     // register must not become a way to enumerate other operators' companies.
     return { ok: false, status: 404, error: "no such business under your management" };
   }
-  const store = await loadStore(slug);
+  // Resolve either kind — a connected merchant is under management too.
+  const store = await loadBusinessStore(slug);
   if (!store) return { ok: false, status: 404, error: "no such business under your management" };
   return { ok: true, store, ownerId };
 }

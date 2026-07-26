@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { buildAgentCatalog } from "@/lib/studio/aiStorefront";
 import { recordHit } from "@/lib/studio/hitRepo";
-import { loadStore } from "@/lib/studio/storeRepo";
+import { loadBusinessStore } from "@/lib/studio/businessSource";
 
 /** Machine-readable agent catalog (product intelligence) for the published store. */
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const s = await loadStore(slug);
+  const s = await loadBusinessStore(slug);
   if (!s) return NextResponse.json({ error: "not found" }, { status: 404 });
   await recordHit(slug, "catalog", `/store/${slug}/agent-catalog.json`, req.headers.get("user-agent"));
   const base = `/store/${slug}`;

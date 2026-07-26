@@ -8,7 +8,8 @@ import { listExpenses, summarizeExpenses } from "@/lib/studio/expenseRepo";
 import { loadTraffic } from "@/lib/studio/hitRepo";
 import { loadCustomers, loadOrdersSummary } from "@/lib/studio/orderRepo";
 import { currentOwnerId } from "@/lib/commerce/owner";
-import { listStoresFor, loadStore } from "@/lib/studio/storeRepo";
+import { listStoresFor } from "@/lib/studio/storeRepo";
+import { loadBusinessStore } from "@/lib/studio/businessSource";
 
 /**
  * GET /api/commerce/business[?slug=] — the SHARED BUSINESS INTELLIGENCE layer.
@@ -44,7 +45,7 @@ export async function GET(req: Request) {
   if (!slug) return NextResponse.json({ ok: false, error: "no published businesses yet", roster: [] });
 
   const [store0, traffic, orders0, customers, costs, expenseRows] = await Promise.all([
-    loadStore(slug), loadTraffic(slug), loadOrdersSummary(slug), loadCustomers(slug), loadCosts(slug), listExpenses(slug),
+    loadBusinessStore(slug), loadTraffic(slug), loadOrdersSummary(slug), loadCustomers(slug), loadCosts(slug), listExpenses(slug),
   ]);
   if (!store0) return NextResponse.json({ ok: false, error: "store not found", roster });
   const expenses = summarizeExpenses(expenseRows);
@@ -58,7 +59,7 @@ export async function GET(req: Request) {
     expenses: { total: expenses.total, byMonth: expenses.byMonth },
   });
   const firedRules = await evaluateAutomations(slug, autoMetrics);
-  const store = firedRules.length ? (await loadStore(slug)) ?? store0 : store0;
+  const store = firedRules.length ? (await loadBusinessStore(slug)) ?? store0 : store0;
   const orders = orders0;
   const [activity, automations] = await Promise.all([listActivity(slug, 14), listAutomations(slug)]);
   const code = store.store.brand.name.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);

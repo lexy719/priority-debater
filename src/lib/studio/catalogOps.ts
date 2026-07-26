@@ -20,6 +20,7 @@ import {
   type PricingUnit, type ProductProvenance, type SellableKind, type StoreProduct,
 } from "./aiStorefront";
 import { recordActivity } from "./activityRepo";
+import { loadBusiness } from "./businessSource";
 import { loadStore, saveStore } from "./storeRepo";
 
 export type CatalogResult = { ok: true; products: StoreProduct[]; detail: string } | { ok: false; error: string };
@@ -73,10 +74,23 @@ function parsePrice(raw: string): { price: string; priceValue: number } | null {
   return { price: `€${Number.isInteger(value) ? value : value.toFixed(2)}${suffix}`, priceValue: value };
 }
 
+/**
+ * A catalogue PDR does not own is not PDR's to edit. A connected merchant gets
+ * proposals until they grant write scopes on their own platform — and the
+ * refusal says exactly that instead of failing quietly.
+ */
+async function refuseIfNotOurs(slug: string): Promise<CatalogResult | null> {
+  const b = await loadBusiness(slug);
+  if (b && !b.canWrite) return { ok: false, error: b.writeNote ?? "this catalogue is read-only" };
+  return null;
+}
+
 export async function addProduct(
   slug: string,
   input: { name: string; description: string; price: string; category?: string; stock?: number; provenance?: Record<string, unknown>; kind?: string; unit?: string },
 ): Promise<CatalogResult> {
+  const refusal = await refuseIfNotOurs(slug);
+  if (refusal) return refusal;
   const s = await loadStore(slug);
   if (!s) return { ok: false, error: "store not found" };
   if (s.store.products.length >= MAX_PRODUCTS) return { ok: false, error: `catalog is capped at ${MAX_PRODUCTS} products` };
@@ -121,6 +135,8 @@ export async function updateProduct(
   slug: string, sku: string,
   patch: { price?: string; stock?: number; description?: string; category?: string; availability?: string; provenance?: Record<string, unknown>; kind?: string; unit?: string },
 ): Promise<CatalogResult> {
+  const refusal = await refuseIfNotOurs(slug);
+  if (refusal) return refusal;
   const s = await loadStore(slug);
   if (!s) return { ok: false, error: "store not found" };
   const p = s.store.products.find((x) => x.sku === sku);
@@ -194,6 +210,8 @@ export async function updateProduct(
 /** Take a product off the shelf without breaking the web: availability becomes
     Discontinued, feeds drop it, the page still answers. */
 export async function retireProduct(slug: string, sku: string): Promise<CatalogResult> {
+  const refusal = await refuseIfNotOurs(slug);
+  if (refusal) return refusal;
   const s = await loadStore(slug);
   if (!s) return { ok: false, error: "store not found" };
   const p = s.store.products.find((x) => x.sku === sku);
@@ -211,6 +229,8 @@ export async function retireProduct(slug: string, sku: string): Promise<CatalogR
 }
 
 export async function restoreProduct(slug: string, sku: string): Promise<CatalogResult> {
+  const refusal = await refuseIfNotOurs(slug);
+  if (refusal) return refusal;
   const s = await loadStore(slug);
   if (!s) return { ok: false, error: "store not found" };
   const p = s.store.products.find((x) => x.sku === sku);

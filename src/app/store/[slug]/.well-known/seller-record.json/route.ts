@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { loadFulfilmentRecord } from "@/lib/studio/orderRepo";
-import { loadStore } from "@/lib/studio/storeRepo";
+import { loadBusinessStore } from "@/lib/studio/businessSource";
 import { recordHit } from "@/lib/studio/hitRepo";
 
 /**
@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const s = await loadStore(slug);
+  const s = await loadBusinessStore(slug);
   if (!s) return NextResponse.json({ error: "not found" }, { status: 404 });
   await recordHit(slug, "catalog", `/store/${slug}/.well-known/seller-record.json`, req.headers.get("user-agent"));
 

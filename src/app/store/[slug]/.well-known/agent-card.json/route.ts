@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { loadStore } from "@/lib/studio/storeRepo";
+import { loadBusinessStore } from "@/lib/studio/businessSource";
 
 /**
  * GET /store/[slug]/.well-known/agent-card.json — the store's agent card.
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const s = await loadStore(slug);
+  const s = await loadBusinessStore(slug);
   if (!s) return NextResponse.json({ error: "not found" }, { status: 404 });
   const origin = new URL(req.url).origin;
   const base = `${origin}/store/${slug}`;
