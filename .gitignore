@@ -58,3 +58,6 @@ storybook-static
 
 # stray verification screenshots
 /machine-market.png
+
+# local backup of deleted demo businesses
+/.backup-studio-stores-*/
