@@ -106,7 +106,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
     declared.length === s.store.products.length ? "PASS" : declared.length ? "WARN" : "FAIL",
     `${declared.length}/${s.store.products.length} SKUs declare provenance — agents buying under a constraint filter on exactly these`);
 
-  // 10 · Known gap, stated honestly.
+  // 10 · Imagery. The feeds are now format-valid (PNG, not SVG — every shopping
+  //      surface rejects vector), but generated art is not a photograph of the
+  //      product and Merchant Center reviews for that.
+  push("imagery", "Product imagery (shopping-feed grade)", "WARN",
+    "feeds serve PNG so they are format-valid, but the art is generated placeholder — Merchant Center approval needs a photograph of the actual product");
+
+  // 11 · Known gap, stated honestly.
   push("gtin", "GTIN identifiers", "WARN", "fabricated SKUs have no registered GTINs — feed declares identifier_exists: false");
 
   const score = Math.round((checks.filter((c) => c.status === "PASS").length / checks.length) * 100);

@@ -3,6 +3,7 @@ import { recordActivity } from "@/lib/studio/activityRepo";
 import { classifyAgent } from "@/lib/studio/hitRepo";
 import { orderId, saveOrder, type StoreOrder } from "@/lib/studio/orderRepo";
 import { shipsPhysically } from "@/lib/studio/aiStorefront";
+import { orderConfirmation, send } from "@/lib/studio/mailer";
 import { adjustStock, loadStore } from "@/lib/studio/storeRepo";
 
 /**
@@ -81,9 +82,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   await recordActivity(slug, "OPERATIONS", `Order ${order.id} received — ${p.name} ×${qty} via ${order.channel === "agent-json" ? order.agent : "web"}${left != null ? ` · stock ${left}` : ""}${left === 0 ? " · SKU NOW OUT OF STOCK" : ""}`, "auto");
 
   const confirmation = `/store/${slug}/order/${order.id}`;
+  // Tell the buyer, for real. If no provider is configured nothing is sent and
+  // the ledger says so — the store never claims a message it did not send.
+  const origin = new URL(req.url).origin;
+  const mail = await send({
+    to: order.buyer.email,
+    ...orderConfirmation({
+      brand: s.store.brand.fullName, orderId: order.id, product: p.name, qty,
+      total: p.priceValue != null ? `${(p.priceValue * qty).toFixed(2)} ${p.currency ?? "EUR"}` : p.price,
+      confirmationUrl: `${origin}${confirmation}`,
+      ships: s.manifest.ships ?? "EU · 3–5 business days",
+      returns: s.manifest.returns ?? "30 days, unopened",
+      physical: needsAddress,
+    }),
+  });
+  await recordActivity(slug, "OPERATIONS",
+    mail.sent ? `Confirmation emailed to ${order.buyer.email} for ${order.id}`
+              : `No confirmation email for ${order.id} — ${mail.reason}`, "auto");
+
   if (isJson) {
     const total = p.priceValue != null ? `${(p.priceValue * qty).toFixed(2)} ${p.currency ?? "EUR"}` : p.price;
-    return NextResponse.json({ ok: true, orderId: order.id, status: "received", sku, qty, total, confirmation });
+    return NextResponse.json({ ok: true, orderId: order.id, status: "received", sku, qty, total, confirmation, emailed: mail.sent, emailNote: mail.reason });
   }
   return NextResponse.redirect(new URL(confirmation, req.url), 303);
 }

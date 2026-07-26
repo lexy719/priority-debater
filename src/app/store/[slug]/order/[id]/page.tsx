@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { shipsPhysically } from "@/lib/studio/aiStorefront";
+import { mailConfigured } from "@/lib/studio/mailer";
 import { loadOrder } from "@/lib/studio/orderRepo";
 import { loadStore } from "@/lib/studio/storeRepo";
 import { MONO, StoreFooter, StoreHeader, mkTheme } from "../../store-ui";
@@ -29,9 +30,11 @@ export default async function OrderPage({ params }: Props) {
   const p = s.store.products.find((x) => x.sku === o.sku);
   const ships = shipsPhysically(p?.kind);
   const unit = p?.unit && p.unit !== "item" ? p.unit : null;
+  // Only promise a message the store can actually send.
+  const mailLive = mailConfigured();
   const rows: [string, string][] = [
     ["ORDER", o.id],
-    ["STATUS", "RECEIVED · CONFIRMATION SENT"],
+    ["STATUS", mailLive ? "RECEIVED · CONFIRMATION SENT" : "RECEIVED · NO EMAIL SENT"],
     ["PLACED", o.ts.replace("T", " ").slice(0, 19) + " UTC"],
     ["ITEM", unit ? `${o.productName} — ${o.qty} × ${unit}` : `${o.productName} × ${o.qty}`],
     ["SKU", o.sku],
@@ -57,7 +60,7 @@ export default async function OrderPage({ params }: Props) {
           <div style={label}>ORDER CONFIRMATION</div>
           <h1 style={{ margin: "10px 0 0", fontSize: "clamp(1.6rem,4vw,2.4rem)", fontWeight: 800 }}>Order received.</h1>
           <p style={{ marginTop: 10, maxWidth: "58ch", fontSize: 14, lineHeight: 1.6, color: sub }}>
-            {b.fullName} has your order. A confirmation goes to {o.buyer.email}. No payment was taken — this store runs order-intent checkout; payment rails arrive with UCP/ACP.
+            {b.fullName} has your order{mailLive ? <> and a confirmation is on its way to {o.buyer.email}</> : <>. Keep this page — it is your record, and {b.fullName} will contact you at {o.buyer.email}</>}. No payment was taken; this store runs order-intent checkout.
           </p>
           <table style={{ borderCollapse: "collapse", marginTop: 22, width: "100%", maxWidth: 560 }}>
             <tbody>

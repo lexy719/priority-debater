@@ -161,7 +161,8 @@ export function buildFeedJsonl(s: PublishedStore, origin: string): string {
       title: p.name,
       description: p.description,
       link: `${base}/p/${p.sku}`,
-      image_link: `${base}/img/${p.sku}.svg`,
+      // Raster, not SVG: Merchant Center and Meta reject vector images.
+      image_link: `${base}/img/${p.sku}/png`,
       price: p.priceValue != null ? `${p.priceValue.toFixed(2)} ${p.currency ?? "EUR"}` : p.price,
       availability: (p.availability ?? "InStock") === "PreOrder" ? "preorder"
         : (p.availability === "OutOfStock" || (isStocked(p.kind) && (p.stock ?? 1) <= 0)) ? "out_of_stock" : "in_stock",

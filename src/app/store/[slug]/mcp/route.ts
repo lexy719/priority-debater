@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { recordActivity } from "@/lib/studio/activityRepo";
 import { isStocked, shipsPhysically } from "@/lib/studio/aiStorefront";
+import { orderConfirmation, send as sendMail } from "@/lib/studio/mailer";
 import { classifyAgent, recordHit } from "@/lib/studio/hitRepo";
 import { loadFulfilmentRecord, orderId, saveOrder, type StoreOrder } from "@/lib/studio/orderRepo";
 import { adjustStock, loadStore } from "@/lib/studio/storeRepo";
@@ -251,12 +252,26 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
         return ok(id, textResult({ ok: false, error: (e as Error).message }));
       }
       const left = await adjustStock(slug, sku, qty);
+      const mail = await sendMail({
+        to: order.buyer.email,
+        ...orderConfirmation({
+          brand: s.store.brand.fullName, orderId: order.id, product: p.name, qty,
+          total: p.priceValue != null ? `${(p.priceValue * qty).toFixed(2)} EUR` : p.price,
+          confirmationUrl: `${base}/order/${order.id}`,
+          ships: s.manifest.ships ?? "EU · 3–5 business days",
+          returns: s.manifest.returns ?? "30 days, unopened",
+          physical: needsAddress,
+        }),
+      });
+      await recordActivity(slug, "OPERATIONS",
+        mail.sent ? `Confirmation emailed to ${order.buyer.email} for ${order.id}` : `No confirmation email for ${order.id} — ${mail.reason}`, "auto");
       await recordActivity(slug, "OPERATIONS", `Order ${order.id} received over MCP — ${p.name} ×${qty} via ${agent}${left != null ? ` · stock ${left}` : ""}`, "auto");
       return ok(id, textResult({
         ok: true, orderId: order.id, status: "received", sku, qty,
         ...(p.unit && p.unit !== "item" ? { quantityMeans: `${qty} × ${p.unit}` } : {}),
         total: p.priceValue != null ? `${(p.priceValue * qty).toFixed(2)} EUR` : p.price,
         confirmation: `${base}/order/${order.id}`,
+        buyerEmailed: mail.sent,
         fulfilment: shipsPhysically(p.kind) ? "ships to the address given"
           : p.kind === "service" ? "the seller confirms scheduling by email"
           : "delivered to the email given",

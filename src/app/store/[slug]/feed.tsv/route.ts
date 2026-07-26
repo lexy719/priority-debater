@@ -40,7 +40,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
     const avail = (p.availability ?? "InStock") === "PreOrder" ? "preorder"
       : (p.availability ?? "InStock") === "OutOfStock" || (isStocked(p.kind) && (p.stock ?? 1) <= 0) ? "out_of_stock" : "in_stock";
     return [
-      p.sku ?? "", p.name, p.description, `${base}/p/${p.sku}`, `${base}/img/${p.sku}.svg`,
+      p.sku ?? "", p.name, p.description, `${base}/p/${p.sku}`, `${base}/img/${p.sku}/png`,
       avail,
       p.priceValue != null ? `${p.priceValue.toFixed(2)} ${p.currency ?? "EUR"}` : p.price,
       p.provenance?.material ?? "", p.provenance?.origin ?? "", p.provenance?.madeBy ?? "", p.provenance?.leadTime ?? "",
