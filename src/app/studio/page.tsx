@@ -78,14 +78,13 @@ const DEMO_KIT: BrandKit = {
   },
 };
 
-type QStatus = "POSTED" | "PUBLISHING" | "SCHEDULED" | "QUEUED";
+type QStatus = "WRITTEN" | "WRITING" | "PLANNED" | "QUEUED";
 
 const MODULES = [
   { id: "00", key: "input", name: "INPUT" },
   { id: "01", key: "brand", name: "BRAND" },
-  { id: "02", key: "market", name: "ADS" },
-  { id: "03", key: "social", name: "SOCIAL" },
-  { id: "04", key: "platform", name: "PLATFORM" },
+  { id: "02", key: "social", name: "SOCIAL" },
+  { id: "03", key: "platform", name: "PLATFORM" },
 ] as const;
 type ModKey = (typeof MODULES)[number]["key"];
 type ModState = "locked" | "run" | "ok" | "fault";
@@ -99,14 +98,13 @@ function hash8(s: string): string {
 const clock2 = (n: number) => n.toString().padStart(2, "0");
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const resOf = (fmt: string) => (fmt === "9:16" ? "1080×1920" : fmt === "1:1" ? "1080×1080" : "1920×1080");
-const hms = (s: number) => `${clock2(Math.floor(s / 3600))}:${clock2(Math.floor((s % 3600) / 60))}:${clock2(s % 60)}`;
 
 function ledColor(s: ModState) { return s === "ok" ? GREEN : s === "run" ? AMBER : s === "fault" ? RED : FAINT; }
 
 /* ── page ──────────────────────────────────────────────────────────────── */
 type Phase = "boot" | "idle" | "fab" | "ready";
 type Log = { t: string; txt: string; c?: string };
-const BOOT = ["CORE", "MEMORY 512K", "CONNECTORS 3/3", "MODULES 05 LINKED", "TELEMETRY BUS", "CALIBRATION"];
+const BOOT = ["CORE", "MEMORY 512K", "CONNECTORS 3/3", "MODULES 04 LINKED", "TELEMETRY BUS", "CALIBRATION"];
 
 export default function PdStudioMachine() {
   const [brief, setBrief] = useState("");
@@ -117,7 +115,7 @@ export default function PdStudioMachine() {
   const [fab, setFab] = useState<{ cur: ModKey | null; prog: number }>({ cur: null, prog: 0 });
   const [active, setActive] = useState<ModKey>("input");
   const [bootStep, setBootStep] = useState(0);
-  const [mod, setMod] = useState<Record<ModKey, ModState>>({ input: "locked", brand: "locked", market: "locked", social: "locked", platform: "locked" });
+  const [mod, setMod] = useState<Record<ModKey, ModState>>({ input: "locked", brand: "locked", social: "locked", platform: "locked" });
   const [logs, setLogs] = useState<Log[]>([]);
   const [conOpen, setConOpen] = useState(false);
   const [now, setNow] = useState({ h: 0, m: 0, s: 0 });
@@ -168,7 +166,7 @@ export default function PdStudioMachine() {
     if (!topic || phase === "fab") return;
     setSubmitted(topic); setPhase("fab"); setDemo(false); setKit(null);
     setActive("brand");
-    setMod({ input: "ok", brand: "locked", market: "locked", social: "locked", platform: "locked" });
+    setMod({ input: "ok", brand: "locked", social: "locked", platform: "locked" });
     setFab({ cur: null, prog: 0 });
     const spec = hash8(topic);
     setLogs([{ t: stamp(), txt: `INPUT ACCEPTED · SPEC ${spec} · ${topic.length}B`, c: INK }]);
@@ -212,19 +210,17 @@ export default function PdStudioMachine() {
       }).catch(() => { /* teach UI still works */ });
     }
     await wait(200);
-
-    await runMod("market", ["DRAFTING OBJECTIVE", "SEGMENTING AUDIENCE(2)", "ALLOCATING BUDGET €8.4K", "BUILDING FLIGHT PLAN WK 01–06", "WIRING PERFORMANCE METERS"], "ADS OK · 4 CH · 2 SEG · FLIGHTED");
     await runMod("social", ["WRITING BATCH(9)", "SIZING PER PLATFORM", "SPOOLING HIGGSFIELD(2)…", "SCHEDULING QUEUE(9)", "ARMING AUTO-PUBLISH"], "SOCIAL OK · 9 POSTS · 2 VIDEO · AUTOPILOT ARMED");
     await runMod("platform", ["OPENING ENDPOINTS(3)", "INDEXING CATALOG", "AGENT HANDSHAKE"], "PLATFORM OK · STORE ONLINE");
 
-    log(`RUN COMPLETE · 4 MODULES · 0 FAULTS · ${isDemo ? "DEMO STOCK" : "LIVE"}`, isDemo ? AMBER : GREEN);
+    log(`RUN COMPLETE · 3 MODULES · 0 FAULTS · ${isDemo ? "DEMO STOCK" : "LIVE"}`, isDemo ? AMBER : GREEN);
     setFab({ cur: null, prog: 0 });
     setPhase("ready");
   }
 
   function reset() {
     setPhase("idle"); setKit(null); setBrief(""); setSubmitted(""); setDemo(false);
-    setActive("input"); setMod({ input: "ok", brand: "locked", market: "locked", social: "locked", platform: "locked" });
+    setActive("input"); setMod({ input: "ok", brand: "locked", social: "locked", platform: "locked" });
     setLogs([{ t: stamp(), txt: "UNIT RESET · AWAITING WORK ORDER", c: DIM }]);
   }
 
@@ -284,7 +280,7 @@ export default function PdStudioMachine() {
             );
           })}
           <div className="mt-auto border-t px-4 py-3 text-[9px] uppercase leading-relaxed tracking-[0.14em]" style={{ borderColor: LINE, color: FAINT }}>
-            <div>YIELD <span style={{ color: DIM }}>{Object.values(mod).filter((s) => s === "ok").length}/5</span></div>
+            <div>YIELD <span style={{ color: DIM }}>{Object.values(mod).filter((s) => s === "ok").length}/4</span></div>
             <div className="mt-1">FAULTS <span style={{ color: DIM }}>0</span></div>
           </div>
         </aside>
@@ -295,7 +291,6 @@ export default function PdStudioMachine() {
             <>
               {active === "input" && <InputModule brief={brief} setBrief={setBrief} onRun={run} phase={phase} demo={demo} />}
               {active === "brand" && kit && <BrandModule kit={kit} demo={demo} onLock={(p) => setKit((k) => (k ? { ...k, ...p, brandKit: { ...k.brandKit, ...p.brandKit } } : k))} />}
-              {active === "market" && kit && <MarketModule kit={kit} />}
               {active === "social" && kit && <SocialModule kit={kit} />}
               {active === "platform" && kit && <PlatformModule kit={kit} />}
             </>
@@ -749,7 +744,7 @@ function BrandModule({ kit, demo, onLock }: { kit: BrandKit; demo: boolean; onLo
   );
 }
 
-/* ── 02 · ADS — paid-growth console (results of the autopilot + the paid plan) ── */
+/* ── (removed) ADS — paid results moved to PDR Commerce — paid-growth console (results of the autopilot + the paid plan) ── */
 function Filmstrip({ shots, colors }: { shots: string[]; colors: string[] }) {
   return (
     <div>
@@ -767,11 +762,6 @@ function Filmstrip({ shots, colors }: { shots: string[]; colors: string[] }) {
     </div>
   );
 }
-const MKT_CHANNELS = [
-  { id: "LINKEDIN", w: 34 }, { id: "PAID VIDEO", w: 28 }, { id: "INSTAGRAM", w: 20 },
-  { id: "GOOGLE", w: 12 }, { id: "TIKTOK", w: 4 }, { id: "X", w: 2 },
-];
-const AUDIENCES = ["Remote-first teams", "Eng leaders", "Ops managers", "Startup founders", "Design teams"];
 const VFMT = [
   { fmt: "9:16", plats: "TIKTOK · REELS", shots: ["HOOK", "SHOW", "PROOF", "CTA"], frames: 450, dur: "0:15" },
   { fmt: "16:9", plats: "YOUTUBE", shots: ["INTRO", "STORY", "DEMO", "OFFER", "CTA"], frames: 900, dur: "0:30" },
@@ -785,24 +775,6 @@ const vshots = (kit: BrandKit, i: number): string[] => {
   const arr = i === 0 ? c?.v916 : i === 1 ? c?.v169 : c?.v11;
   return enforceBoard(arr && arr.length >= 3 ? arr : VFMT[i].shots, VFMT[i].dur);
 };
-
-/* Per-channel baseline results of what the Social Autopilot shipped (views K · eng % · CPA €). */
-const PERF: Record<string, { v: number; e: number; c: number }> = {
-  LINKEDIN: { v: 46.2, e: 4.2, c: 18 }, "PAID VIDEO": { v: 38.5, e: 6.8, c: 11 },
-  INSTAGRAM: { v: 27.4, e: 5.1, c: 14 }, GOOGLE: { v: 16.8, e: 2.3, c: 22 },
-  TIKTOK: { v: 21.6, e: 8.4, c: 9 }, X: { v: 3.1, e: 1.9, c: 31 },
-};
-function StatTile({ label, value, unit, color }: { label: string; value: string | number; unit?: string; color?: string }) {
-  return (
-    <div className="relative border p-3" style={{ borderColor: LINE, backgroundColor: PANEL }}>
-      <Corner /><Corner br />
-      <div className="text-[9px] uppercase tracking-[0.2em]" style={{ color: FAINT }}>{label}</div>
-      <div className="mt-1.5 font-display text-[clamp(1.4rem,2.6vw,1.9rem)] leading-none tabular-nums" style={{ color: color ?? INK }}>
-        {value}{unit && <span className="ml-1 align-top text-[11px]" style={{ color: FAINT, fontFamily: "var(--app-font-mono)" }}>{unit}</span>}
-      </div>
-    </div>
-  );
-}
 
 /* ── the marketing brain — taught know-how, like Loam for websites ───────
    Core rules ship with the machine (src/lib/studio/brain.ts); taught rules are
@@ -824,7 +796,7 @@ function brainCheck(body: string): Record<string, boolean> {
   };
 }
 
-type AdView = { pf: string; angle: string; body: string; video: { dur: string; fmt: string; shots: string[] } | null; views: number; eng: number };
+type AdView = { pf: string; angle: string; body: string; video: { dur: string; fmt: string; shots: string[] } | null };
 
 function AdModal({ ad, kit, onClose, onUpdate }: { ad: AdView; kit: BrandKit; onClose: () => void; onUpdate: (a: AdView) => void }) {
   const checks = brainCheck(ad.body);
@@ -929,8 +901,7 @@ function AdModal({ ad, kit, onClose, onUpdate }: { ad: AdView; kit: BrandKit; on
           <span style={{ color: FAINT }}>{ad.angle}</span>
           {ad.video && <span className="border px-1.5 py-[1px] tabular-nums" style={{ borderColor: AMBER, color: AMBER }}>▶ {ad.video.dur} · {ad.video.fmt}</span>}
           <span className="ml-auto flex items-center gap-4 tabular-nums" style={{ color: FAINT }}>
-            <span><span style={{ color: INK }}>{ad.views.toFixed(1)}K</span> VIEWS</span>
-            <span><span style={{ color: GREEN }}>{ad.eng.toFixed(1)}%</span> ENG</span>
+            <span style={{ color: FAINT }}>NO RESULTS YET · CREATIVE MADE HERE, MEASURED IN COMMERCE</span>
           </span>
           <button onClick={onClose} className="border px-2 py-0.5" style={{ borderColor: LINE2, color: DIM }}>✕</button>
         </div>
@@ -1131,342 +1102,8 @@ function AdModal({ ad, kit, onClose, onUpdate }: { ad: AdView; kit: BrandKit; on
   );
 }
 
-function MarketModule({ kit }: { kit: BrandKit }) {
-  const AUD = kit.campaign?.audiences?.length ? kit.campaign.audiences : AUDIENCES;
-  const [objective, setObjective] = useState(kit.campaign?.objective || "Drive 500 team trials in Q3");
-  const [channels, setChannels] = useState<Set<string>>(() => new Set(["LINKEDIN", "PAID VIDEO", "INSTAGRAM", "GOOGLE"]));
-  const [audience, setAudience] = useState<Set<string>>(() => new Set(AUD.slice(0, 2)));
-  const [budget, setBudget] = useState(8400);
-  const [launched, setLaunched] = useState(false);
-  const [views, setViews] = useState<Record<string, number>>(() => Object.fromEntries(Object.entries(PERF).map(([k, p]) => [k, p.v])));
-  const [spend, setSpend] = useState(2140);
-  // REAL meters: agent traffic + orders measured on the last published store.
-  const [lastStore, setLastStore] = useState<string | null>(null);
-  const [traffic, setTraffic] = useState<{ agents: number; humans: number; byAgent: Record<string, number>; recent: { ts: string; agent: string; kind: string }[] } | null>(null);
-  const [orders, setOrders] = useState<{ count: number; revenue: number; byChannel: Record<string, number>; byAgent: Record<string, number>; recent: { id: string; ts: string; productName: string; qty: number; price: string; channel: string; agent: string }[] } | null>(null);
-  useEffect(() => { try { setLastStore(localStorage.getItem("pdr-last-store")); } catch { /* ignore */ } }, []);
-  useEffect(() => {
-    if (!lastStore) return;
-    let alive = true;
-    const pull = () => {
-      fetch(`/api/store/${lastStore}/traffic`).then((r) => r.json()).then((d) => { if (alive && d?.ok) setTraffic(d); }).catch(() => {});
-      fetch(`/api/store/${lastStore}/orders`).then((r) => r.json()).then((d) => { if (alive && d?.ok) setOrders(d); }).catch(() => {});
-    };
-    pull();
-    const id = setInterval(pull, 5000);
-    return () => { alive = false; clearInterval(id); };
-  }, [lastStore]);
-  const liveRef = useRef(launched);
-  liveRef.current = launched;
-  // Live meters: while the campaign is live, views + spend tick.
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (!liveRef.current) return;
-      setViews((v) => Object.fromEntries(Object.entries(v).map(([k, n]) => [k, n + PERF[k].v * (0.003 + Math.random() * 0.004)])));
-      setSpend((s) => s + 1 + Math.random() * 2.4);
-    }, 700);
-    return () => clearInterval(id);
-  }, []);
-
-  const toggleCh = (id: string) => setChannels((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const toggleAud = (a: string) => setAudience((s) => { const n = new Set(s); n.has(a) ? n.delete(a) : n.add(a); return n; });
-  // Feedback loop: distill the MEASURED data into learned brain rules.
-  const [learnBusy, setLearnBusy] = useState(false);
-  const [learnMsg, setLearnMsg] = useState<string | null>(null);
-  const learn = async () => {
-    if (!lastStore || learnBusy) return;
-    setLearnBusy(true); setLearnMsg(null);
-    try {
-      const r = await fetch("/api/studio/brainlearn", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: kit.projectCode, slug: lastStore }) });
-      const d = await r.json();
-      setLearnMsg(d?.ok ? `${(d.learned ?? []).length} LEARNED RULES → BRAIN · STEERING ALL FUTURE ADS` : String(d?.error ?? "learn failed").toUpperCase());
-    } catch {
-      setLearnMsg("LEARN FAILED");
-    }
-    setLearnBusy(false);
-  };
-
-  const chArr = MKT_CHANNELS.filter((c) => channels.has(c.id));
-  const wsum = chArr.reduce((a, c) => a + c.w, 0) || 1;
-  const totViews = chArr.reduce((a, c) => a + (views[c.id] ?? 0), 0);
-  const avgEng = totViews ? chArr.reduce((a, c) => a + (views[c.id] ?? 0) * PERF[c.id].e, 0) / totViews : 0;
-  const conv = Math.max(1, totViews * 1.19);
-  const cpa = spend / conv;
-  const roas = (conv * 38) / Math.max(1, spend);
-  const maxV = Math.max(...chArr.map((c) => views[c.id] ?? 0), 1);
-  const bestCh = chArr.length ? chArr.reduce((a, c) => (PERF[c.id].c < PERF[a.id].c ? c : a)) : null;
-  const worstCh = chArr.length > 1 ? chArr.reduce((a, c) => (PERF[c.id].c > PERF[a.id].c ? c : a)) : null;
-  const b = brandBits(kit);
-  const top = [
-    { pf: "TIKTOK", angle: "PAIN POINT", key: "problem", views: 18.4, eng: 9.2, video: true, hook: angleCore(b, "problem").hook },
-    { pf: "LINKEDIN", angle: "PAIN POINT", key: "problem", views: 12.1, eng: 5.4, video: false, hook: angleCore(b, "problem").hook },
-    { pf: "INSTAGRAM", angle: "SOCIAL PROOF", key: "proof", views: 9.8, eng: 6.1, video: false, hook: angleCore(b, "proof").hook },
-  ];
-  const [openAd, setOpenAd] = useState<AdView | null>(null);
-  const openTop = (tc: (typeof top)[number]) => setOpenAd({
-    pf: tc.pf, angle: tc.angle, body: craft(kit, tc.key, tc.pf),
-    video: tc.video ? { dur: VFMT[0].dur, fmt: VFMT[0].fmt, shots: vshots(kit, 0) } : null,
-    views: tc.views, eng: tc.eng,
-  });
-
-  return (
-    <div>
-      <ModuleHead id="02" name="ADS" rev="A" sn={hash8(kit.projectCode + "mkt").slice(0, 6)} />
-      <div className="p-4 lg:p-6">
-        {/* prominent workspace identity */}
-        <div className="mb-4 flex items-end justify-between gap-4">
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: AMBER }}>Paid growth</div>
-            <h2 className="mt-1 font-display text-[clamp(2rem,5vw,3.4rem)] uppercase leading-[0.88]">Ads Console</h2>
-            <p className="mt-1.5 max-w-[56ch] text-[13px]" style={{ color: DIM }}>The results of everything the Social Autopilot ships — views, spend, what worked where — and the paid plan behind it.</p>
-          </div>
-          <div className="hidden shrink-0 text-right sm:block">
-            <div className="font-display text-[clamp(2rem,4vw,3rem)] leading-none tabular-nums" style={{ color: AMBER }}>{totViews.toFixed(0)}K</div>
-            <div className="mt-1 text-[9px] uppercase tracking-[0.16em]" style={{ color: FAINT }}>views / mo</div>
-          </div>
-        </div>
-
-        {/* status strip */}
-        <div className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-2 border px-4 py-2.5 text-[10px] uppercase tracking-[0.14em] tabular-nums" style={{ borderColor: LINE, backgroundColor: PANEL }}>
-          <span className="flex items-center gap-2"><Led color={launched ? GREEN : SCHED} blink={launched} glow /> <span style={{ color: launched ? GREEN : SCHED }}>{launched ? "LIVE · AUTOPILOT" : "DRAFT"}</span></span>
-          <span style={{ color: FAINT }}>CHANNELS <span style={{ color: INK }}>{channels.size}</span></span>
-          <span style={{ color: FAINT }}>AUDIENCE <span style={{ color: INK }}>{audience.size} SEG</span></span>
-          <span style={{ color: FAINT }}>SPEND <span style={{ color: INK }}>€{Math.round(spend).toLocaleString("en-US")}</span></span>
-          <span className="ml-auto" style={{ color: FAINT }}>ROAS <span style={{ color: roas >= 2 ? GREEN : INK }}>{roas.toFixed(1)}×</span></span>
-        </div>
-
-        {/* PERFORMANCE — live meters */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <StatTile label="VIEWS / MO" value={`${totViews.toFixed(1)}K`} color={AMBER} />
-          <StatTile label="ENG RATE" value={avgEng.toFixed(1)} unit="%" />
-          <StatTile label="CPA" value={`€${cpa.toFixed(0)}`} color={BLUE} />
-          <StatTile label="ROAS" value={`${roas.toFixed(1)}×`} color={GREEN} />
-          <StatTile label="SPEND" value={`€${Math.round(spend).toLocaleString("en-US")}`} />
-        </div>
-
-        {/* WHERE IT WORKED — per-channel results + verdicts */}
-        <div className="mt-3 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-          <Cell label="CHANNEL PERFORMANCE · WHERE IT WORKED · SIM UNTIL AD ACCOUNTS CONNECT">
-            <div className="flex flex-col text-[11px] tabular-nums">
-              {chArr.length === 0 && <span style={{ color: RED }}>NO CHANNELS SELECTED</span>}
-              {chArr.map((c) => {
-                const p = PERF[c.id]; const v = views[c.id] ?? p.v;
-                const isBest = bestCh?.id === c.id, isWorst = worstCh?.id === c.id;
-                return (
-                  <div key={c.id} className="flex items-center gap-3 border-b py-2 pl-2" style={{ borderColor: LINE, backgroundColor: isBest ? RAISED : "transparent", borderLeft: isBest ? `2px solid ${AMBER}` : "2px solid transparent" }}>
-                    <span className="w-20 shrink-0 uppercase tracking-[0.06em]" style={{ color: isBest ? INK : DIM }}>{c.id}</span>
-                    <div className="h-3 flex-1" style={{ backgroundColor: "#1a1c18" }}><div className="h-full" style={{ width: `${Math.round((v / maxV) * 100)}%`, backgroundColor: isBest ? AMBER : "#8a8a5266" }} /></div>
-                    <span className="w-14 text-right" style={{ color: INK }}>{v.toFixed(1)}K</span>
-                    <span className="w-11 text-right" style={{ color: DIM }}>{p.e.toFixed(1)}%</span>
-                    <span className="w-11 text-right" style={{ color: BLUE }}>€{p.c}</span>
-                    <span className="w-14 text-right text-[9px] uppercase tracking-[0.1em]" style={{ color: isBest ? GREEN : isWorst ? RED : FAINT }}>{isBest ? "SCALE ▲" : isWorst ? "CUT ▼" : "HOLD"}</span>
-                  </div>
-                );
-              })}
-              <div className="flex items-center justify-between pt-2 text-[9px] uppercase tracking-[0.14em]" style={{ color: FAINT }}>
-                <span>VIEWS · ENG · CPA PER CHANNEL</span><span>VERDICT BY CPA</span>
-              </div>
-            </div>
-          </Cell>
-          <Cell label="TOP CONTENT · FROM THE AUTOPILOT · SIM METRICS">
-            <div className="flex flex-col">
-              {top.map((tc, i) => (
-                <button key={tc.pf} onClick={() => openTop(tc)} className="border-b py-2.5 text-left transition-colors hover:bg-[#17171A]" style={{ borderColor: LINE }}>
-                  <div className="flex items-center gap-2 text-[9px] uppercase tracking-[0.12em]">
-                    <span className="tabular-nums" style={{ color: FAINT }}>{clock2(i + 1)}</span>
-                    <span style={{ color: AMBER }}>{tc.pf}</span>
-                    <span style={{ color: FAINT }}>{tc.angle}</span>
-                    {tc.video && <span className="border px-1.5 py-[1px] tabular-nums" style={{ borderColor: AMBER, color: AMBER }}>▶ {VFMT[0].dur} · {VFMT[0].fmt}</span>}
-                    <span className="ml-auto tabular-nums" style={{ color: INK }}>{tc.views.toFixed(1)}K</span>
-                    <span className="tabular-nums" style={{ color: GREEN }}>{tc.eng.toFixed(1)}%</span>
-                    <span style={{ color: FAINT }}>⊕</span>
-                  </div>
-                  <div className="mt-1.5 truncate text-[12px]" style={{ color: DIM }}>{tc.hook}</div>
-                </button>
-              ))}
-              <div className="pt-2 text-[9px] uppercase tracking-[0.14em]" style={{ color: FAINT }}>RANKED BY VIEWS · TAP AN AD TO OPEN IT</div>
-            </div>
-          </Cell>
-        </div>
-
-        {/* AGENT TRAFFIC — the only meter in the studio that is MEASURED, not simulated */}
-        <Cell label="AGENT TRAFFIC · REAL — MEASURED ON YOUR PUBLISHED STORE" className="mt-3">
-          {!lastStore ? (
-            <div className="text-[11px]" style={{ color: FAINT }}>
-              NO STOREFRONT PUBLISHED YET — generate one in PLATFORM. This panel counts real AI agents (GPTBot, ClaudeBot, PerplexityBot…) reading your store; everything else on this console is simulated until ad accounts connect.
-            </div>
-          ) : !traffic ? (
-            <div className="text-[11px] tabular-nums" style={{ color: DIM }}>reading /store/{lastStore}…</div>
-          ) : (
-            <div className="grid gap-4 lg:grid-cols-[200px_1fr_1fr]">
-              <div>
-                <div className="font-display text-[clamp(2rem,4vw,2.8rem)] leading-none tabular-nums" style={{ color: traffic.agents > 0 ? GREEN : FAINT }}>{traffic.agents}</div>
-                <div className="mt-1 text-[9px] uppercase tracking-[0.16em]" style={{ color: FAINT }}>AI agent hits</div>
-                <div className="mt-2 text-[10px] tabular-nums" style={{ color: DIM }}>{traffic.humans} human · /store/{lastStore}</div>
-              </div>
-              <div className="flex flex-col gap-1.5 text-[11px] tabular-nums">
-                <div className="text-[9px] uppercase tracking-[0.16em]" style={{ color: FAINT }}>BY AGENT</div>
-                {Object.entries(traffic.byAgent).length === 0 && <span style={{ color: FAINT }}>no agent visits yet — submit the feed or share the store URL</span>}
-                {Object.entries(traffic.byAgent).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([a, n]) => {
-                  const max = Math.max(...Object.values(traffic.byAgent), 1);
-                  return (
-                    <div key={a} className="flex items-center gap-2.5">
-                      <span className="w-32 shrink-0 truncate" style={{ color: INK }}>{a}</span>
-                      <div className="h-2.5 flex-1" style={{ backgroundColor: "#1a1c18" }}><div className="h-full" style={{ width: `${Math.round((n / max) * 100)}%`, backgroundColor: GREEN }} /></div>
-                      <span className="w-8 text-right" style={{ color: DIM }}>{n}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex flex-col gap-1 text-[10px] tabular-nums">
-                <div className="text-[9px] uppercase tracking-[0.16em]" style={{ color: FAINT }}>RECENT READS</div>
-                {traffic.recent.length === 0 && <span style={{ color: FAINT }}>—</span>}
-                {traffic.recent.slice(0, 6).map((h, i) => (
-                  <div key={i} className="flex items-center gap-2.5">
-                    <span style={{ color: FAINT }}>{h.ts.slice(11, 19)}</span>
-                    <span style={{ color: h.agent === "HUMAN" ? DIM : GREEN }}>{h.agent}</span>
-                    <span className="uppercase" style={{ color: FAINT }}>{h.kind}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {lastStore && (
-            <div className="mt-3 flex flex-wrap items-center gap-3 border-t pt-2.5" style={{ borderColor: LINE }}>
-              <button onClick={learn} disabled={learnBusy} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] disabled:opacity-50" style={{ backgroundColor: AMBER, color: "#0A0A08" }}>
-                {learnBusy ? "⟳ DISTILLING…" : "✦ LEARN FROM PERFORMANCE → BRAIN"}
-              </button>
-              <span className="text-[9px] uppercase tracking-[0.12em]" style={{ color: learnMsg ? (learnMsg.includes("LEARNED") ? GREEN : SCHED) : FAINT }}>
-                {learnMsg ?? "distills measured reads + orders into rules that steer every future ad"}
-              </span>
-            </div>
-          )}
-        </Cell>
-
-        {/* ORDERS — real revenue received by the published store */}
-        {lastStore && orders && (
-          <Cell label="ORDERS · REAL — RECEIVED BY YOUR STORE" className="mt-3">
-            {orders.count === 0 ? (
-              <div className="text-[11px]" style={{ color: FAINT }}>
-                NO ORDERS YET — the store takes guest checkout and agent order-intents; every order lands here with its channel and agent recorded.
-              </div>
-            ) : (
-              <div className="grid gap-4 lg:grid-cols-[200px_1fr_1fr]">
-                <div>
-                  <div className="font-display text-[clamp(2rem,4vw,2.8rem)] leading-none tabular-nums" style={{ color: GREEN }}>€{Math.round(orders.revenue).toLocaleString("en-US")}</div>
-                  <div className="mt-1 text-[9px] uppercase tracking-[0.16em]" style={{ color: FAINT }}>revenue received</div>
-                  <div className="mt-2 text-[10px] tabular-nums" style={{ color: DIM }}>{orders.count} orders · every euro traces to an order id</div>
-                </div>
-                <div className="flex flex-col gap-1.5 text-[11px] tabular-nums">
-                  <div className="text-[9px] uppercase tracking-[0.16em]" style={{ color: FAINT }}>BY CHANNEL</div>
-                  {Object.entries(orders.byChannel).map(([c, n]) => (
-                    <div key={c} className="flex items-center gap-2.5">
-                      <span className="w-24 shrink-0 uppercase" style={{ color: INK }}>{c === "agent-json" ? "AGENT" : "WEB"}</span>
-                      <span style={{ color: DIM }}>{n}</span>
-                    </div>
-                  ))}
-                  {Object.entries(orders.byAgent).length > 0 && (
-                    <>
-                      <div className="mt-1 text-[9px] uppercase tracking-[0.16em]" style={{ color: FAINT }}>BY AGENT</div>
-                      {Object.entries(orders.byAgent).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([a, n]) => (
-                        <div key={a} className="flex items-center gap-2.5">
-                          <span className="w-24 shrink-0 truncate" style={{ color: GREEN }}>{a}</span>
-                          <span style={{ color: DIM }}>{n}</span>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1 text-[10px] tabular-nums">
-                  <div className="text-[9px] uppercase tracking-[0.16em]" style={{ color: FAINT }}>RECENT ORDERS</div>
-                  {orders.recent.map((o) => (
-                    <div key={o.id} className="flex items-center gap-2.5">
-                      <span style={{ color: FAINT }}>{o.ts.slice(11, 19)}</span>
-                      <span className="min-w-0 truncate" style={{ color: INK }}>{o.productName} ×{o.qty}</span>
-                      <span style={{ color: o.channel === "agent-json" ? GREEN : DIM }}>{o.channel === "agent-json" ? o.agent : "WEB"}</span>
-                      <span className="ml-auto" style={{ color: DIM }}>{o.price}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </Cell>
-        )}
-
-        {/* objective + audience */}
-        <div className="mt-3 grid gap-3 lg:grid-cols-2">
-          <Cell label="OBJECTIVE">
-            <input value={objective} onChange={(e) => setObjective(e.target.value)}
-              className="w-full border px-3 py-2 font-display text-[clamp(1.2rem,3vw,1.8rem)] uppercase"
-              style={{ borderColor: LINE, backgroundColor: WELL, color: INK, outline: "none" }} />
-          </Cell>
-          <Cell label="AUDIENCE · TARGETING">
-            <div className="flex flex-wrap gap-1.5">
-              {AUD.map((a) => { const on = audience.has(a); return (
-                <button key={a} onClick={() => toggleAud(a)} className="flex items-center gap-2 border px-2.5 py-1 text-[11px]" style={{ borderColor: on ? AMBER : LINE, color: on ? AMBER : DIM, backgroundColor: on ? "rgba(255,176,0,0.09)" : "transparent" }}><Led color={on ? AMBER : LEDOFF} glow={on} />{a}</button>
-              ); })}
-            </div>
-          </Cell>
-        </div>
-
-        {/* channels + budget */}
-        <Cell label="CHANNELS · BUDGET ALLOCATION" className="mt-3">
-          <div className="mb-3 flex flex-wrap items-center gap-1.5">
-            {MKT_CHANNELS.map((c) => { const on = channels.has(c.id); return (
-              <button key={c.id} onClick={() => toggleCh(c.id)} className="flex items-center gap-2 border px-2.5 py-1 text-[10px] uppercase tracking-[0.1em]" style={{ borderColor: on ? AMBER : LINE, color: on ? AMBER : DIM, backgroundColor: on ? "rgba(255,176,0,0.09)" : "transparent" }}><Led color={on ? AMBER : LEDOFF} glow={on} />{c.id}</button>
-            ); })}
-            <div className="ml-auto flex items-center gap-2 text-[12px] tabular-nums">
-              <button onClick={() => setBudget((b) => Math.max(500, b - 500))} className="border px-2 py-0.5" style={{ borderColor: LINE, color: DIM }}>−</button>
-              <span style={{ color: AMBER }}>€{budget.toLocaleString("en-US")}</span>
-              <button onClick={() => setBudget((b) => b + 500)} className="border px-2 py-0.5" style={{ borderColor: LINE, color: DIM }}>+</button>
-              <span className="text-[9px] uppercase tracking-[0.14em]" style={{ color: FAINT }}>/ MO</span>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 text-[11px] tabular-nums">
-            {chArr.length === 0 && <span style={{ color: RED }}>NO CHANNELS SELECTED</span>}
-            {chArr.map((c) => { const pct = Math.round((c.w / wsum) * 100); const amt = Math.round(budget * (c.w / wsum)); return (
-              <div key={c.id} className="flex items-center gap-3">
-                <span className="w-24 shrink-0 tracking-[0.06em]" style={{ color: DIM }}>{c.id}</span>
-                <div className="h-3 flex-1" style={{ backgroundColor: "#1a1c18" }}><div className="h-full" style={{ width: `${pct}%`, backgroundColor: AMBER }} /></div>
-                <span className="w-9 text-right" style={{ color: INK }}>{clock2(pct)}%</span>
-                <span className="w-16 text-right" style={{ color: FAINT }}>€{amt.toLocaleString("en-US")}</span>
-              </div>
-            ); })}
-          </div>
-        </Cell>
-
-        {/* flight plan derived from selected channels */}
-        <Cell label="FLIGHT PLAN · WK 01–06" className="mt-3">
-          <div className="flex flex-col gap-1.5 text-[10px] tabular-nums">
-            <div className="flex items-center gap-3" style={{ color: FAINT }}>
-              <span className="w-24 shrink-0" />
-              {["W1", "W2", "W3", "W4", "W5", "W6"].map((w) => <span key={w} className="flex-1 text-center">{w}</span>)}
-            </div>
-            {chArr.map((c, i) => { const start = i % 3, end = 6 - (i % 2); return (
-              <div key={c.id} className="flex items-center gap-3">
-                <span className="w-24 shrink-0 uppercase tracking-[0.06em]" style={{ color: DIM }}>{c.id}</span>
-                {[0, 1, 2, 3, 4, 5].map((wk) => <span key={wk} className="h-3.5 flex-1" style={{ backgroundColor: wk >= start && wk < end ? AMBER : "#191b15" }} />)}
-              </div>
-            ); })}
-          </div>
-        </Cell>
-
-        {/* LAUNCH */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4" style={{ borderColor: LINE }}>
-          <div className="text-[11px]" style={{ color: DIM }}>{channels.size} channels · €{budget.toLocaleString("en-US")}/mo · {audience.size} segments · creative via Social Autopilot</div>
-          <button onClick={() => setLaunched((l) => !l)} className="flex items-center gap-2 px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.18em]"
-            style={{ backgroundColor: launched ? "transparent" : AMBER, color: launched ? GREEN : "#0A0A08", border: launched ? `1px solid ${GREEN}` : "none" }}>
-            {launched ? "● CAMPAIGN LIVE · PAUSE" : "▶ LAUNCH CAMPAIGN"}
-          </button>
-        </div>
-      </div>
-      {openAd && <AdModal ad={openAd} kit={kit} onClose={() => setOpenAd(null)} onUpdate={setOpenAd} />}
-    </div>
-  );
-}
-
-/* ── 03 · SOCIAL — content studio (compose · preview · calendar · queue) ── */
-const QCOLOR: Record<QStatus, string> = { POSTED: GREEN, PUBLISHING: WARN, SCHEDULED: SCHED, QUEUED: "#6E6E64" };
+/* ── 02 · SOCIAL — content studio (compose · preview · calendar · queue) ── */
+const QCOLOR: Record<QStatus, string> = { WRITTEN: GREEN, WRITING: WARN, PLANNED: SCHED, QUEUED: "#6E6E64" };
 const PLATFORMS = [
   { id: "LINKEDIN", limit: 3000 },
   { id: "X", limit: 280 },
@@ -1527,8 +1164,8 @@ function craft(kit: BrandKit, angleKey: string, platform: string): string {
 const angleLabel = (key: string) => ANGLES.find((a) => a.key === key)?.label ?? "POST";
 function seedPosts(kit: BrandKit): Post[] {
   const combos: [string, string, QStatus][] = [
-    ["problem", "LINKEDIN", "POSTED"], ["offer", "X", "POSTED"], ["proof", "INSTAGRAM", "POSTED"],
-    ["how", "TIKTOK", "SCHEDULED"], ["story", "LINKEDIN", "SCHEDULED"], ["behind", "YOUTUBE", "SCHEDULED"],
+    ["problem", "LINKEDIN", "WRITTEN"], ["offer", "X", "WRITTEN"], ["proof", "INSTAGRAM", "WRITTEN"],
+    ["how", "TIKTOK", "PLANNED"], ["story", "LINKEDIN", "PLANNED"], ["behind", "YOUTUBE", "PLANNED"],
     ["offer", "INSTAGRAM", "QUEUED"], ["proof", "X", "QUEUED"], ["how", "TIKTOK", "QUEUED"],
   ];
   return combos.map(([ang, pf, status], i) => ({
@@ -1589,7 +1226,7 @@ function SocialModule({ kit }: { kit: BrandKit }) {
       attachedRef.current.add(v.id);
       setQ((cur) => [...cur, {
         slot: clock2(cur.length + 1), day: WEEK[cur.length % 7], time: `${clock2(9 + (cur.length % 9))}:15`,
-        pf: v.pf, status: "SCHEDULED", angle: "VIDEO DROP", body: craft(kit, "offer", v.pf), video: `${v.dur} · ${v.fmt}`,
+        pf: v.pf, status: "PLANNED", angle: "VIDEO DROP", body: craft(kit, "offer", v.pf), video: `${v.dur} · ${v.fmt}`,
       }]);
     });
   }, [svids, kit]);
@@ -1600,11 +1237,11 @@ function SocialModule({ kit }: { kit: BrandKit }) {
     const id = setInterval(() => {
       if (tRef.current > 1) { tRef.current -= 1; setT(tRef.current); return; }
       tRef.current = DISPATCH; setT(DISPATCH);
-      setQ((cur) => { const i = cur.findIndex((x) => x.status === "SCHEDULED"); if (i < 0) return cur; const n = cur.map((x) => ({ ...x })); n[i].status = "PUBLISHING"; return n; });
+      setQ((cur) => { const i = cur.findIndex((x) => x.status === "PLANNED"); if (i < 0) return cur; const n = cur.map((x) => ({ ...x })); n[i].status = "WRITING"; return n; });
       window.setTimeout(() => setQ((cur) => {
-        const i = cur.findIndex((x) => x.status === "PUBLISHING"); if (i < 0) return cur;
-        const n = cur.map((x) => ({ ...x })); n[i].status = "POSTED";
-        const j = n.findIndex((x) => x.status === "QUEUED"); if (j >= 0) n[j].status = "SCHEDULED";
+        const i = cur.findIndex((x) => x.status === "WRITING"); if (i < 0) return cur;
+        const n = cur.map((x) => ({ ...x })); n[i].status = "WRITTEN";
+        const j = n.findIndex((x) => x.status === "QUEUED"); if (j >= 0) n[j].status = "PLANNED";
         return n;
       }), 1500);
       const st = live.current;
@@ -1631,8 +1268,8 @@ function SocialModule({ kit }: { kit: BrandKit }) {
   }, [kit]);
 
   const count = (s: QStatus) => q.filter((x) => x.status === s).length;
-  const activeIdx = q.findIndex((x) => x.status === "PUBLISHING");
-  const hot = activeIdx >= 0 ? activeIdx : q.findIndex((x) => x.status === "SCHEDULED");
+  const activeIdx = q.findIndex((x) => x.status === "WRITING");
+  const hot = activeIdx >= 0 ? activeIdx : q.findIndex((x) => x.status === "PLANNED");
   const chArr = PLATFORMS.filter((p) => channels.has(p.id));
 
   const toggleCh = (id: string) => setChannels((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -1665,8 +1302,8 @@ function SocialModule({ kit }: { kit: BrandKit }) {
   };
   const postNow = (pf: string) => {
     const dr = drafts[pf]; if (!dr) return;
-    setQ((cur) => [...cur, { slot: clock2(cur.length + 1), day: "—", time: "—", pf, status: "PUBLISHING", body: dr.body, angle: dr.angle }]);
-    window.setTimeout(() => setQ((c) => c.map((x) => (x.pf === pf && x.time === "—" && x.status === "PUBLISHING" ? { ...x, status: "POSTED" } : x))), 1500);
+    setQ((cur) => [...cur, { slot: clock2(cur.length + 1), day: "—", time: "—", pf, status: "WRITING", body: dr.body, angle: dr.angle }]);
+    window.setTimeout(() => setQ((c) => c.map((x) => (x.pf === pf && x.time === "—" && x.status === "WRITING" ? { ...x, status: "WRITTEN" } : x))), 1500);
   };
   const publishAll = () => chArr.forEach((p) => postNow(p.id));
   // First mount for this company: rewrite each selected channel's draft through
@@ -1690,36 +1327,38 @@ function SocialModule({ kit }: { kit: BrandKit }) {
   const openVid = (v: SVid) => setOpenAd({
     pf: v.pf, angle: "VIDEO AD", body: craft(kit, "offer", v.pf),
     video: { dur: v.dur, fmt: v.fmt, shots: v.shots },
-    views: PERF[v.pf]?.v ?? 8, eng: PERF[v.pf]?.e ?? 5,
   });
 
   return (
     <div>
-      <ModuleHead id="03" name="SOCIAL" rev="A" sn={hash8(kit.projectCode + "soc").slice(0, 6)} />
+      <ModuleHead id="02" name="SOCIAL" rev="A" sn={hash8(kit.projectCode + "soc").slice(0, 6)} />
       <div className="p-4 lg:p-6">
         {/* prominent workspace identity */}
         <div className="mb-4 flex items-end justify-between gap-4">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: AMBER }}>Content automation</div>
-            <h2 className="mt-1 font-display text-[clamp(2rem,5vw,3.4rem)] uppercase leading-[0.88]">Social Autopilot</h2>
-            <p className="mt-1.5 max-w-[54ch] text-[13px]" style={{ color: DIM }}>Crafts product-specific posts &amp; renders marketing videos for every channel from your brand kit — then publishes them together, on cadence.</p>
+            <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: AMBER }}>Launch pack</div>
+            <h2 className="mt-1 font-display text-[clamp(2rem,5vw,3.4rem)] uppercase leading-[0.88]">Social Launch Pack</h2>
+            <p className="mt-1.5 max-w-[54ch] text-[13px]" style={{ color: DIM }}>Writes the opening content set for every channel — product-specific posts and shot-level video specs, from your brand kit and the marketing brain. <span style={{ color: AMBER }}>Studio writes; nothing is published from here.</span> Delivery, cadence and results live in PDR Commerce, which posts once a channel is connected.</p>
           </div>
           <div className="hidden shrink-0 text-right sm:block">
-            <div className="font-display text-[clamp(2rem,4vw,3rem)] leading-none tabular-nums" style={{ color: GREEN }}>{clock2(count("POSTED"))}</div>
-            <div className="mt-1 text-[9px] uppercase tracking-[0.16em]" style={{ color: FAINT }}>posts live</div>
+            <div className="font-display text-[clamp(2rem,4vw,3rem)] leading-none tabular-nums" style={{ color: GREEN }}>{clock2(count("WRITTEN"))}</div>
+            <div className="mt-1 text-[9px] uppercase tracking-[0.16em]" style={{ color: FAINT }}>posts written</div>
           </div>
         </div>
 
         {/* status strip */}
         <div className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-2 border px-4 py-2.5 text-[10px] uppercase tracking-[0.14em]" style={{ borderColor: LINE, backgroundColor: PANEL }}>
-          <span className="flex items-center gap-2"><Led color={armed ? GREEN : SCHED} blink={armed} glow /> <span style={{ color: armed ? GREEN : SCHED }}>{armed ? "AUTOPILOT ARMED" : "AUTOPILOT PAUSED"}</span></span>
+          <span className="flex items-center gap-2"><Led color={armed ? GREEN : SCHED} blink={armed} glow /> <span style={{ color: armed ? GREEN : SCHED }}>{armed ? "WRITER ARMED" : "WRITER PAUSED"}</span></span>
           <span style={{ color: FAINT }}>CHANNELS <span style={{ color: INK }}>{channels.size}/5</span></span>
           <span style={{ color: FAINT }}>PILLARS <span style={{ color: INK }}>{clock2(pillars.size)}</span></span>
           <span style={{ color: FAINT }}>VIDEO <span style={{ color: INK }}>{clock2(svids.filter((v) => v.phase >= 3).length)}/{clock2(svids.length)}</span></span>
           <span style={{ color: FAINT }}>CADENCE <span style={{ color: INK }}>{DISPATCH}s</span></span>
+          {/* The handoff, stated where the work happens: Studio makes the pack,
+              Commerce runs the programme. */}
+          <a href="/commerce/command" className="no-underline" style={{ color: AMBER }}>DELIVERY &amp; RESULTS · COMMERCE ↗</a>
           <span className="ml-auto flex items-center gap-4 tabular-nums" style={{ color: FAINT }}>
-            <span><span style={{ color: GREEN }}>{count("POSTED")}</span> POSTED</span>
-            <span><span style={{ color: SCHED }}>{count("SCHEDULED")}</span> SCHED</span>
+            <span><span style={{ color: GREEN }}>{count("WRITTEN")}</span> WRITTEN</span>
+            <span><span style={{ color: SCHED }}>{count("PLANNED")}</span> PLANNED</span>
             <span><span style={{ color: "#6E6E64" }}>{count("QUEUED")}</span> QUEUED</span>
           </span>
         </div>
@@ -1864,7 +1503,7 @@ function SocialModule({ kit }: { kit: BrandKit }) {
                 <span className="tabular-nums text-[10px] leading-tight" style={{ color: DIM }}>{r.day} <span style={{ color: INK }}>{r.time}</span></span>
                 <span className="truncate text-[9px] uppercase tracking-[0.1em]" style={{ color: FAINT }}>{r.angle}</span>
                 <span className="min-w-0"><span className="mr-2 text-[9px] uppercase tracking-[0.14em]" style={{ color: AMBER }}>{r.pf}</span>{r.video && <span className="mr-2 border px-1.5 py-[1px] text-[8px] uppercase tracking-[0.08em] tabular-nums" style={{ borderColor: AMBER, color: AMBER }}>▶ {r.video}</span>}<span className="truncate" style={{ color: r.status === "QUEUED" ? DIM : INK }}>{r.body.replace(/\n+/g, " · ")}</span></span>
-                <span className="flex items-center justify-end gap-2 text-[9px] uppercase tracking-[0.12em]" style={{ color: QCOLOR[r.status] }}><Led color={QCOLOR[r.status]} blink={r.status === "PUBLISHING"} glow={r.status === "PUBLISHING" || r.status === "POSTED"} />{r.status}</span>
+                <span className="flex items-center justify-end gap-2 text-[9px] uppercase tracking-[0.12em]" style={{ color: QCOLOR[r.status] }}><Led color={QCOLOR[r.status]} blink={r.status === "WRITING"} glow={r.status === "WRITING" || r.status === "WRITTEN"} />{r.status}</span>
               </div>
             ); })}
           </div>
@@ -1875,7 +1514,7 @@ function SocialModule({ kit }: { kit: BrandKit }) {
   );
 }
 
-/* ── 04 · PLATFORM — the site fabricator (the grand feature) ─────────────
+/* ── 03 · PLATFORM — the site fabricator (the grand feature) ─────────────
    Deliberately SIMPLE: one panel, one button. The button opens /studio/site
    in a new page, which fabricates and renders the full agent-first store
    (catalog, product pages, JSON-LD, llms.txt). No landing-page fluff — the
@@ -1912,7 +1551,7 @@ function PlatformModule({ kit }: { kit: BrandKit }) {
   };
   return (
     <div>
-      <ModuleHead id="04" name="PLATFORM" rev="A" sn={hash8("platform").slice(0, 6)} />
+      <ModuleHead id="03" name="PLATFORM" rev="A" sn={hash8("platform").slice(0, 6)} />
       <div className="p-4 lg:p-6">
         {/* prominent workspace identity */}
         <div className="mb-4 flex items-end justify-between gap-4">
