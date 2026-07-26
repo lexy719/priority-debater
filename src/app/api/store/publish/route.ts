@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { currentOwnerId } from "@/lib/commerce/owner";
+import { saveCosts } from "@/lib/studio/costRepo";
 import { recordOwnership, saveStore, slugify, type PublishedStore } from "@/lib/studio/storeRepo";
 import type { StorefrontInput } from "@/lib/studio/aiStorefront";
 
@@ -19,7 +20,7 @@ function hash6(s: string): string {
 }
 
 export async function POST(req: Request) {
-  let body: { store?: StorefrontInput; manifest?: PublishedStore["manifest"]; source?: string; spec?: string };
+  let body: { store?: StorefrontInput; manifest?: PublishedStore["manifest"]; source?: string; spec?: string; costs?: Record<string, unknown> };
   try {
     body = await req.json();
   } catch {
@@ -47,6 +48,15 @@ export async function POST(req: Request) {
   try {
     await saveStore(published);
     await recordOwnership(ownerId, slug);
+    // Seed Finance with what the fabricator worked out each unit costs, so
+    // margin, COGS and net profit are real from the first order rather than
+    // waiting for the operator to type twelve numbers.
+    const costs: Record<string, number> = {};
+    for (const [sku, v] of Object.entries(body.costs ?? {})) {
+      const n = Number(v);
+      if (typeof sku === "string" && sku && Number.isFinite(n) && n > 0) costs[sku] = Math.round(n * 100) / 100;
+    }
+    if (Object.keys(costs).length) await saveCosts(slug, costs);
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }

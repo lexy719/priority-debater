@@ -96,7 +96,9 @@ function fabSteps(kit: KitLike, skus: number): string[] {
     "PUBLISHING STOREFRONT",
   ];
 }
-type Synth = { status: "pending" | "claude" | "stock"; products: StoreProduct[] | null; manifest?: { ships?: string; returns?: string; tagline?: string } };
+type Synth = { status: "pending" | "claude" | "stock"; products: StoreProduct[] | null; manifest?: { ships?: string; returns?: string; tagline?: string };
+  /** Per-SKU unit costs worked out during synthesis — seeded into Finance on publish. */
+  costs?: Record<string, number> };
 
 function SegBar({ pct, segs = 40 }: { pct: number; segs?: number }) {
   const filled = Math.round((pct / 100) * segs);
@@ -133,7 +135,7 @@ export default function FabricatedSite() {
       .then((r) => r.json())
       .then((d) => {
         if (!alive) return;
-        if (d?.ok && Array.isArray(d.products) && d.products.length >= 3) setSynth({ status: "claude", products: d.products, manifest: d.manifest });
+        if (d?.ok && Array.isArray(d.products) && d.products.length >= 3) setSynth({ status: "claude", products: d.products, manifest: d.manifest, costs: d.costs });
         else setSynth({ status: "stock", products: null });
       })
       .catch(() => alive && setSynth({ status: "stock", products: null }));
@@ -152,7 +154,7 @@ export default function FabricatedSite() {
       const prods = synthRef.current.products ?? synthCatalog(kit);
       fetch("/api/store/publish", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ store: toStorefrontInput(kit, prods), manifest: synthRef.current.manifest ?? {}, source: synthRef.current.status === "claude" ? "claude" : "stock", spec: kit.descriptor }),
+        body: JSON.stringify({ store: toStorefrontInput(kit, prods), manifest: synthRef.current.manifest ?? {}, source: synthRef.current.status === "claude" ? "claude" : "stock", spec: kit.descriptor, costs: synthRef.current.costs ?? {} }),
       })
         .then((r) => r.json())
         .then((d) => {

@@ -21,9 +21,33 @@ type KitIn = {
 type SynthProduct = {
   name: string; description: string; price: string; priceValue: number;
   currency?: string; sku: string; category: string; availability: "InStock" | "PreOrder";
+  /** What kind of thing it is and what a unit of the price buys. */
+  kind?: string; unit?: string;
+  /** Checkable facts agents filter on. */
+  provenance?: Record<string, string>;
+  /** What it costs the business to deliver one unit — so margin works on day one. */
+  unitCost?: number;
 };
 
 const MODEL = "claude-sonnet-5";
+const KINDS = ["good", "digital", "service", "access"];
+const UNITS = ["item", "hour", "day", "seat", "month", "year", "1k-words", "project"];
+const PROV_KEYS = ["material", "origin", "madeBy", "leadTime", "care", "warranty", "weight", "dimensions"] as const;
+
+/** Keep only declared provenance facts; a blank field is left undeclared. */
+function cleanProv(raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Record<string, string> = {};
+  for (const k of PROV_KEYS) {
+    const v = (raw as Record<string, unknown>)[k];
+    if (typeof v !== "string") continue;
+    const t = v.trim().slice(0, 120);
+    if (!t) continue;
+    if (k === "madeBy" && !["human", "machine", "hybrid"].includes(t.toLowerCase())) continue;
+    out[k] = k === "madeBy" ? t.toLowerCase() : t;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
 
 export async function POST(req: Request) {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -42,7 +66,7 @@ export async function POST(req: Request) {
     "The output storefront is built for AI shopping agents (LLMs), not for humans scrolling a landing page.",
     "",
     "From the business spec below, output ONLY strict JSON — no markdown fences, no commentary — with exactly this shape:",
-    '{"products":[{"name":string,"description":string,"price":string,"priceValue":number,"currency":"EUR","sku":string,"category":string,"availability":"InStock"|"PreOrder"}],"manifest":{"ships":string,"returns":string,"tagline":string}}',
+    '{"products":[{"name":string,"description":string,"price":string,"priceValue":number,"currency":"EUR","sku":string,"category":string,"availability":"InStock"|"PreOrder","kind":"good"|"digital"|"service"|"access","unit":"item"|"hour"|"day"|"seat"|"month"|"year"|"1k-words"|"project","unitCost":number,"provenance":{"material":string,"origin":string,"madeBy":"human"|"machine"|"hybrid","leadTime":string,"care":string,"warranty":string}}],"manifest":{"ships":string,"returns":string,"tagline":string}}',
     "",
     "Rules:",
     "- exactly 6 products, each a distinct purchasable SKU for this business",
@@ -50,6 +74,10 @@ export async function POST(req: Request) {
     '- price: EUR display string (e.g. "€18/mo", "€120"); priceValue: the number; realistic for the market',
     "- sku: kebab-case; category: one or two words (e.g. Subscription, Hardware, Gift, Service)",
     "- mix recurring and one-off offers where the business allows; at most one PreOrder",
+    "- kind: what is actually being sold. A physical object is \"good\"; a download or file is \"digital\"; time, work or a booking is \"service\"; a pass or membership is \"access\". Do NOT dress a service up as an object.",
+    "- unit: what one unit of the price buys. \"item\" for anything sold per piece; \"hour\"/\"day\"/\"project\" for work; \"seat\" per person; \"month\"/\"year\" for subscriptions; \"1k-words\" for written volume.",
+    "- unitCost: what it plausibly COSTS this business to deliver one unit, in EUR, as a number. Be realistic for the trade (a handmade ceramic plate is not 5% of its price; a software seat mostly is). This is what lets the operator see margin from day one — never omit it.",
+    "- provenance: only facts this kind of business could actually state. material + origin + madeBy for anything physical or handmade; care and warranty where they apply; leadTime when it is made to order. OMIT a field rather than invent one — an undeclared attribute is honest, a guessed one is not. For pure software, provenance may be an empty object.",
     "- manifest.ships / manifest.returns: one short factual line each; manifest.tagline: <=8 words, no punctuation flourish",
     "",
     "Business spec:",
@@ -86,10 +114,19 @@ export async function POST(req: Request) {
         sku: String(p.sku).toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
         category: String(p.category ?? "Product"),
         availability: p.availability === "PreOrder" ? ("PreOrder" as const) : ("InStock" as const),
+        ...(KINDS.includes(String(p.kind)) && p.kind !== "good" ? { kind: p.kind as "digital" | "service" | "access" } : {}),
+        ...(UNITS.includes(String(p.unit)) && p.unit !== "item" ? { unit: p.unit as "hour" | "day" | "seat" | "month" | "year" | "1k-words" | "project" } : {}),
+        ...(cleanProv(p.provenance) ? { provenance: cleanProv(p.provenance) } : {}),
+        unitCost: Number.isFinite(Number(p.unitCost)) && Number(p.unitCost) > 0 ? Math.round(Number(p.unitCost) * 100) / 100 : undefined,
       }));
     if (products.length < 3) return NextResponse.json({ ok: false, error: "synthesis too thin" }, { status: 502 });
 
-    return NextResponse.json({ ok: true, source: "claude", model: MODEL, products, manifest: parsed.manifest ?? {} });
+    // Unit costs are the operator's data, not the shop's: they travel beside the
+    // catalogue so publishing can seed Finance without ever showing a cost to a buyer.
+    const costs: Record<string, number> = {};
+    for (const p of products) if (p.unitCost != null && p.sku) costs[p.sku] = p.unitCost;
+    const catalogue = products.map(({ unitCost: _unitCost, ...rest }) => rest);
+    return NextResponse.json({ ok: true, source: "claude", model: MODEL, products: catalogue, costs, manifest: parsed.manifest ?? {} });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 502 });
   }
