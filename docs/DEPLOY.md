@@ -6,6 +6,36 @@ that turns the whole product from "works" into "provable": real agents can crawl
 the stores, feeds become submittable, the audit becomes something a prospect can
 run, the daily tick actually ticks, and landing pages become links you can send.
 
+## 0 · Will it actually work once deployed? — checked, not assumed
+
+**A store is not a separate deployment.** Every fabricated business is a route on
+this one app: `<your-domain>/store/kilnware-7649ee`. Deploy once and all of them
+are live at the same moment, each with its own product pages, feeds, JSON-LD,
+MCP endpoint, seller record, checkout and landing pages.
+
+Verified against the live Supabase project:
+
+- **Every repository writes remotely first.** storeRepo · orderRepo · hitRepo ·
+  activityRepo · brainRepo · campaignRepo · landingRepo · costRepo ·
+  expenseRepo · automationRepo all take the `blobConfigured()` branch and return
+  before touching the filesystem, so Vercel's read-only disk is never in the
+  path. The `.data/` fallback exists only for a machine with no Supabase keys.
+- **KILNWARE's complete state is remote** — store, orders, activity,
+  automations, campaigns, landings, expenses, costs, brain and hits. Nothing
+  about the business lives only on a laptop.
+- **All nine businesses are now in Supabase.** Three (boardrx, medulla, recupo)
+  existed only in local `.data/` — which is gitignored and never uploaded — so
+  production would have shown six. They were synced up; the register now lists
+  nine both locally and remotely.
+- **The daily tick fits comfortably in a serverless function**: 6.6s for all
+  nine businesses, 0.5s for one. Vercel's cap is 60s.
+- **Product imagery needs no storage** — every image is a deterministic SVG
+  generated per request at `/store/<slug>/img/<sku>.svg`.
+- **One known filesystem write remains**, in the Validation fork's cross-session
+  agent memory (`src/lib/agents/agent-memory.ts`). Its caller wraps it in
+  try/catch and logs a warning, so a debate still completes on Vercel — but that
+  learning will not persist until it is moved to blob storage like the others.
+
 ## 1 · What is verified ready
 
 | Thing | State |
