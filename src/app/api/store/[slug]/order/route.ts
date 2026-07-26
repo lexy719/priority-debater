@@ -78,7 +78,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   }
   // Ops Agent: inventory moves with the order; the log shows who sold what.
   const left = await adjustStock(slug, sku, qty);
-  await recordActivity(slug, "OPERATIONS", `Order ${order.id} received — ${p.name} ×${qty} via ${order.channel === "agent-json" ? order.agent : "web"}${left != null ? ` · stock ${left}` : ""}${left === 0 ? " · SKU NOW OUT OF STOCK" : ""}`);
+  await recordActivity(slug, "OPERATIONS", `Order ${order.id} received — ${p.name} ×${qty} via ${order.channel === "agent-json" ? order.agent : "web"}${left != null ? ` · stock ${left}` : ""}${left === 0 ? " · SKU NOW OUT OF STOCK" : ""}`, "auto");
 
   const confirmation = `/store/${slug}/order/${order.id}`;
   if (isJson) {

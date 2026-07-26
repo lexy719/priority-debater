@@ -65,7 +65,7 @@ async function tickOne(slug: string): Promise<TickResult | null> {
   const held = rules.filter((r) => r.pending).map((r) => r.id);
   // Only speak when something happened.
   if (fired.length) {
-    await recordActivity(slug, "SYSTEM", `Scheduled pass: ${fired.length} rule(s) fired — ${fired.join(", ")}`);
+    await recordActivity(slug, "SYSTEM", `Scheduled pass: ${fired.length} rule(s) fired — ${fired.join(", ")}`, "auto");
   }
   return { slug, fired, held, rules: rules.length, metrics };
 }

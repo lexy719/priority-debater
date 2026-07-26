@@ -251,7 +251,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
         return ok(id, textResult({ ok: false, error: (e as Error).message }));
       }
       const left = await adjustStock(slug, sku, qty);
-      await recordActivity(slug, "OPERATIONS", `Order ${order.id} received over MCP — ${p.name} ×${qty} via ${agent}${left != null ? ` · stock ${left}` : ""}`);
+      await recordActivity(slug, "OPERATIONS", `Order ${order.id} received over MCP — ${p.name} ×${qty} via ${agent}${left != null ? ` · stock ${left}` : ""}`, "auto");
       return ok(id, textResult({
         ok: true, orderId: order.id, status: "received", sku, qty,
         ...(p.unit && p.unit !== "item" ? { quantityMeans: `${qty} × ${p.unit}` } : {}),

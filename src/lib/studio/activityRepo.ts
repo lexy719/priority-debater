@@ -14,7 +14,18 @@ import { blobConfigured, getJson, putJson } from "./blobStore";
 /** The AI workforce. Externally Commerce presents capabilities; internally
     every act belongs to a named worker. */
 export type Worker = "MARKETING" | "OPERATIONS" | "FINANCE" | "SYSTEM";
-export type Activity = { ts: string; worker: Worker; txt: string };
+
+/**
+ * WHO set this in motion. Without it the log flatters the machine: an edit the
+ * owner made by hand reads identically to something the OS did on its own, and
+ * the operator statement would claim credit for both.
+ *  · "auto"  — nobody was watching (order intake, a fired rule, a scheduled pass)
+ *  · "owner" — the owner asked for it; the OS carried it out
+ * Entries written before this existed carry no flag and are reported as
+ * unattributed rather than guessed.
+ */
+export type ActedBy = "auto" | "owner";
+export type Activity = { ts: string; worker: Worker; txt: string; by?: ActedBy };
 
 const DIR = path.join(process.cwd(), ".data", "activity");
 const SLUG_RE = /^[a-z0-9-]{3,64}$/;
@@ -28,11 +39,11 @@ async function readAll(slug: string): Promise<Activity[]> {
   try { return JSON.parse(await fs.readFile(path.join(DIR, `${slug}.json`), "utf8")) as Activity[]; } catch { return []; }
 }
 
-export async function recordActivity(slug: string, worker: Worker, txt: string): Promise<void> {
+export async function recordActivity(slug: string, worker: Worker, txt: string, by: ActedBy = "owner"): Promise<void> {
   if (!SLUG_RE.test(slug)) return;
   try {
     let all = await readAll(slug);
-    all.push({ ts: new Date().toISOString(), worker, txt: txt.slice(0, 180) });
+    all.push({ ts: new Date().toISOString(), worker, txt: txt.slice(0, 180), by });
     if (all.length > MAX) all = all.slice(-MAX);
     if (blobConfigured()) {
       await putJson(`activity/${slug}.json`, all);

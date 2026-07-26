@@ -22,10 +22,10 @@ type Statement = {
   generatedAt: string;
   period: { from: string; to: string; days: number; label: string };
   work: {
-    total: number;
+    total: number; unattended: number; directed: number; unattributed: number;
     byKind: { kind: string; count: number }[];
     byWorker: { worker: string; count: number }[];
-    lines: { ts: string; worker: string; txt: string; kind: string }[];
+    lines: { ts: string; worker: string; txt: string; kind: string; by: string }[];
     note: string;
   };
   measured: {
@@ -120,8 +120,10 @@ export default function StatementPage() {
               ) : (
                 <>
                   <FigureRow cols={4}>
-                    <Figure label="ACTIONS TAKEN" value={st.work.total} color={LIVE} note={`across ${st.work.byKind.length} kinds of work`} />
-                    {st.work.byWorker.slice(0, 3).map((w) => (
+                    <Figure label="UNATTENDED" value={st.work.unattended} color={st.work.unattended ? LIVE : FAINTB} note="nobody was watching" />
+                    <Figure label="YOU DIRECTED" value={st.work.directed} color={DIMB} note="you asked, the OS did it" />
+                    {st.work.unattributed > 0 && <Figure label="UNATTRIBUTED" value={st.work.unattributed} size="md" color={FAINTB} note="logged before the ledger recorded who started it" />}
+                    {st.work.byWorker.slice(0, 2).map((w) => (
                       <Figure key={w.worker} label={w.worker} value={w.count} size="md" color={WORKER_C[w.worker] ?? DIMB} note="ledger entries" />
                     ))}
                   </FigureRow>
@@ -149,11 +151,15 @@ export default function StatementPage() {
                   {showAll ? `all ${st.work.lines.length}` : `newest 14 of ${st.work.lines.length}`}
                 </Pick>
               }>
-                <Heads cols="118px 96px minmax(0,1fr)" labels={["WHEN", "WORKER", "WHAT HAPPENED"]} />
+                <Heads cols="118px 96px 92px minmax(0,1fr)" labels={["WHEN", "WORKER", "SET OFF BY", "WHAT HAPPENED"]} />
                 {lines.map((l, i) => (
-                  <Row key={i} cols="118px 96px minmax(0,1fr)">
+                  <Row key={i} cols="118px 96px 92px minmax(0,1fr)">
                     <Num color={FAINTB}>{l.ts.slice(5, 16).replace("T", " ")}</Num>
                     <span><Stamp text={l.worker} color={WORKER_C[l.worker] ?? DIMB} /></span>
+                    <span>
+                      <Stamp text={l.by === "auto" ? "unattended" : l.by === "owner" ? "you" : "—"}
+                        color={l.by === "auto" ? LIVE : l.by === "owner" ? DIMB : FAINTB} filled={l.by === "auto"} />
+                    </span>
                     <span className="min-w-0 text-pretty text-[13px]" style={{ color: DIMB }}>{l.txt}</span>
                   </Row>
                 ))}

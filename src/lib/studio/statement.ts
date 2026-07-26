@@ -60,10 +60,16 @@ export type OperatorStatement = {
   /** What the workforce did, counted and evidenced. */
   work: {
     total: number;
+    /** Ran with nobody watching: order intake, a fired rule, a scheduled pass. */
+    unattended: number;
+    /** The owner asked; the OS carried it out. Real work, but not autonomy. */
+    directed: number;
+    /** Logged before the ledger recorded who started it — never guessed. */
+    unattributed: number;
     byKind: { kind: string; count: number }[];
     byWorker: { worker: string; count: number }[];
     /** The actual ledger lines, newest first — the evidence. */
-    lines: { ts: string; worker: string; txt: string; kind: string }[];
+    lines: { ts: string; worker: string; txt: string; kind: string; by: string }[];
     note: string;
   };
   /** What was measured in the period. */
@@ -181,11 +187,14 @@ export async function buildStatement(slug: string, weeks = 1): Promise<OperatorS
     period,
     work: {
       total: acts.length,
+      unattended: acts.filter((a) => a.by === "auto").length,
+      directed: acts.filter((a) => a.by === "owner").length,
+      unattributed: acts.filter((a) => a.by == null).length,
       byKind: [...kindCounts.entries()].map(([kind, count]) => ({ kind, count })).sort((a, b) => b.count - a.count),
       byWorker: [...workerCounts.entries()].map(([worker, count]) => ({ worker, count })).sort((a, b) => b.count - a.count),
-      lines: acts.map((a) => ({ ts: a.ts, worker: a.worker, txt: a.txt, kind: classifyWork(a.txt) })),
+      lines: acts.map((a) => ({ ts: a.ts, worker: a.worker, txt: a.txt, kind: classifyWork(a.txt), by: a.by ?? "unattributed" })),
       note: acts.length
-        ? "Every line above is a ledger entry written when the work happened. PDR does not estimate what these would have cost you in hours — it counts what it did."
+        ? "Every line above is a ledger entry written when the work happened, tagged with who set it in motion. UNATTENDED means nobody was watching — an order arriving, a rule firing, a scheduled pass. DIRECTED means you asked and the OS did it: real work, but not autonomy, and it would be dishonest to bill it as such. PDR does not estimate what any of it would have cost you in hours."
         : "Nothing was done in this period. A quiet week is reported as a quiet week.",
     },
     measured: {

@@ -22,7 +22,7 @@ type Biz = {
   traffic: { agents: number; humans: number; byAgent: Record<string, number>; byKind: Record<string, number>; byProduct: Record<string, number>; recent: { ts: string; agent: string; kind: string }[] };
   orders: { count: number; revenue: number; byAgent: Record<string, number>; bySku: Record<string, { qty: number; revenue: number }>; daily: { d: string; revenue: number; orders: number }[]; recent: { id: string; ts: string; productName: string; qty: number; price: string; channel: string; agent: string; status: string }[] };
   customers: { email: string; name: string; orders: number; revenue: number; lastTs: string }[];
-  activity: { ts: string; worker: string; txt: string }[];
+  activity: { ts: string; worker: string; txt: string; by?: "auto" | "owner" }[];
   finance: {
     revenue: number; cogs: number; grossProfit: number | null; marginPct: number | null;
     expenses: number; expensesByCategory: Record<string, number>; monthlyRecurringCost: number; expenseCount: number;
@@ -470,7 +470,7 @@ export default function CommerceLedger() {
   const maxAgent = biz ? Math.max(...Object.values(biz.traffic.byAgent), 1) : 1;
   const ledger = biz
     ? [
-        ...biz.activity.map((a) => ({ ts: a.ts, tag: a.worker, txt: a.txt })),
+        ...biz.activity.map((a) => ({ ts: a.ts, tag: a.worker, txt: a.txt, by: a.by })),
         ...biz.traffic.recent.map((h) => ({ ts: h.ts, tag: h.agent === "HUMAN" ? "VISITOR" : "AGENT", txt: `${h.agent} read ${h.kind}` })),
         ...biz.orders.recent.map((o) => ({ ts: o.ts, tag: "ORDER", txt: `${o.productName} ×${o.qty} · ${o.price} · ${o.channel === "agent-json" ? o.agent : "web"}` })),
       ].sort((a, b) => b.ts.localeCompare(a.ts))
@@ -1481,9 +1481,16 @@ export default function CommerceLedger() {
                 <Section n={1} title="Everything the OS did, everything the store took" right={<span style={MICRO}>{ledger.length} ENTRIES · NEWEST FIRST</span>}>
                   {ledger.length === 0 && <Thin>Quiet book — share the store, let agents read it.</Thin>}
                   {ledger.map((l, i) => (
-                    <Row key={i} cols="146px 108px minmax(0,1fr)">
+                    <Row key={i} cols="146px 108px 92px minmax(0,1fr)">
                       <Num color={FAINTB}>{l.ts.slice(5, 10)} {l.ts.slice(11, 19)}</Num>
                       <span><Stamp text={l.tag} color={WORKER_C[l.tag] ?? DIMB} /></span>
+                      <span>
+                        {/* Who set it off — the machine acting alone reads differently
+                            from the machine doing as it was told. */}
+                        {"by" in l && l.by
+                          ? <Stamp text={l.by === "auto" ? "unattended" : "you"} color={l.by === "auto" ? LIVE : DIMB} filled={l.by === "auto"} />
+                          : <span style={MICRO}>{["AGENT", "VISITOR", "ORDER"].includes(l.tag) ? "inbound" : "—"}</span>}
+                      </span>
                       <span className="min-w-0 text-pretty text-[13px]" style={{ color: DIMB }}>{l.txt}</span>
                     </Row>
                   ))}

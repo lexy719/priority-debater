@@ -18,7 +18,7 @@
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { recordActivity } from "./activityRepo";
+import { recordActivity, type ActedBy } from "./activityRepo";
 import { blobConfigured, getJson, putJson } from "./blobStore";
 import { listCampaigns, setCampaignStatus } from "./campaignRepo";
 import { loadStore, saveStore } from "./storeRepo";
@@ -181,13 +181,15 @@ function verdict(r: AutomationRule, metrics: Metrics): { fire: boolean; reason: 
 }
 
 /** Run one plan, step by step. Each step reports its own outcome; a failing
-    step is recorded and the plan continues with the next one. */
-async function executePlan(slug: string, rule: AutomationRule, reason: string): Promise<StepOutcome[]> {
+    step is recorded and the plan continues with the next one. `by` records
+    whether the plan ran unattended or because the owner approved it — the
+    ledger must never let the machine take credit for a decision you made. */
+async function executePlan(slug: string, rule: AutomationRule, reason: string, by: ActedBy): Promise<StepOutcome[]> {
   const steps: StepOutcome[] = [];
   for (const a of rule.then) {
     try {
       if (a.type === "alert") {
-        await recordActivity(slug, "SYSTEM", `⚠ ${rule.id}: ${reason}${a.note ? ` — ${a.note}` : ""}`);
+        await recordActivity(slug, "SYSTEM", `⚠ ${rule.id}: ${reason}${a.note ? ` — ${a.note}` : ""}`, by);
         steps.push({ type: a.type, ok: true, detail: "alert raised in the ledger" });
       } else if (a.type === "restock_low") {
         const s = await loadStore(slug);
@@ -198,7 +200,7 @@ async function executePlan(slug: string, rule: AutomationRule, reason: string): 
             if (p.availability === "OutOfStock") p.availability = "InStock";
           }
           await saveStore(s);
-          await recordActivity(slug, "OPERATIONS", `${rule.id} auto-restocked ${low.length} low SKU(s) +${a.qty} each`);
+          await recordActivity(slug, "OPERATIONS", `${rule.id} auto-restocked ${low.length} low SKU(s) +${a.qty} each`, by);
           steps.push({ type: a.type, ok: true, detail: `${low.length} SKU(s) +${a.qty}: ${low.map((p) => p.sku).join(", ")}` });
         } else {
           steps.push({ type: a.type, ok: true, detail: "nothing at or below 3 units — no change" });
@@ -216,7 +218,7 @@ async function executePlan(slug: string, rule: AutomationRule, reason: string): 
           n++;
         }
         await saveStore(s);
-        await recordActivity(slug, "OPERATIONS", `${rule.id} adjusted ${n} price(s) ${pct > 0 ? "+" : ""}${pct}% — storefront + feed updated for agents`);
+        await recordActivity(slug, "OPERATIONS", `${rule.id} adjusted ${n} price(s) ${pct > 0 ? "+" : ""}${pct}% — storefront + feed updated for agents`, by);
         steps.push({ type: a.type, ok: true, detail: `${n} price(s) moved ${pct > 0 ? "+" : ""}${pct}%` });
       } else if (a.type === "price_adjust_sku") {
         const s = await loadStore(slug);
@@ -229,12 +231,12 @@ async function executePlan(slug: string, rule: AutomationRule, reason: string): 
         const suffix = (p.price.match(/\/(mo|yr)$/) ?? [""])[0];
         p.price = `€${p.priceValue}${suffix}`;
         await saveStore(s);
-        await recordActivity(slug, "OPERATIONS", `${rule.id} repriced ${a.sku} €${before} → €${p.priceValue}`);
+        await recordActivity(slug, "OPERATIONS", `${rule.id} repriced ${a.sku} €${before} → €${p.priceValue}`, by);
         steps.push({ type: a.type, ok: true, detail: `${a.sku} €${before} → €${p.priceValue}` });
       } else if (a.type === "pause_campaigns") {
         const live = (await listCampaigns(slug)).filter((c) => c.status === "live");
         for (const c of live) await setCampaignStatus(slug, c.id, "paused");
-        if (live.length) await recordActivity(slug, "MARKETING", `${rule.id} paused ${live.length} live campaign(s): ${live.map((c) => c.id).join(", ")}`);
+        if (live.length) await recordActivity(slug, "MARKETING", `${rule.id} paused ${live.length} live campaign(s): ${live.map((c) => c.id).join(", ")}`, by);
         steps.push({ type: a.type, ok: true, detail: live.length ? `paused ${live.map((c) => c.id).join(", ")}` : "no live campaigns — no change" });
       } else if (a.type === "flag_stock_out") {
         const s = await loadStore(slug);
@@ -242,7 +244,7 @@ async function executePlan(slug: string, rule: AutomationRule, reason: string): 
         if (s && gone.length) {
           for (const p of gone) p.availability = "OutOfStock";
           await saveStore(s);
-          await recordActivity(slug, "OPERATIONS", `${rule.id} marked ${gone.length} SKU(s) OutOfStock — agents read accurate availability`);
+          await recordActivity(slug, "OPERATIONS", `${rule.id} marked ${gone.length} SKU(s) OutOfStock — agents read accurate availability`, by);
           steps.push({ type: a.type, ok: true, detail: `${gone.map((p) => p.sku).join(", ")} → OutOfStock` });
         } else {
           steps.push({ type: a.type, ok: true, detail: "availability already accurate — no change" });
@@ -284,12 +286,12 @@ export async function evaluateAutomations(slug: string, metrics: Metrics): Promi
     if (rule.requireApproval) {
       rule.pending = { ts: new Date().toISOString(), reason: v.reason, plan: describePlan(rule) };
       logRun(rule, { ts: rule.pending.ts, fired: false, held: true, reason: v.reason, steps: [] });
-      await recordActivity(slug, "SYSTEM", `${rule.id} triggered and is HOLDING for approval — ${v.reason}`);
+      await recordActivity(slug, "SYSTEM", `${rule.id} triggered and is HOLDING for approval — ${v.reason}`, "auto");
       changed = true;
       continue;
     }
 
-    const steps = await executePlan(slug, rule, v.reason);
+    const steps = await executePlan(slug, rule, v.reason, "auto");
     rule.lastFired = new Date().toISOString();
     logRun(rule, { ts: rule.lastFired, fired: true, reason: v.reason, steps });
     fired.push(rule.id);
@@ -324,7 +326,7 @@ export async function approvePending(slug: string, id: string): Promise<Automati
   const rule = rules.find((r) => r.id === id);
   if (!rule?.pending) return rules;
   const reason = `${rule.pending.reason} (approved by owner)`;
-  const steps = await executePlan(slug, rule, reason);
+  const steps = await executePlan(slug, rule, reason, "owner");
   rule.lastFired = new Date().toISOString();
   rule.pending = undefined;
   logRun(rule, { ts: rule.lastFired, fired: true, reason, steps });
