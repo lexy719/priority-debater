@@ -46,7 +46,18 @@ export async function GET() {
   };
 
   const blocking: string[] = [];
-  if (!capabilities.persistence.serviceKey) blocking.push("SUPABASE_SERVICE_ROLE_KEY is missing — every store will 404 and the register will be empty");
+  if (!capabilities.persistence.serviceKey) {
+    // The usual cause is a near-miss name or the wrong Vercel environment, not
+    // a forgotten paste. List the Supabase-ish variable NAMES this deployment
+    // can actually see (never their values) so a typo is obvious at a glance.
+    const seen = Object.keys(process.env).filter((k) => /SUPABASE|SUPA_|SERVICE_ROLE/i.test(k)).sort();
+    blocking.push(
+      "SUPABASE_SERVICE_ROLE_KEY is missing — every store will 404 and the register will be empty. " +
+      `Supabase-related names this deployment can see: ${seen.length ? seen.join(", ") : "none at all"}. ` +
+      "If the name looks right, it was probably set for the wrong environment (it must include Production) " +
+      "or added after the build — env changes need a fresh deploy.",
+    );
+  }
   if (!capabilities.persistence.supabaseUrl) blocking.push("NEXT_PUBLIC_SUPABASE_URL is missing — nothing can be read or written");
   if (blob && storeCount === 0) blocking.push("storage reachable but no stores found — check the bucket is `studio` on the expected project");
   if (!capabilities.generation.claude) blocking.push("ANTHROPIC_API_KEY is missing — Studio cannot fabricate and Commerce cannot write");
