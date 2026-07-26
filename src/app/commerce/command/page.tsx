@@ -756,7 +756,10 @@ export default function CommerceLedger() {
                                     </span>
                                     {!v.retiredAt && (
                                       <span className="flex gap-1.5">
-                                        <Pick onClick={() => variantAction(c.id, v.id, "winner")} disabled={!!busy} active={!v.winner}>Winner</Pick>
+                                        {/* No data to judge on ⇒ say so on the control itself. */}
+                                        <Pick onClick={() => variantAction(c.id, v.id, "winner")} disabled={!!busy} active={!v.winner}>
+                                          {v.impressions == null ? "Lead · by taste" : "Winner"}
+                                        </Pick>
                                         <Pick onClick={() => variantAction(c.id, v.id, "retire")} disabled={!!busy} danger>Retire</Pick>
                                       </span>
                                     )}

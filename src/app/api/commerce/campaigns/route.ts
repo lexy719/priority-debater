@@ -94,8 +94,15 @@ export async function PUT(req: Request) {
   if (body.variantId && body.winner) {
     const c = await markWinner(slug, id, String(body.variantId));
     if (!c) return NextResponse.json({ ok: false, error: "not found" }, { status: 404 });
-    await recordActivity(slug, "MARKETING", `${body.variantId} declared the winning variant of ${c.name}`);
-    return NextResponse.json({ ok: true, campaign: c });
+    // A winner with no channel data is a taste call, not a result. The ledger
+    // says which it was, so nobody later mistakes a hunch for evidence.
+    const v = c.variants.find((x) => x.id === body.variantId);
+    const measured = v?.impressions != null || v?.clicks != null || v?.orders != null;
+    await recordActivity(slug, "MARKETING",
+      measured
+        ? `${body.variantId} declared the winning variant of ${c.name} — ${v?.impressions ?? 0} impr · ${v?.clicks ?? 0} clicks · ${v?.orders ?? 0} orders`
+        : `${body.variantId} picked as the lead variant of ${c.name} — owner's judgement, no channel data to decide on`);
+    return NextResponse.json({ ok: true, campaign: c, measured });
   }
   if (body.variantId && body.retire) {
     const c = await retireVariant(slug, id, String(body.variantId));
