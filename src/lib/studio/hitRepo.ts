@@ -33,6 +33,12 @@ const AGENTS: [RegExp, string][] = [
   [/meta-externalagent/i, "Meta-AI"],
   [/cohere/i, "Cohere"],
   [/PDR-LegibilityBot/i, "PDR-LegibilityBot"],
+  // PDR's own buying agent, purchasing from another PDR store on a business's
+  // behalf. Named distinctly from the crawlers because it is the only agent
+  // here that BUYS: counting it as HUMAN understated a seller's agent traffic
+  // and hid the network transacting with itself.
+  [/PDR-BuyingAgent/i, "PDR-BuyingAgent"],
+  [/PDR-Commerce-DistributionCheck/i, "PDR-DistributionCheck"],
   [/bot|crawler|spider|scraper/i, "OTHER-BOT"],
 ];
 
