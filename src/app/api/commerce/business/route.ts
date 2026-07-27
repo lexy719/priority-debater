@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { listActivity } from "@/lib/studio/activityRepo";
+import { loadAftercare } from "@/lib/studio/aftercareRepo";
+import { listDeliveries } from "@/lib/studio/deliveryRepo";
 import { evaluateAutomations, listAutomations } from "@/lib/studio/automationRepo";
 import { measureMetrics } from "@/lib/studio/autoMetrics";
 import { loadBrain } from "@/lib/studio/brainRepo";
@@ -61,7 +63,9 @@ export async function GET(req: Request) {
   const firedRules = await evaluateAutomations(slug, autoMetrics);
   const store = firedRules.length ? (await loadBusinessStore(slug)) ?? store0 : store0;
   const orders = orders0;
-  const [activity, automations] = await Promise.all([listActivity(slug, 14), listAutomations(slug)]);
+  const [activity, automations, deliveries, aftercare] = await Promise.all([
+    listActivity(slug, 30), listAutomations(slug), listDeliveries(slug), loadAftercare(slug),
+  ]);
   const code = store.store.brand.name.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
   const brain = await loadBrain(code);
 
@@ -74,6 +78,20 @@ export async function GET(req: Request) {
   const allProducts = store.store.products;
   const products = allProducts.filter((p) => p.availability !== "Discontinued");
   const retiredCount = allProducts.length - products.length;
+
+  // ── THE FUNNEL: the journey an agent actually takes, measured at each step.
+  //    Every stage is a count of real events, so a drop-off is a fact.
+  const k = traffic.byKind;
+  const discovery = (k["feed"] ?? 0) + (k["llms"] ?? 0) + (k["catalog"] ?? 0);
+  const claimed = deliveries.filter((d) => d.claimedAt).length;
+  const funnel = [
+    { stage: "FOUND", label: "reached a discovery surface", n: discovery },
+    { stage: "READ", label: "read the store or a product", n: (k["store"] ?? 0) + (k["product"] ?? 0) },
+    { stage: "BOUGHT", label: "placed an order", n: orders.count },
+    { stage: "DELIVERED", label: "received what they bought", n: deliveries.length },
+    { stage: "COLLECTED", label: "opened the delivery", n: claimed },
+    { stage: "ASKED", label: "came back with a question", n: aftercare.questions.length },
+  ];
 
   // ── DECIDE (deterministic pass): what should the owner look at? ─────────
   const proposals: Proposal[] = [];
@@ -205,6 +223,23 @@ export async function GET(req: Request) {
   if (lastMonth && lastMonth.net < 0 && lastMonth.outflow > 0) {
     proposals.push({ worker: "FINANCE", severity: "watch", label: `${lastMonth.month} cash flow negative: €${lastMonth.inflow} in, €${lastMonth.outflow} out` });
   }
+  const openReturns = aftercare.returns.filter((r) => r.status === "requested");
+  if (openReturns.length) {
+    proposals.push({ worker: "OPERATIONS", severity: "act", label: `${openReturns.length} return request(s) waiting on you — ${openReturns.map((r) => `${r.id} (${r.verdict.slice(0, 40)}…)`).join(", ")}` });
+  }
+  const escalated = aftercare.questions.filter((q) => q.escalated);
+  if (escalated.length) {
+    proposals.push({ worker: "OPERATIONS", severity: "act", label: `${escalated.length} customer question(s) nobody could answer — "${escalated[escalated.length - 1].question.slice(0, 60)}"` });
+  }
+  const unclaimed = deliveries.filter((d) => !d.claimedAt);
+  if (unclaimed.length) {
+    proposals.push({ worker: "OPERATIONS", severity: "watch", label: `${unclaimed.length} delivery(ies) paid for but never opened — the buyer may not have received the link` });
+  }
+  const pendingDelivery = deliveries.filter((d) => d.kind === "pending");
+  if (pendingDelivery.length) {
+    proposals.push({ worker: "OPERATIONS", severity: "act", label: `${pendingDelivery.length} order(s) delivered with NOTHING attached — attach a file or let PDR produce one` });
+  }
+
   // A rule that triggered but holds for approval IS a decision waiting on the
   // owner — it belongs in the review queue, not buried in the Automation view.
   for (const r of automations.filter((x) => x.pending)) {
@@ -230,7 +265,18 @@ export async function GET(req: Request) {
       retiredCount,
       manifest: store.manifest,
     },
-    traffic, orders, customers, activity, finance,
+    traffic, orders, customers, activity, finance, funnel,
+    aftercare: {
+      returns: aftercare.returns.slice(-10).reverse(),
+      questions: aftercare.questions.slice(-10).reverse(),
+      openReturns: openReturns.length,
+      escalated: escalated.length,
+    },
+    deliveries: {
+      total: deliveries.length, claimed, unclaimed: deliveries.length - claimed,
+      pending: pendingDelivery.length,
+      recent: deliveries.slice(0, 8).map((d) => ({ token: d.token, orderId: d.orderId, productName: d.productName, kind: d.kind, issuedAt: d.issuedAt, claimedAt: d.claimedAt, claims: d.claims })),
+    },
     automations: {
       count: automations.length, enabled: automations.filter((r) => r.enabled).length,
       fired: firedRules, held: automations.filter((r) => r.pending).map((r) => r.id),

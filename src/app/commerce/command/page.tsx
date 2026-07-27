@@ -11,8 +11,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Action, AuditLine, Bar, DIMB, FAINTB, FAULTB, Figure, FigureRow, HAIRB, Heads, INKB, INSETB,
-  LIVE, MICRO, MONO, Num, OKB, PAPER, Pick, Row, SANS, Section, Stamp, Thin, WARNB, pad2,
+  Action, AuditLine, Bar, DIMB, Event, FAINTB, FAULTB, Figure, FigureRow, Funnel, HAIRB, Headline,
+  Heads, INKB, INSETB, LIVE, MICRO, MONO, Nothing, Num, OKB, PAPER, Pick, Pulse, Row, SANS,
+  Section, Stamp, Thin, WARNB, pad2,
 } from "./ledger-ui";
 
 /* ── shapes ────────────────────────────────────────────────────────────── */
@@ -33,6 +34,16 @@ type Biz = {
     perSku: { sku: string; name: string; price: string; priceValue: number | null; unitCost: number | null; unitMargin: number | null; marginPct: number | null; sold: number; revenue: number; profit: number | null; recurring: boolean }[];
   };
   automations: { count: number; enabled: number; fired: string[]; held: string[]; metrics: Record<string, number | null> };
+  funnel: { stage: string; label: string; n: number }[];
+  deliveries: {
+    total: number; claimed: number; unclaimed: number; pending: number;
+    recent: { token: string; orderId: string; productName: string; kind: string; issuedAt: string; claimedAt: string | null; claims: number }[];
+  };
+  aftercare: {
+    returns: { id: string; orderId: string; reason: string; ts: string; status: string; verdict: string }[];
+    questions: { id: string; orderId: string | null; question: string; ts: string; answer: string | null; escalated: boolean }[];
+    openReturns: number; escalated: number;
+  };
   brain: { updatedAt: string; counts: Record<string, number>; learned: { k: string; kind: string; txt: string }[]; visual: Record<string, string> | null } | null;
   proposals: { worker: "MARKETING" | "OPERATIONS" | "FINANCE" | "SYSTEM"; severity: "act" | "watch" | "ok"; label: string; action?: "brainlearn" | "brainseed" }[];
 };
@@ -476,6 +487,56 @@ export default function CommerceLedger() {
         ...biz.orders.recent.map((o) => ({ ts: o.ts, tag: "ORDER", txt: `${o.productName} ×${o.qty} · ${o.price} · ${o.channel === "agent-json" ? o.agent : "web"}` })),
       ].sort((a, b) => b.ts.localeCompare(a.ts))
     : [];
+
+  /**
+   * THE STORY — what actually happened, as sentences rather than cells.
+   * Merged from the four places events land: the worker ledger, agent reads,
+   * orders and deliveries. Newest first. Nothing here is generated for effect;
+   * if a line is present, the event occurred.
+   */
+  type Beat = { ts: string; time: string; icon: string; tone: string; text: string; note?: string };
+  const story: Beat[] = biz
+    ? [
+        ...biz.activity.map((a) => ({
+          ts: a.ts, icon: a.by === "auto" ? "◉" : "○",
+          tone: a.by === "auto" ? LIVE : DIMB,
+          text: a.txt,
+          note: a.by === "auto" ? "unattended" : a.by === "owner" ? "you" : undefined,
+        })),
+        ...biz.traffic.recent.map((h) => ({
+          ts: h.ts, icon: h.agent === "HUMAN" ? "△" : "◈",
+          tone: h.agent === "HUMAN" ? FAINTB : LIVE,
+          text: h.agent === "HUMAN" ? `A person read your ${h.kind}` : `${h.agent} read your ${h.kind}`,
+        })),
+        ...biz.orders.recent.map((o) => ({
+          ts: o.ts, icon: "€", tone: OKB,
+          text: `${o.channel === "agent-json" ? o.agent : "A customer"} bought ${o.productName}${o.qty > 1 ? ` ×${o.qty}` : ""} — ${o.price}`,
+          note: o.status !== "received" ? o.status : undefined,
+        })),
+        ...biz.deliveries.recent.map((d) => ({
+          ts: d.claimedAt ?? d.issuedAt,
+          icon: d.claimedAt ? "✓" : d.kind === "pending" ? "✗" : "→",
+          tone: d.claimedAt ? OKB : d.kind === "pending" ? FAULTB : DIMB,
+          text: d.claimedAt
+            ? `The buyer opened their ${d.productName}`
+            : d.kind === "pending"
+              ? `Delivered ${d.productName} with nothing attached`
+              : `Delivered ${d.productName} (${d.kind})`,
+          note: d.claims > 1 ? `${d.claims} opens` : undefined,
+        })),
+      ]
+        .sort((a, b) => b.ts.localeCompare(a.ts))
+        .slice(0, 16)
+        .map((e) => ({ ...e, time: e.ts.slice(11, 16) }))
+    : [];
+  const newestTs = story[0]?.ts;
+  const liveNow = Boolean(newestTs && Date.now() - Date.parse(newestTs) < 3600_000);
+  const lastEventAgo = newestTs
+    ? (() => {
+        const mins = Math.round((Date.now() - Date.parse(newestTs)) / 60000);
+        return mins < 90 ? `${mins} min ago` : mins < 2880 ? `${Math.round(mins / 60)}h ago` : `${Math.round(mins / 1440)}d ago`;
+      })()
+    : null;
   const proposalsFor = (w: string) => biz?.proposals.filter((p) => p.worker === w) ?? [];
 
   /* ── worker queue block, reused across views ──────────────────────────── */
@@ -626,45 +687,98 @@ export default function CommerceLedger() {
             {/* ══════════ 01 DASHBOARD ══════════ */}
             {view === "DASHBOARD" && (
               <>
-                <Section n={1} title="Situation" right={<Action onClick={analyseNow} disabled={!!busy}>{busy === "analyse" ? "READING…" : "◉ ANALYSE"}</Action>}>
-                  {analysis ? (
-                    <>
-                      <div className="flex flex-wrap items-baseline gap-3 pb-2">
-                        <Stamp text={analysis.posture} color={POSTURE_C[analysis.posture]} filled />
-                        <span className="min-w-0 flex-1 text-pretty text-[16px] font-semibold leading-snug">{analysis.headline}</span>
-                        <Num color={FAINTB}>{Math.max(0, Math.round((Date.now() - Date.parse(analysis.ts)) / 60000))}m ago</Num>
-                      </div>
-                      {analysis.findings.map((f, i) => (
-                        <Row key={i}>
-                          <span className="min-w-0 flex-1 text-pretty text-[13px]">
-                            <span className="font-semibold" style={{ color: LIVE }}>{f.signal}</span>
-                            <span style={{ color: FAINTB }}> — </span>
-                            <span style={{ color: DIMB }}>{f.insight}</span>
-                          </span>
-                        </Row>
+                {/* ── the answer to "is my business alive, and what happened?" ── */}
+                <div className="mt-5 grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,1fr)_320px]" style={{ borderTop: `2px solid ${INKB}`, paddingTop: 18 }}>
+                  <div className="flex flex-wrap items-end gap-x-12 gap-y-6">
+                    <Headline
+                      value={`€${biz.finance.revenue.toLocaleString("en-US")}`}
+                      label={biz.orders.count ? `TAKEN ACROSS ${biz.orders.count} ORDER${biz.orders.count === 1 ? "" : "S"}` : "NOTHING SOLD YET"}
+                      tone={biz.finance.revenue ? OKB : FAINTB}
+                    />
+                    <div className="flex flex-col gap-3">
+                      <span className="flex items-center gap-2">
+                        <Pulse on={liveNow} color={liveNow ? LIVE : FAINTB} />
+                        <span className="text-[13px] font-semibold">
+                          {liveNow ? "Working — activity in the last hour" : lastEventAgo ? `Quiet · last activity ${lastEventAgo}` : "Waiting for its first signal"}
+                        </span>
+                      </span>
+                      <span className="text-[12.5px]" style={{ color: DIMB }}>
+                        {biz.traffic.agents} agent read{biz.traffic.agents === 1 ? "" : "s"} · {biz.orders.count} order{biz.orders.count === 1 ? "" : "s"}
+                        {biz.deliveries.total ? ` · ${biz.deliveries.claimed}/${biz.deliveries.total} deliveries collected` : ""}
+                        {biz.finance.marginPct != null ? ` · ${biz.finance.marginPct}% margin` : ""}
+                      </span>
+                      <span className="flex flex-wrap gap-1.5">
+                        {biz.automations.enabled > 0 && <Stamp text={`${biz.automations.enabled} rule${biz.automations.enabled === 1 ? "" : "s"} armed`} color={LIVE} />}
+                        {biz.deliveries.pending > 0 && <Stamp text={`${biz.deliveries.pending} delivery empty`} color={FAULTB} filled />}
+                        {biz.aftercare.escalated > 0 && <Stamp text={`${biz.aftercare.escalated} unanswered`} color={FAULTB} filled />}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* what needs a human, always in the same place */}
+                  <div style={{ backgroundColor: alerts ? INSETB : "transparent", padding: alerts ? "14px 16px" : 0 }}>
+                    <div style={MICRO}>{alerts ? `${alerts} THING${alerts === 1 ? "" : "S"} NEED YOU` : "NOTHING NEEDS YOU"}</div>
+                    {alerts === 0 && <div className="mt-1.5 text-[13px]" style={{ color: DIMB }}>Every worker reports nominal.</div>}
+                    <div className="mt-2 flex flex-col gap-2">
+                      {biz.proposals.filter((p) => p.severity === "act").slice(0, 4).map((p, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <span style={{ color: FAULTB, fontSize: 12, lineHeight: "18px" }}>▸</span>
+                          <span className="min-w-0 text-pretty text-[12.5px] leading-snug" style={{ color: INKB }}>{p.label}</span>
+                          {p.action && (
+                            <button onClick={() => execute(p.action!)} disabled={!!busy}
+                              className="shrink-0 text-[11.5px] font-semibold"
+                              style={{ color: LIVE, background: "none", border: "none", cursor: "pointer" }}>
+                              {busy === p.action ? "…" : "do it"}
+                            </button>
+                          )}
+                        </div>
                       ))}
-                    </>
-                  ) : <Thin>No situational read on file. Run one — Claude reads the whole business record and cites its numbers.</Thin>}
+                    </div>
+                  </div>
+                </div>
+
+                <Section n={1} title="What happened" right={<span style={MICRO}>NEWEST FIRST · EVERY LINE A REAL EVENT</span>}>
+                  {story.length === 0 ? (
+                    <Nothing
+                      title="Nothing has happened here yet."
+                      why="This fills the moment an AI agent reads your store or anyone buys. Nothing is simulated — if the line is not here, it did not happen. The fastest way to see it work is to submit your product feed so agents can find you, or open the store and place an order yourself."
+                      action={<>
+                        <a href={`/store/${biz.business.slug}`} target="_blank" rel="noreferrer" className="text-[12px] font-semibold no-underline" style={{ color: LIVE }}>open the store ↗</a>
+                        <a href={`/store/${biz.business.slug}/feed.tsv`} target="_blank" rel="noreferrer" className="text-[12px] font-semibold no-underline" style={{ color: LIVE }}>the feed to submit ↗</a>
+                      </>}
+                    />
+                  ) : story.map((e, i) => (
+                    <Event key={i} time={e.time} icon={e.icon} tone={e.tone} note={e.note}>{e.text}</Event>
+                  ))}
                 </Section>
 
-                <Section n={2} title="The figures">
-                  <FigureRow>
-                    <Figure label="REVENUE RECEIVED" value={`€${biz.finance.revenue.toLocaleString("en-US")}`} color={OKB} note={`avg order €${biz.finance.avgOrderValue}`} />
-                    <Figure label="ORDERS" value={biz.orders.count} note={`${pending} awaiting confirmation`} />
+                <Section n={2} title="The journey" right={<span style={MICRO}>WHERE AGENTS ARRIVE, AND WHERE THEY STOP</span>}>
+                  <Funnel stages={biz.funnel} />
+                  <div className="pt-3 text-[12.5px] leading-relaxed" style={{ color: DIMB }}>
+                    {biz.funnel[0].n === 0
+                      ? "No agent has reached a discovery surface yet. Until the feed is submitted or the store is linked somewhere an agent crawls, the journey cannot start — this is the number to move first."
+                      : biz.orders.count === 0
+                        ? "Agents are reading but not buying. The usual causes are a price an agent cannot parse, a checkout it cannot complete, or a catalogue too thin to win a comparison."
+                        : biz.funnel[1].n === 0
+                          ? `${biz.orders.count} order${biz.orders.count === 1 ? "" : "s"} came straight through the machine layer — the agent bought from the catalogue or the MCP tools without ever loading a page. That is the agent-native path working.`
+                          : `${biz.orders.count} of ${biz.funnel[1].n} page reads became orders. Every stage above is counted from real requests to this store.`}
+                  </div>
+                </Section>
+
+                <Section n={3} title="The money" right={<span style={MICRO}>{biz.finance.costsOnFile}/{biz.finance.skuCount} SKUS COSTED</span>}>
+                  <FigureRow cols={5}>
+                    <Figure label="REVENUE" value={`€${biz.finance.revenue.toLocaleString("en-US")}`} color={biz.finance.revenue ? OKB : FAINTB} note={`avg order €${biz.finance.avgOrderValue}`} />
+                    <Figure label="MARGIN" value={biz.finance.marginPct != null ? `${biz.finance.marginPct}%` : "—"} color={biz.finance.marginPct != null ? OKB : FAINTB} note={biz.finance.marginPct == null ? "needs unit costs" : `COGS €${biz.finance.cogs}`} />
                     <Figure label="CUSTOMERS" value={biz.customers.length} note={`${biz.customers.filter((c) => c.orders > 1).length} repeat`} />
-                    <Figure label="AGENT READS" value={biz.traffic.agents} color={LIVE} note={`${biz.traffic.humans} human`} />
-                    <Figure label="STOCK UNITS" value={biz.business.catalog.reduce((a, p) => a + (p.stock ?? 0), 0)} note={`€${biz.finance.inventoryAtPrice} at price`} />
-                    <Figure label="AUTOMATIONS" value={`${biz.automations.enabled}/${biz.automations.count}`} color={LIVE} note="armed / total" />
+                    <Figure label="AGENT READS" value={biz.traffic.agents} color={biz.traffic.agents ? LIVE : FAINTB} note={`${biz.traffic.humans} human`} />
+                    <Figure label="STOCK VALUE" value={`€${biz.finance.inventoryAtPrice.toLocaleString("en-US")}`} note={`${biz.business.catalog.reduce((a, p) => a + (p.stock ?? 0), 0)} units`} />
                   </FigureRow>
-                </Section>
-
-                <Section n={3} title="Revenue by day" right={<span style={MICRO}>MEASURED FROM ORDERS</span>}>
-                  {biz.orders.daily.length === 0 ? <Thin>No orders yet — this chart draws only real orders, never a placeholder curve.</Thin> : (
-                    <div className="flex items-end gap-4 px-1 py-4" style={{ height: 150, backgroundColor: INSETB }}>
+                  {biz.orders.daily.length > 0 && (
+                    <div className="mt-4 flex items-end gap-4 px-1 py-4" style={{ height: 140, backgroundColor: INSETB }}>
                       {biz.orders.daily.map((d) => (
                         <div key={d.d} className="flex flex-1 flex-col items-center justify-end gap-1.5" title={`${d.d} · €${d.revenue} · ${d.orders} orders`}>
                           <Num color={OKB} bold>€{d.revenue}</Num>
-                          <div className="w-full max-w-[52px]" style={{ height: Math.max(4, (d.revenue / maxDay) * 92), backgroundColor: OKB }} />
+                          <div className="w-full max-w-[52px]" style={{ height: Math.max(4, (d.revenue / maxDay) * 82), backgroundColor: OKB }} />
                           <Num color={FAINTB}>{d.d.slice(5)}</Num>
                         </div>
                       ))}
@@ -672,17 +786,30 @@ export default function CommerceLedger() {
                   )}
                 </Section>
 
-                <Section n={4} title="Awaiting your review" right={<span style={MICRO}>THE WORKFORCE PROPOSES · YOU APPROVE</span>}>
-                  {biz.proposals.filter((p) => p.severity !== "ok").length === 0 && <Thin>Nothing pending — every worker reports nominal.</Thin>}
-                  {biz.proposals.filter((p) => p.severity !== "ok").map((p, i) => (
-                    <Row key={i} warn={p.severity === "act"}>
-                      <Stamp text={p.worker} color={WORKER_C[p.worker]} />
-                      <span className="min-w-0 flex-1 text-pretty text-[13px]" style={{ color: DIMB }}>{p.label}</span>
-                      {p.action && <Action onClick={() => execute(p.action!)} disabled={!!busy}>{busy === p.action ? "…" : "EXECUTE →"}</Action>}
-                    </Row>
-                  ))}
+                <Section n={4} title="Situation" right={<Action onClick={analyseNow} disabled={!!busy}>{busy === "analyse" ? "READING…" : "◉ ANALYSE"}</Action>}>
+                  {analysis ? (
+                    <>
+                      <div className="flex flex-wrap items-center gap-3 pb-2">
+                        <Stamp text={analysis.posture} color={analysis.posture === "GROW" ? OKB : analysis.posture === "FIX" ? FAULTB : WARNB} filled />
+                        <span className="text-pretty text-[14px] font-semibold">{analysis.headline}</span>
+                      </div>
+                      {analysis.findings.map((f, i) => (
+                        <Row key={i}>
+                          <Num color={LIVE}>{pad2(i + 1)}</Num>
+                          <span className="w-[190px] shrink-0 text-[12.5px] font-semibold">{f.signal}</span>
+                          <span className="min-w-0 flex-1 text-pretty text-[13px]" style={{ color: DIMB }}>{f.insight}</span>
+                        </Row>
+                      ))}
+                    </>
+                  ) : (
+                    <Nothing
+                      title="No reading taken yet."
+                      why="ANALYSE has Claude read everything measured above — traffic, orders, margin, stock — and state a posture with the evidence behind it. It never invents a number; when there is nothing to go on, it says so."
+                    />
+                  )}
                 </Section>
-                <AuditLine measured="orders · revenue · customers · agent reads · stock · automations" awaiting="ad accounts · payment rails" />
+
+                <AuditLine measured="every event above · orders · revenue · agent reads · deliveries · margin where costed" awaiting="ad accounts · payment rails" />
               </>
             )}
 

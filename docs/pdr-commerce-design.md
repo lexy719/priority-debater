@@ -1,4 +1,4 @@
-# PDR Commerce — design lock v3 (SWISS EDITORIAL LEDGER)
+# PDR Commerce — design lock v4 (THE LEDGER, RUNNING)
 
 The design system for every PDR Commerce surface (`/commerce`, `/commerce/command`). **Supersedes
 v1 (dark ops room) and v2 (white SaaS workspace) — both rejected.** Direction chosen 2026-07-25:
@@ -6,6 +6,32 @@ a business ledger designed like Swiss print. References: Vignelli-era Swiss typo
 print manuals, annual-report tables, the PDR landing's cream/ink energy, Bloomberg density
 reinterpreted on paper. Family stance: per-product liveries — Studio stays the amber machine HMI;
 Commerce is the printed ledger of record.
+
+## v4 — what changed, and why (2026-07-27)
+
+v3 was right about identity and wrong about temperature. Built out, the ledger read as **blank
+and undecodable**: the dashboard opened on an empty section, a €0 placeholder carried the same
+weight as a real sale, nothing conveyed that a business was alive, and the most impressive thing
+the product does — an agent buying at 14:23 and PDR writing the product in 41 seconds — showed up
+as the numeral "1" in a box. A screen where the buyer has to ask "so what does it do?" cannot be
+sold.
+
+v4 keeps the paper, the type and the rationed colour. It changes four things:
+
+1. **The dashboard leads with what HAPPENED, not what IS.** A readable timeline of real events in
+   plain sentences ("ClaudeBot bought Inventory Playbook · €39"), with the figures in support.
+   A ledger reports; this instrument shows a business running.
+2. **The funnel is permanent furniture.** FOUND → READ → BOUGHT → DELIVERED → COLLECTED → ASKED,
+   measured at every step, with the drop-off named. It is the product's whole argument on one
+   strip, and it is what a prospect needs to see.
+3. **Hierarchy is real.** The one number that matters is enormous; supporting numbers are small.
+   Live events carry LIVE blue and a pulse. Nothing that matters looks like everything else.
+4. **Empty states instruct.** "—" is banned as a headline. An empty surface says what would make
+   it fill and what to press, because most businesses arrive here with no history at all.
+
+The old constraints still hold: one paper surface, no floating cards, no shadows, structure from
+print, measured-only data. **Motion is earned, never decorative** — a pulse means something is
+genuinely live now, never that the page is loading.
 
 ## The one rule that shapes everything
 
