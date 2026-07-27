@@ -10,6 +10,7 @@ import { loadCosts } from "@/lib/studio/costRepo";
 import { listExpenses, summarizeExpenses } from "@/lib/studio/expenseRepo";
 import { loadTraffic } from "@/lib/studio/hitRepo";
 import { loadCustomers, loadOrdersSummary } from "@/lib/studio/orderRepo";
+import { canCollect, paymentsNote } from "@/lib/studio/storePayments";
 import { currentOwnerId } from "@/lib/commerce/owner";
 import { listStoresFor } from "@/lib/studio/storeRepo";
 import { loadBusinessStore } from "@/lib/studio/businessSource";
@@ -165,7 +166,17 @@ export async function GET(req: Request) {
     return { month: m, inflow, outflow, net: inflow - outflow };
   });
   const finance = {
+    /** BOOKED — every order placed. Not money that arrived. */
     revenue: Math.round(orders.revenue),
+    /** SETTLED — the subset a payment provider confirmed. The only figure that
+        may ever be described as taken. */
+    settled: orders.settled,
+    paidCount: orders.paidCount,
+    /** Booked but never settled. On a store with no payment rail this equals
+        the whole of revenue, and the UI is required to say so. */
+    outstanding: Math.round(orders.revenue) - orders.settled,
+    paymentsLive: canCollect(),
+    paymentsNote: paymentsNote(),
     cogs: Math.round(cogs),
     grossProfit: marginKnown ? Math.round(orders.revenue - cogs) : null,
     marginPct: marginKnown && orders.revenue > 0 ? Math.round(((orders.revenue - cogs) / orders.revenue) * 100) : null,
@@ -201,6 +212,24 @@ export async function GET(req: Request) {
     }),
   };
   // Finance worker proposals — only from real numbers.
+  // Money first: a store that fulfils orders it was never paid for is the most
+  // expensive fault in the system, and the one easiest not to notice.
+  if (!finance.paymentsLive && orders.count > 0) {
+    proposals.push({
+      worker: "FINANCE", severity: "act",
+      label: `€${finance.outstanding} of goods handed over and never charged for — no payment rail. ${finance.paymentsNote ?? ""}`.trim(),
+    });
+  } else if (!finance.paymentsLive) {
+    proposals.push({
+      worker: "FINANCE", severity: "act",
+      label: `This store cannot take money. ${finance.paymentsNote ?? "Set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET."}`,
+    });
+  } else if (finance.outstanding > 0) {
+    proposals.push({
+      worker: "FINANCE", severity: "watch",
+      label: `€${finance.outstanding} booked but not settled — buyers who opened checkout and did not finish, or orders placed before payments went live`,
+    });
+  }
   if (products.length && costed.length === 0) {
     proposals.push({ worker: "FINANCE", severity: "watch", label: `No unit costs on file for ${products.length} SKUs — add them in Finance to unlock margin, COGS and true inventory value` });
   } else if (costed.length && costed.length < products.length) {

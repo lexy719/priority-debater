@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { recordActivity } from "@/lib/studio/activityRepo";
 import { isStocked, shipsPhysically } from "@/lib/studio/aiStorefront";
-import { orderConfirmation, send as sendMail } from "@/lib/studio/mailer";
 import { classifyAgent, recordHit } from "@/lib/studio/hitRepo";
 import { loadFulfilmentRecord, loadOrder, orderId, saveOrder, updateOrderStatus, type StoreOrder } from "@/lib/studio/orderRepo";
-import { deliveryForOrder, issueDelivery } from "@/lib/studio/deliveryRepo";
-import { generateArtefact, loadArtefact } from "@/lib/studio/artefactRepo";
+import { fulfilOrder } from "@/lib/studio/fulfilment";
+import { canCollect, createOrderCheckout, paymentsNote } from "@/lib/studio/storePayments";
+import { deliveryForOrder } from "@/lib/studio/deliveryRepo";
 import { answerFromRecord, recordQuestion, requestReturn } from "@/lib/studio/aftercareRepo";
 import { adjustStock,  } from "@/lib/studio/storeRepo";
 import { loadBusiness, loadBusinessStore } from "@/lib/studio/businessSource";
@@ -344,6 +344,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
           address: needsAddress ? address.slice(0, 300) : (address.slice(0, 300) || `no shipping — ${p.kind ?? "digital"} delivered to ${email.slice(0, 160)}`),
         },
         channel: "agent-json", agent, status: "received",
+        payment: { status: "unpaid" },
       };
       try {
         await saveOrder(order);
@@ -351,48 +352,41 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
         return ok(id, textResult({ ok: false, error: (e as Error).message }));
       }
       const left = await adjustStock(slug, sku, qty);
-      // If the seller attached nothing, PDR makes the thing it sold. A digital
-          // business it runs end to end cannot hand over a link to a file nobody wrote.
-      let produced = false;
-      if (!needsAddress && !(p.delivery ?? "").trim() && (p.kind ?? "digital") !== "service") {
-        const have = await loadArtefact(slug, sku);
-        const made = have ?? await generateArtefact(slug, {
-          sku, name: p.name, description: p.description, price: p.price,
-          brand: s.store.brand.fullName, audience: s.store.brand.audience, positioning: s.store.brand.positioning,
-        });
-        produced = !("error" in (made as object));
-      }
-      const delivery = !needsAddress
-        ? await issueDelivery(slug, {
-            orderId: order.id, sku, productName: p.name, buyerEmail: order.buyer.email,
-            kind: (p.kind ?? "digital") as "digital" | "service" | "access", attached: p.delivery ?? null, qty, produced,
-          })
-        : null;
-      const mail = await sendMail({
-        to: order.buyer.email,
-        ...orderConfirmation({
-          brand: s.store.brand.fullName, orderId: order.id, product: p.name, qty,
-          total: p.priceValue != null ? `${(p.priceValue * qty).toFixed(2)} EUR` : p.price,
-          confirmationUrl: `${base}/order/${order.id}`,
-          ships: s.manifest.ships ?? "EU · 3–5 business days",
-          returns: s.manifest.returns ?? "30 days, unopened",
-          physical: needsAddress,
-        }),
-      });
-      await recordActivity(slug, "OPERATIONS",
-        mail.sent ? `Confirmation emailed to ${order.buyer.email} for ${order.id}` : `No confirmation email for ${order.id} — ${mail.reason}`, "auto");
       await recordActivity(slug, "OPERATIONS", `Order ${order.id} received over MCP — ${p.name} ×${qty} via ${agent}${left != null ? ` · stock ${left}` : ""}`, "auto");
+      const totalText = p.priceValue != null ? `${(p.priceValue * qty).toFixed(2)} EUR` : p.price;
+
+      // An agent buying on someone's behalf gets a payment link like anyone
+      // else. Handing over the goods first and asking for money later is not
+      // a checkout, and an agent cannot be chased for an invoice.
+      if (canCollect() && p.priceValue != null) {
+        const co = await createOrderCheckout({
+          order, productName: p.name, description: p.description,
+          unitPrice: p.priceValue, currency: p.currency ?? "EUR", origin: new URL(base).origin,
+        });
+        if (co.ok) {
+          await recordActivity(slug, "FINANCE", `Checkout opened for ${order.id} — ${totalText} awaiting settlement`, "auto");
+          return ok(id, textResult({
+            ok: true, orderId: order.id, status: "awaiting_payment", sku, qty,
+            ...(p.unit && p.unit !== "item" ? { quantityMeans: `${qty} × ${p.unit}` } : {}),
+            total: totalText, paymentUrl: co.url, confirmation: `${base}/order/${order.id}`,
+            note: "Complete payment at paymentUrl. Delivery is released the moment settlement is confirmed.",
+          }));
+        }
+        await recordActivity(slug, "FINANCE", `Could not open checkout for ${order.id} — ${co.reason}`, "auto");
+      }
+
+      const done = await fulfilOrder({ store: s, order, origin: new URL(base).origin });
       return ok(id, textResult({
-        ok: true, orderId: order.id, status: "received", sku, qty,
+        ok: true, orderId: order.id, status: "received", paid: false, sku, qty,
         ...(p.unit && p.unit !== "item" ? { quantityMeans: `${qty} × ${p.unit}` } : {}),
-        total: p.priceValue != null ? `${(p.priceValue * qty).toFixed(2)} EUR` : p.price,
+        total: totalText,
         confirmation: `${base}/order/${order.id}`,
-        buyerEmailed: mail.sent,
-        ...(delivery ? { delivery: { url: `${base}/d/${delivery.token}`, kind: delivery.kind, note: delivery.note } } : {}),
+        buyerEmailed: done.emailed,
+        ...(done.deliveryUrl ? { delivery: { url: `${base}${done.deliveryUrl.replace(`/store/${slug}`, "")}`, kind: done.deliveryKind, note: done.deliveryNote } } : {}),
         fulfilment: shipsPhysically(p.kind) ? "ships to the address given"
           : p.kind === "service" ? "the seller confirms scheduling by email"
           : "delivered to the email given",
-        note: "No payment was taken. Payment instructions accompany the confirmation email; the merchant remains merchant of record.",
+        note: paymentsNote() ?? "No payment was taken; the merchant remains merchant of record.",
       }));
     }
 

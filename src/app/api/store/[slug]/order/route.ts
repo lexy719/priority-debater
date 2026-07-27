@@ -3,9 +3,8 @@ import { recordActivity } from "@/lib/studio/activityRepo";
 import { classifyAgent } from "@/lib/studio/hitRepo";
 import { normaliseSource, orderId, saveOrder, type StoreOrder } from "@/lib/studio/orderRepo";
 import { shipsPhysically } from "@/lib/studio/aiStorefront";
-import { generateArtefact, loadArtefact } from "@/lib/studio/artefactRepo";
-import { issueDelivery } from "@/lib/studio/deliveryRepo";
-import { orderConfirmation, send } from "@/lib/studio/mailer";
+import { fulfilOrder } from "@/lib/studio/fulfilment";
+import { canCollect, createOrderCheckout, paymentsNote } from "@/lib/studio/storePayments";
 import { adjustStock, loadStore } from "@/lib/studio/storeRepo";
 
 /**
@@ -75,6 +74,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     channel: isJson ? "agent-json" : "web-form",
     agent: classifyAgent(req.headers.get("user-agent")),
     status: "received",
+    // Every order is born unpaid. Only a provider can change that.
+    payment: { status: "unpaid" },
     ...(normaliseSource(ref) ? { source: normaliseSource(ref) } : {}),
   };
   try {
@@ -93,53 +94,48 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       "auto");
   }
 
-  // If the seller attached nothing, PDR makes the thing it sold. A digital
-  // business it runs end to end cannot hand over a link to a file nobody wrote.
-  let produced = false;
-  if (!needsAddress && !(p.delivery ?? "").trim() && (p.kind ?? "digital") !== "service") {
-    const have = await loadArtefact(slug, sku);
-    const made = have ?? await generateArtefact(slug, {
-      sku, name: p.name, description: p.description, price: p.price,
-      brand: s.store.brand.fullName, audience: s.store.brand.audience, positioning: s.store.brand.positioning,
-    });
-    produced = !("error" in (made as object));
-  }
-  // Nothing to pack: a file, a licence or a booking is issued in the same
-  // breath as the order, which is what lets this lane close without a human.
-  const delivery = !needsAddress
-    ? await issueDelivery(slug, {
-        orderId: order.id, sku, productName: p.name, buyerEmail: order.buyer.email,
-        kind: (p.kind ?? "digital") as "digital" | "service" | "access", attached: p.delivery ?? null, qty, produced,
-      })
-    : null;
-  if (delivery) {
-    await recordActivity(slug, "OPERATIONS",
-      delivery.kind === "pending"
-        ? `Delivery issued for ${order.id} but nothing is attached to ${sku} — the buyer has a record, not a file`
-        : `Delivered ${sku} for ${order.id} instantly (${delivery.kind})`, "auto");
-  }
   const confirmation = `/store/${slug}/order/${order.id}`;
-  // Tell the buyer, for real. If no provider is configured nothing is sent and
-  // the ledger says so — the store never claims a message it did not send.
   const origin = new URL(req.url).origin;
-  const mail = await send({
-    to: order.buyer.email,
-    ...orderConfirmation({
-      brand: s.store.brand.fullName, orderId: order.id, product: p.name, qty,
-      total: p.priceValue != null ? `${(p.priceValue * qty).toFixed(2)} ${p.currency ?? "EUR"}` : p.price,
-      confirmationUrl: `${origin}${confirmation}`,
-      ships: s.manifest.ships ?? "EU · 3–5 business days",
-      returns: s.manifest.returns ?? "30 days, unopened",
-      physical: needsAddress,
-    }),
-  });
-  await recordActivity(slug, "OPERATIONS",
-    mail.sent ? `Confirmation emailed to ${order.buyer.email} for ${order.id}`
-              : `No confirmation email for ${order.id} — ${mail.reason}`, "auto");
+  const total = p.priceValue != null ? `${(p.priceValue * qty).toFixed(2)} ${p.currency ?? "EUR"}` : p.price;
+
+  // ── PAYMENT FIRST, WHEN THERE IS A RAIL ────────────────────────────────
+  // Until now a digital order was fulfilled the instant it was placed, which
+  // meant anyone could take the artefact without paying. With Stripe live the
+  // buyer goes to Checkout and fulfilment waits for the webhook.
+  if (canCollect() && p.priceValue != null) {
+    const co = await createOrderCheckout({
+      order, productName: p.name, description: p.description,
+      unitPrice: p.priceValue, currency: p.currency ?? "EUR", origin,
+    });
+    if (co.ok) {
+      await recordActivity(slug, "FINANCE", `Checkout opened for ${order.id} — ${total} awaiting settlement`, "auto");
+      if (isJson) {
+        return NextResponse.json({
+          ok: true, orderId: order.id, status: "awaiting_payment", sku, qty, total, confirmation,
+          paymentUrl: co.url,
+          note: "Complete payment at paymentUrl. Delivery is released once Stripe confirms settlement.",
+        });
+      }
+      return NextResponse.redirect(co.url, 303);
+    }
+    // Checkout could not be opened. Refusing the order outright would lose a
+    // real buyer over our configuration problem, so the order stands, unpaid,
+    // and the reason goes on the record where the operator will see it.
+    await recordActivity(slug, "FINANCE", `Could not open checkout for ${order.id} — ${co.reason}`, "auto");
+  }
+
+  // ── NO RAIL: the order is recorded UNPAID and fulfilled anyway ──────────
+  // A showroom, not a shop. The order carries payment.status "unpaid" so no
+  // figure anywhere can call this money that arrived.
+  const done = await fulfilOrder({ store: s, order, origin });
 
   if (isJson) {
-    const total = p.priceValue != null ? `${(p.priceValue * qty).toFixed(2)} ${p.currency ?? "EUR"}` : p.price;
-    return NextResponse.json({ ok: true, orderId: order.id, status: "received", sku, qty, total, confirmation, emailed: mail.sent, emailNote: mail.reason, ...(delivery ? { deliveryUrl: `/store/${slug}/d/${delivery.token}`, deliveryKind: delivery.kind, deliveryNote: delivery.note } : {}) });
+    return NextResponse.json({
+      ok: true, orderId: order.id, status: "received", paid: false, sku, qty, total, confirmation,
+      emailed: done.emailed, emailNote: done.emailNote,
+      note: paymentsNote() ?? undefined,
+      ...(done.deliveryUrl ? { deliveryUrl: done.deliveryUrl, deliveryKind: done.deliveryKind, deliveryNote: done.deliveryNote } : {}),
+    });
   }
   return NextResponse.redirect(new URL(confirmation, req.url), 303);
 }

@@ -22,11 +22,12 @@ type Biz = {
   estate: "owned" | "demo";
   business: { slug: string; code: string; createdAt: string; brand: { name: string; fullName: string; domain: string; oneLiner: string; audience?: string; positioning?: string }; catalog: { sku: string; name: string; price: string; priceValue?: number; availability: string; stock: number | null; provenance?: Record<string, string>; kind?: string; unit?: string }[]; manifest: { ships?: string; returns?: string }; source: string };
   traffic: { agents: number; humans: number; byAgent: Record<string, number>; byKind: Record<string, number>; byProduct: Record<string, number>; recent: { ts: string; agent: string; kind: string }[] };
-  orders: { count: number; revenue: number; byAgent: Record<string, number>; bySku: Record<string, { qty: number; revenue: number }>; daily: { d: string; revenue: number; orders: number }[]; bySource: Record<string, { orders: number; revenue: number }>; unattributed: { orders: number; revenue: number }; recent: { id: string; ts: string; productName: string; qty: number; price: string; channel: string; agent: string; status: string; source?: string }[] };
+  orders: { count: number; revenue: number; byAgent: Record<string, number>; bySku: Record<string, { qty: number; revenue: number }>; daily: { d: string; revenue: number; orders: number }[]; bySource: Record<string, { orders: number; revenue: number }>; unattributed: { orders: number; revenue: number }; recent: { id: string; ts: string; productName: string; qty: number; price: string; channel: string; agent: string; status: string; paid: boolean; source?: string }[] };
   customers: { email: string; name: string; orders: number; revenue: number; lastTs: string }[];
   activity: { ts: string; worker: string; txt: string; by?: "auto" | "owner" }[];
   finance: {
-    revenue: number; cogs: number; grossProfit: number | null; marginPct: number | null;
+    revenue: number; settled: number; paidCount: number; outstanding: number; paymentsLive: boolean; paymentsNote: string | null;
+    cogs: number; grossProfit: number | null; marginPct: number | null;
     expenses: number; expensesByCategory: Record<string, number>; monthlyRecurringCost: number; expenseCount: number;
     netProfit: number | null; cashFlow: { month: string; inflow: number; outflow: number; net: number }[]; runwayNote: string;
     inventoryAtPrice: number; inventoryAtCost: number | null; recurringRevenue: number; oneOffRevenue: number;
@@ -774,10 +775,20 @@ export default function CommerceLedger() {
                 {/* ── the answer to "is my business alive, and what happened?" ── */}
                 <div className="mt-5 grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,1fr)_320px]" style={{ borderTop: `2px solid ${INKB}`, paddingTop: 18 }}>
                   <div className="flex flex-wrap items-end gap-x-12 gap-y-6">
+                    {/* Booked is what was ordered; settled is what a provider
+                        confirmed. Only the second may be called taken — the
+                        first is a promise, and printing it as income is the
+                        exact dishonesty this product exists to refuse. */}
                     <Headline
-                      value={`€${biz.finance.revenue.toLocaleString("en-US")}`}
-                      label={biz.orders.count ? `TAKEN ACROSS ${biz.orders.count} ORDER${biz.orders.count === 1 ? "" : "S"}` : "NOTHING SOLD YET"}
-                      tone={biz.finance.revenue ? OKB : FAINTB}
+                      value={`€${(biz.finance.settled || biz.finance.revenue).toLocaleString("en-US")}`}
+                      label={
+                        biz.finance.settled > 0
+                          ? `TAKEN ACROSS ${biz.finance.paidCount} PAID ORDER${biz.finance.paidCount === 1 ? "" : "S"}`
+                          : biz.orders.count
+                            ? `BOOKED ACROSS ${biz.orders.count} ORDER${biz.orders.count === 1 ? "" : "S"} · NONE SETTLED`
+                            : "NOTHING SOLD YET"
+                      }
+                      tone={biz.finance.settled > 0 ? OKB : biz.orders.count ? WARNB : FAINTB}
                     />
                     <div className="flex flex-col gap-3">
                       <span className="flex items-center gap-2">
@@ -792,6 +803,9 @@ export default function CommerceLedger() {
                         {biz.finance.marginPct != null ? ` · ${biz.finance.marginPct}% margin` : ""}
                       </span>
                       <span className="flex flex-wrap gap-1.5">
+                        {biz.finance.outstanding > 0 && (
+                          <Stamp text={`€${biz.finance.outstanding.toLocaleString("en-US")} never collected`} color={WARNB} filled />
+                        )}
                         {biz.automations.enabled > 0 && <Stamp text={`${biz.automations.enabled} rule${biz.automations.enabled === 1 ? "" : "s"} armed`} color={LIVE} />}
                         {biz.deliveries.pending > 0 && <Stamp text={`${biz.deliveries.pending} delivery empty`} color={FAULTB} filled />}
                         {biz.aftercare.escalated > 0 && <Stamp text={`${biz.aftercare.escalated} unanswered`} color={FAULTB} filled />}
@@ -845,13 +859,19 @@ export default function CommerceLedger() {
                         ? "Agents are reading but not buying. The usual causes are a price an agent cannot parse, a checkout it cannot complete, or a catalogue too thin to win a comparison."
                         : biz.funnel[1].n === 0
                           ? `${biz.orders.count} order${biz.orders.count === 1 ? "" : "s"} came straight through the machine layer — the agent bought from the catalogue or the MCP tools without ever loading a page. That is the agent-native path working.`
-                          : `${biz.orders.count} of ${biz.funnel[1].n} page reads became orders. Every stage above is counted from real requests to this store.`}
+                          : biz.orders.count > biz.funnel[1].n
+                            // More orders than page reads is not an error: an agent
+                            // can buy straight off the feed or over MCP without ever
+                            // rendering a page. "2 of 1 reads" would look like a bug.
+                            ? `${biz.orders.count} orders against ${biz.funnel[1].n} page read${biz.funnel[1].n === 1 ? "" : "s"} — some buyers never opened a page at all, which is exactly what buying over the machine layer looks like.`
+                            : `${biz.orders.count} of ${biz.funnel[1].n} page reads became orders. Every stage above is counted from real requests to this store.`}
                   </div>
                 </Section>
 
                 <Section n={3} title="The money" right={<span style={MICRO}>{biz.finance.costsOnFile}/{biz.finance.skuCount} SKUS COSTED</span>}>
-                  <FigureRow cols={5}>
-                    <Figure label="REVENUE" value={`€${biz.finance.revenue.toLocaleString("en-US")}`} color={biz.finance.revenue ? OKB : FAINTB} note={`avg order €${biz.finance.avgOrderValue}`} />
+                  <FigureRow cols={6}>
+                    <Figure label="BOOKED" value={`€${biz.finance.revenue.toLocaleString("en-US")}`} color={biz.finance.revenue ? INKB : FAINTB} note={`avg order €${biz.finance.avgOrderValue}`} />
+                    <Figure label="SETTLED" value={`€${biz.finance.settled.toLocaleString("en-US")}`} color={biz.finance.settled ? OKB : FAULTB} note={biz.finance.settled ? `${biz.finance.paidCount} paid` : "no money has moved"} />
                     <Figure label="MARGIN" value={biz.finance.marginPct != null ? `${biz.finance.marginPct}%` : "—"} color={biz.finance.marginPct != null ? OKB : FAINTB} note={biz.finance.marginPct == null ? "needs unit costs" : `COGS €${biz.finance.cogs}`} />
                     <Figure label="CUSTOMERS" value={biz.customers.length} note={`${biz.customers.filter((c) => c.orders > 1).length} repeat`} />
                     <Figure label="AGENT READS" value={biz.traffic.agents} color={biz.traffic.agents ? LIVE : FAINTB} note={`${biz.traffic.humans} human`} />

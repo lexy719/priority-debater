@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isStocked } from "@/lib/studio/aiStorefront";
+import { seedBrain } from "@/lib/studio/brainSeeder";
 import { currentOwnerId } from "@/lib/commerce/owner";
 import { saveCosts } from "@/lib/studio/costRepo";
 import { recordOwnership, saveStore, slugify, type PublishedStore } from "@/lib/studio/storeRepo";
@@ -13,6 +14,10 @@ import type { StorefrontInput } from "@/lib/studio/aiStorefront";
  */
 
 export const runtime = "nodejs";
+// Publishing now includes a Claude call to seed the company's own brain. The
+// store itself is saved before that starts, so a timeout costs the seed, never
+// the business.
+export const maxDuration = 60;
 
 function hash6(s: string): string {
   let h = 2166136261 >>> 0;
@@ -64,9 +69,26 @@ export async function POST(req: Request) {
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }
+
+  // A business is born knowing its own voice and its own look. Without this,
+  // every company arrived with sixteen generic craft rules and no visual world,
+  // so nothing it wrote sounded like itself and any video would have been
+  // handsome and anonymous. Seeding is best-effort: a failure here must never
+  // lose a store that is already saved, and the dashboard proposal remains as
+  // the fallback for anyone whose seed timed out.
+  const code = store.brand.name.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+  const seeded = await seedBrain({
+    projectCode: code,
+    fullName: store.brand.fullName,
+    descriptor: store.brand.oneLiner,
+    oneLiner: store.brand.oneLiner,
+    brandKit: { audience: store.brand.audience, positioning: store.brand.positioning },
+  }, slug).catch((e: Error) => ({ ok: false as const, error: e.message }));
   return NextResponse.json({
     ok: true,
     slug,
+    brainSeeded: seeded.ok,
+    ...(seeded.ok ? {} : { brainSeedError: seeded.error }),
     urls: {
       store: `/store/${slug}`,
       feed: `/store/${slug}/feed.jsonl`,

@@ -29,6 +29,23 @@ export type StoreOrder = {
       or a free token. Absent means the order arrived with no ref — direct, or
       through a surface that predates attribution. Never inferred. */
   source?: string;
+  /**
+   * Money is a SEPARATE FACT from the order. An order can sit unpaid forever.
+   * Until a payment rail confirms settlement this stays "unpaid", and the sum
+   * of unpaid orders is BOOKED revenue, never TAKEN — the store must not print
+   * a figure implying money arrived in a bank account when none did.
+   * Absent on orders placed before payment existed: treated as unpaid.
+   */
+  payment?: {
+    status: "unpaid" | "paid" | "refunded";
+    provider?: "stripe";
+    /** Checkout session id — the receipt this claim can be audited against. */
+    ref?: string;
+    settledAt?: string;
+    /** What actually moved, as reported by the provider. Not our arithmetic. */
+    amount?: number;
+    currency?: string;
+  };
   /** Timestamped lifecycle trail — the evidence behind the seller record's
       fulfilment speed. Orders placed before this existed simply have none. */
   history?: { status: OrderStatus; ts: string }[];
@@ -123,6 +140,30 @@ export async function updateOrderStatus(slug: string, id: string, next: OrderSta
 }
 
 /**
+ * Record a settlement a provider confirmed. Idempotent: a webhook that is
+ * delivered twice (Stripe retries by design) must not double-count revenue or
+ * fulfil an order twice, so this reports whether THIS call was the one that
+ * flipped it. Callers gate delivery on `changed`.
+ */
+export async function markPaid(slug: string, id: string, p: {
+  provider?: "stripe"; ref?: string; amount?: number; currency?: string;
+}): Promise<{ order: StoreOrder | null; changed: boolean }> {
+  if (!SLUG_RE.test(slug)) return { order: null, changed: false };
+  const orders = await readAll(slug);
+  const o = orders.find((x) => x.id === id);
+  if (!o) return { order: null, changed: false };
+  if (o.payment?.status === "paid") return { order: o, changed: false };
+  o.payment = {
+    status: "paid", provider: p.provider ?? "stripe", ref: p.ref,
+    settledAt: new Date().toISOString(),
+    ...(p.amount != null ? { amount: Math.round(p.amount * 100) / 100 } : {}),
+    ...(p.currency ? { currency: p.currency.toUpperCase() } : {}),
+  };
+  await writeAll(slug, orders);
+  return { order: o, changed: true };
+}
+
+/**
  * The measured fulfilment record — what a buying agent can check about this
  * seller before it commits. Counts are exact; speed medians are computed only
  * over orders that carry a timestamped trail, and the number of orders behind
@@ -207,9 +248,20 @@ export async function loadCustomers(slug: string): Promise<CustomerRow[]> {
   return [...by.values()].sort((a, b) => b.revenue - a.revenue);
 }
 
+/** An order is paid only if a provider said so. Everything else is unpaid. */
+export function isPaid(o: Pick<StoreOrder, "payment">): boolean {
+  return o.payment?.status === "paid";
+}
+
 export type OrdersSummary = {
   count: number;
+  /** BOOKED — the value of every order placed, paid or not. This is what the
+      store has agreed to sell; it is NOT money that has arrived. */
   revenue: number; // EUR, from numeric totals (price-string-only orders fall back to a parse)
+  /** SETTLED — the subset a payment provider has confirmed. Zero until a rail
+      exists, which is the honest answer rather than a flattering one. */
+  settled: number;
+  paidCount: number;
   byChannel: Record<string, number>;
   byAgent: Record<string, number>;
   /** Units sold + revenue per product (name-keyed) — inventory sell-through. */
@@ -221,11 +273,11 @@ export type OrdersSummary = {
       are never spread across surfaces — a guess here is a lie about revenue. */
   bySource: Record<string, { orders: number; revenue: number }>;
   unattributed: { orders: number; revenue: number };
-  recent: { id: string; ts: string; productName: string; qty: number; price: string; channel: StoreOrder["channel"]; agent: string; status: OrderStatus; source?: string }[];
+  recent: { id: string; ts: string; productName: string; qty: number; price: string; channel: StoreOrder["channel"]; agent: string; status: OrderStatus; paid: boolean; source?: string }[];
 };
 
 export async function loadOrdersSummary(slug: string): Promise<OrdersSummary> {
-  const empty: OrdersSummary = { count: 0, revenue: 0, byChannel: {}, byAgent: {}, bySku: {}, daily: [], bySource: {}, unattributed: { orders: 0, revenue: 0 }, recent: [] };
+  const empty: OrdersSummary = { count: 0, revenue: 0, settled: 0, paidCount: 0, byChannel: {}, byAgent: {}, bySku: {}, daily: [], bySource: {}, unattributed: { orders: 0, revenue: 0 }, recent: [] };
   if (!SLUG_RE.test(slug)) return empty;
   try {
     const orders = await readAll(slug);
@@ -235,7 +287,7 @@ export async function loadOrdersSummary(slug: string): Promise<OrdersSummary> {
     const bySource: Record<string, { orders: number; revenue: number }> = {};
     const unattributed = { orders: 0, revenue: 0 };
     const byDay = new Map<string, { revenue: number; orders: number }>();
-    let revenue = 0;
+    let revenue = 0, settled = 0, paidCount = 0;
     for (const o of orders) {
       const val = o.total ?? (Number((o.price.match(/[\d.]+/) ?? ["0"])[0]) || 0) * o.qty;
       byChannel[o.channel] = (byChannel[o.channel] ?? 0) + 1;
@@ -255,12 +307,15 @@ export async function loadOrdersSummary(slug: string): Promise<OrdersSummary> {
       day.revenue += val; day.orders += 1;
       byDay.set(d, day);
       revenue += val;
+      // Settled counts only what a provider confirmed, and counts the amount
+      // IT reported where there is one — our arithmetic is not a receipt.
+      if (isPaid(o)) { settled += o.payment?.amount ?? val; paidCount += 1; }
     }
     return {
-      count: orders.length, revenue, byChannel, byAgent, bySku, bySource,
+      count: orders.length, revenue, settled: Math.round(settled), paidCount, byChannel, byAgent, bySku, bySource,
       unattributed: { orders: unattributed.orders, revenue: Math.round(unattributed.revenue) },
       daily: [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(-14).map(([d, v]) => ({ d, revenue: Math.round(v.revenue), orders: v.orders })),
-      recent: orders.slice(-10).reverse().map((o) => ({ id: o.id, ts: o.ts, productName: o.productName, qty: o.qty, price: o.price, channel: o.channel, agent: o.agent, status: o.status ?? "received", ...(o.source ? { source: o.source } : {}) })),
+      recent: orders.slice(-10).reverse().map((o) => ({ id: o.id, ts: o.ts, productName: o.productName, qty: o.qty, price: o.price, channel: o.channel, agent: o.agent, status: o.status ?? "received", paid: isPaid(o), ...(o.source ? { source: o.source } : {}) })),
     };
   } catch {
     return empty;
