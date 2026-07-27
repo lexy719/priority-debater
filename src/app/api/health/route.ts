@@ -40,7 +40,7 @@ export async function GET() {
     generation: {
       claude: Boolean(process.env.ANTHROPIC_API_KEY),
       openai: Boolean(process.env.OPENAI_API_KEY),
-      higgsfield: Boolean(process.env.HIGGSFIELD_API_KEY),
+      higgsfield: Boolean(process.env.HIGGSFIELD_KEY_ID && process.env.HIGGSFIELD_KEY_SECRET),
     },
     automation: { cronSecret: Boolean(process.env.CRON_SECRET) },
   };

@@ -47,17 +47,34 @@ export async function saveStore(s: PublishedStore): Promise<void> {
   await fs.writeFile(path.join(DIR, `${s.slug}.json`), JSON.stringify(s, null, 2), "utf8");
 }
 
+/**
+ * Only a physical good has a shelf. Publishing used to give every sellable a
+ * default stock of 24, which made a downloads business report thousands of
+ * euros of inventory it does not have. The publish path stopped doing that,
+ * but stores written before the fix still carry the number — so the read path
+ * is authoritative. One place, and every consumer (finance, the shelf, the
+ * feed, the automation metrics) is right at once.
+ */
+function withoutPhantomStock(s: PublishedStore): PublishedStore {
+  const products = s.store.products;
+  if (!products.some((p) => !isStocked(p.kind) && p.stock != null)) return s;
+  return {
+    ...s,
+    store: { ...s.store, products: products.map((p) => (isStocked(p.kind) ? p : { ...p, stock: undefined })) },
+  };
+}
+
 export async function loadStore(slug: string): Promise<PublishedStore | null> {
   if (!SLUG_RE.test(slug)) return null;
   if (blobConfigured()) {
     const s = await getJson<PublishedStore>(`stores/${slug}.json`);
-    if (s?.store?.brand?.name) return s;
+    if (s?.store?.brand?.name) return withoutPhantomStock(s);
     // blob miss → fall through to local files (stores published pre-Supabase)
   }
   try {
     const raw = await fs.readFile(path.join(DIR, `${slug}.json`), "utf8");
     const s = JSON.parse(raw) as PublishedStore;
-    return s?.store?.brand?.name ? s : null;
+    return s?.store?.brand?.name ? withoutPhantomStock(s) : null;
   } catch {
     return null;
   }

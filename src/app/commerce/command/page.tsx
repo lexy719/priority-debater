@@ -20,9 +20,9 @@ import {
 type Biz = {
   roster: { slug: string; name: string }[];
   estate: "owned" | "demo";
-  business: { slug: string; code: string; createdAt: string; brand: { name: string; fullName: string; domain: string; oneLiner: string; audience?: string; positioning?: string }; catalog: { sku: string; name: string; price: string; priceValue?: number; availability: string; stock: number; provenance?: Record<string, string>; kind?: string; unit?: string }[]; manifest: { ships?: string; returns?: string }; source: string };
+  business: { slug: string; code: string; createdAt: string; brand: { name: string; fullName: string; domain: string; oneLiner: string; audience?: string; positioning?: string }; catalog: { sku: string; name: string; price: string; priceValue?: number; availability: string; stock: number | null; provenance?: Record<string, string>; kind?: string; unit?: string }[]; manifest: { ships?: string; returns?: string }; source: string };
   traffic: { agents: number; humans: number; byAgent: Record<string, number>; byKind: Record<string, number>; byProduct: Record<string, number>; recent: { ts: string; agent: string; kind: string }[] };
-  orders: { count: number; revenue: number; byAgent: Record<string, number>; bySku: Record<string, { qty: number; revenue: number }>; daily: { d: string; revenue: number; orders: number }[]; recent: { id: string; ts: string; productName: string; qty: number; price: string; channel: string; agent: string; status: string }[] };
+  orders: { count: number; revenue: number; byAgent: Record<string, number>; bySku: Record<string, { qty: number; revenue: number }>; daily: { d: string; revenue: number; orders: number }[]; bySource: Record<string, { orders: number; revenue: number }>; unattributed: { orders: number; revenue: number }; recent: { id: string; ts: string; productName: string; qty: number; price: string; channel: string; agent: string; status: string; source?: string }[] };
   customers: { email: string; name: string; orders: number; revenue: number; lastTs: string }[];
   activity: { ts: string; worker: string; txt: string; by?: "auto" | "owner" }[];
   finance: {
@@ -504,7 +504,7 @@ export default function CommerceLedger() {
   const alerts = biz ? biz.proposals.filter((p) => p.severity === "act").length : 0;
   const dayN = biz ? Math.max(1, Math.ceil((Date.now() - Date.parse(biz.business.createdAt)) / 86400000)) : 1;
   const pending = biz ? biz.orders.recent.filter((o) => o.status === "received").length : 0;
-  const lowStock = biz ? biz.business.catalog.filter((p) => p.stock <= 3 && p.availability !== "PreOrder").length : 0;
+  const lowStock = biz ? biz.business.catalog.filter((p) => p.stock != null && p.stock <= 3 && p.availability !== "PreOrder").length : 0;
   const agentOrders = biz ? Object.values(biz.orders.byAgent).reduce((a, n) => a + n, 0) : 0;
   const badge: Partial<Record<View, number>> = biz ? {
     MARKETING: biz.proposals.filter((p) => p.worker === "MARKETING" && p.severity !== "ok").length,
@@ -530,6 +530,54 @@ export default function CommerceLedger() {
    * orders and deliveries. Newest first. Nothing here is generated for effect;
    * if a line is present, the event occurred.
    */
+  /**
+   * THE MARKETING PICTURE — derived on every read, never stored.
+   *
+   * Each figure traces to something observed: a page render counted, an order
+   * that carried a ref back to the surface that sent the buyer, a decision the
+   * worker wrote to the log. Revenue is credited only where a ref proves it;
+   * the remainder is reported as unexplained rather than spread across
+   * campaigns, which is the exact move that makes Advantage+ and PMax
+   * unreadable to the people paying for them.
+   */
+  const mk = (() => {
+    const bySource = biz?.orders.bySource ?? {};
+    const rows = Object.values(bySource);
+    const attributedOrders = rows.reduce((a, s) => a + s.orders, 0);
+    const attributedRevenue = Math.round(rows.reduce((a, s) => a + s.revenue, 0));
+    const total = biz?.orders.revenue ?? 0;
+    const at = (key: string) => ({
+      orders: bySource[key]?.orders ?? 0,
+      revenue: Math.round(bySource[key]?.revenue ?? 0),
+    });
+    const surfaces = [
+      // A campaign is only a reachable surface once it is live or paused mid-flight.
+      ...(campaigns ?? []).filter((c) => c.status === "live" || c.status === "paused").map((c) => ({
+        key: `c:${c.id}`, label: c.name, kind: c.status === "live" ? "live" : "paused",
+        href: null as string | null,
+        // Views are an ad-account number. Absent, not zero — zero would be a claim.
+        views: null as number | null,
+        ...at(`c:${c.id}`),
+      })),
+      ...(landings ?? []).map((l) => ({
+        key: `l:${l.id}`, label: l.headline, kind: "page",
+        href: biz ? `/store/${biz.business.slug}/l/${l.id}` : null,
+        views: l.views as number | null,
+        ...at(`l:${l.id}`),
+      })),
+    ].sort((a, b) => b.revenue - a.revenue || (b.views ?? -1) - (a.views ?? -1));
+    return {
+      attributedOrders, attributedRevenue, surfaces,
+      sources: Object.keys(bySource),
+      live: (campaigns ?? []).filter((c) => c.status === "live").length,
+      pages: landings?.length ?? 0,
+      pageViews: (landings ?? []).reduce((a, l) => a + l.views, 0),
+      creative: (campaigns ?? []).reduce((a, c) => a + c.variants.length, 0),
+      decisions: (biz?.activity ?? []).filter((a) => a.worker === "MARKETING"),
+      explainedPct: total > 0 ? Math.round((attributedRevenue / total) * 100) : null,
+    };
+  })();
+
   type Beat = { ts: string; time: string; icon: string; tone: string; text: string; note?: string };
   const story: Beat[] = biz
     ? [
@@ -852,30 +900,136 @@ export default function CommerceLedger() {
             {/* ══════════ 02 MARKETING ══════════ */}
             {view === "MARKETING" && (
               <>
-                <Section n={1} title="Marketing worker" right={<Stamp text="marketing" color={LIVE} />}>
-                  <Queue worker="MARKETING" />
+                {/* ── What marketing is worth. Meta's Advantage+ and Google's
+                    PMax return spend and attributed revenue and nothing else;
+                    the whole complaint against them is that you cannot see
+                    which surface did the work. So that is the number we lead
+                    with — and when it cannot be known, we say which surface is
+                    missing a ref rather than dividing revenue by vibes. ── */}
+                <div className="mt-5 grid gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,1fr)_300px]" style={{ borderTop: `2px solid ${INKB}`, paddingTop: 18 }}>
+                  <div className="flex flex-wrap items-end gap-x-12 gap-y-6">
+                    <Headline
+                      value={`€${mk.attributedRevenue.toLocaleString("en-US")}`}
+                      label={mk.attributedOrders ? `EARNED BY ${mk.sources.length} MARKETING SURFACE${mk.sources.length === 1 ? "" : "S"}` : "NOTHING TRACEABLE TO MARKETING YET"}
+                      tone={mk.attributedRevenue ? OKB : FAINTB}
+                    />
+                    <div className="flex flex-col gap-3">
+                      <span className="flex items-center gap-2">
+                        <Pulse on={mk.live > 0} color={mk.live > 0 ? LIVE : FAINTB} />
+                        <span className="text-[13px] font-semibold">
+                          {mk.live > 0
+                            ? `${mk.live} campaign${mk.live === 1 ? "" : "s"} live · ${mk.pages} page${mk.pages === 1 ? "" : "s"} reachable`
+                            : mk.pages > 0
+                              ? `Nothing live — ${mk.pages} page${mk.pages === 1 ? " is" : "s are"} published and reachable`
+                              : "Nothing in market"}
+                        </span>
+                      </span>
+                      <span className="text-[12.5px]" style={{ color: DIMB }}>
+                        {mk.creative} creative{mk.creative === 1 ? "" : "s"} written · {mk.pageViews} page view{mk.pageViews === 1 ? "" : "s"} · {mk.decisions.length} logged decision{mk.decisions.length === 1 ? "" : "s"}
+                      </span>
+                      <span className="flex flex-wrap gap-1.5">
+                        {biz.orders.unattributed.orders > 0 && (
+                          <Stamp text={`€${biz.orders.unattributed.revenue.toLocaleString("en-US")} arrived with no ref`} color={WARNB} />
+                        )}
+                        {!biz.brain?.visual && <Stamp text="no visual world" color={FAULTB} filled />}
+                        {(biz.brain?.counts.company ?? 0) === 0 && <Stamp text="no company rules" color={FAULTB} filled />}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ backgroundColor: INSETB, padding: "14px 16px" }}>
+                    <div style={MICRO}>HOW MUCH OF THE REVENUE IS EXPLAINED</div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="tabular-nums" style={{ fontFamily: MONO, fontSize: 26, fontWeight: 800, color: mk.explainedPct == null ? FAINTB : mk.explainedPct >= 50 ? OKB : WARNB }}>
+                        {mk.explainedPct == null ? "—" : `${mk.explainedPct}%`}
+                      </span>
+                      <Bar pct={mk.explainedPct ?? 0} color={mk.explainedPct != null && mk.explainedPct >= 50 ? OKB : WARNB} width={110} />
+                    </div>
+                    <div className="mt-2 text-pretty text-[12px] leading-snug" style={{ color: DIMB }}>
+                      {mk.explainedPct == null
+                        ? "No revenue yet, so there is nothing to explain. Every order that arrives through a landing page carries a ref and lands in the table below."
+                        : mk.explainedPct === 100
+                          ? "Every euro traces to the surface that sent the buyer."
+                          : `The rest arrived direct or through a link with no ref. It is counted as revenue, never credited to a campaign that cannot prove it.`}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── §01 the anti-black-box: every decision, with evidence ── */}
+                <Section n={1} title="What marketing did" right={<span style={MICRO}>EVERY DECISION · WHO MADE IT · NEWEST FIRST</span>}>
+                  {mk.decisions.length === 0 ? (
+                    <Nothing
+                      title="The marketing worker has not done anything yet."
+                      why="Every action it takes is logged here with the evidence behind it and whether it ran unattended or you asked for it. This is deliberately the first thing on the page: an ad platform that optimises without telling you what it changed is the thing PDR is built not to be."
+                    />
+                  ) : mk.decisions.map((a, i) => (
+                    <Event key={i} time={a.ts.slice(11, 16)} icon={a.by === "auto" ? "◉" : "○"} tone={a.by === "auto" ? LIVE : DIMB}
+                      note={a.by === "auto" ? "unattended" : "you"}>
+                      {a.txt}
+                    </Event>
+                  ))}
                 </Section>
 
-                {/* campaigns — durable objects with creative experiments */}
-                <Section n={2} title="Campaigns" right={<span style={MICRO}>{campaigns ? `${campaigns.length} ON FILE · ${campaigns.filter((c) => c.status === "live").length} LIVE` : "LOADING…"}</span>}>
-                  {/* create */}
-                  <div className="flex flex-wrap items-center gap-2 py-3">
-                    <input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Campaign name"
-                      className="h-9 w-[180px] px-3 text-[13px]" style={{ fontFamily: SANS, border: `1px solid ${HAIRB}`, backgroundColor: "transparent", color: INKB, outline: "none" }} />
-                    <input value={cObjective} onChange={(e) => setCObjective(e.target.value)} placeholder="Objective — e.g. sell 40 sets before December"
-                      className="h-9 min-w-[240px] flex-1 px-3 text-[13px]" style={{ fontFamily: SANS, border: `1px solid ${HAIRB}`, backgroundColor: "transparent", color: INKB, outline: "none" }} />
-                    <span className="flex flex-wrap gap-1.5">
-                      {["INSTAGRAM", "LINKEDIN", "TIKTOK", "X", "META", "EMAIL"].map((ch) => (
-                        <Pick key={ch} onClick={() => setCChannels((s) => s.includes(ch) ? s.filter((x) => x !== ch) : [...s, ch])} active={cChannels.includes(ch)}>
-                          {ch.charAt(0) + ch.slice(1).toLowerCase()}
-                        </Pick>
+                {/* ── §02 what is in market, and what each surface earned ── */}
+                <Section n={2} title="In market" right={
+                  <span className="flex items-center gap-2">
+                    <span style={MICRO}>{campaigns ? `${campaigns.length} CAMPAIGN${campaigns.length === 1 ? "" : "S"} · ${mk.live} LIVE` : "LOADING…"}</span>
+                    <Action onClick={() => writeLanding(null, null)} disabled={!!busy}>{busy === "landing" ? "WRITING…" : "+ LANDING PAGE"}</Action>
+                  </span>
+                }>
+                  {mk.surfaces.length === 0 ? (
+                    <Nothing
+                      title="Nothing is in market."
+                      why="A surface is anything a buyer can actually reach: a live campaign or a published landing page. Until one exists, marketing has produced words and no doors. Write a page above, or draft a campaign in the workshop below."
+                    />
+                  ) : (
+                    <>
+                      <Heads cols="minmax(0,1fr) 92px 78px 74px 92px" labels={["SURFACE", "KIND", "VIEWS", "ORDERS", "EARNED"]} />
+                      {mk.surfaces.map((s) => (
+                        <Row key={s.key} cols="minmax(0,1fr) 92px 78px 74px 92px">
+                          {s.href ? (
+                            <a href={s.href} target="_blank" rel="noreferrer" className="truncate text-[13.5px] font-semibold no-underline" style={{ color: INKB }}>
+                              {s.label} <span style={{ color: LIVE }}>↗</span>
+                            </a>
+                          ) : (
+                            <span className="truncate text-[13.5px] font-semibold">{s.label}</span>
+                          )}
+                          <Stamp text={s.kind} color={s.kind === "live" ? OKB : s.kind === "page" ? LIVE : DIMB} filled={s.kind === "live"} />
+                          <Num color={s.views == null ? FAINTB : s.views ? INKB : FAINTB}>{s.views == null ? "n/a" : s.views}</Num>
+                          <Num color={s.orders ? OKB : FAINTB}>{s.orders}</Num>
+                          <Num color={s.revenue ? OKB : FAINTB} bold={!!s.revenue}>{s.revenue ? `€${s.revenue.toLocaleString("en-US")}` : "—"}</Num>
+                        </Row>
                       ))}
-                    </span>
+                      <div className="pt-3 text-[12.5px] leading-relaxed" style={{ color: DIMB }}>
+                        {mk.attributedOrders === 0
+                          ? "Views are counted from real renders. No order has carried a ref yet, so no surface can claim revenue — every landing page CTA now stamps one, so the first sale through a page will appear on its row."
+                          : `${mk.attributedOrders} order${mk.attributedOrders === 1 ? "" : "s"} carried a ref back to the surface that sent the buyer. A campaign shows n/a views until an ad account is connected — Commerce will not render an impression it did not observe.`}
+                      </div>
+                    </>
+                  )}
+                </Section>
+
+                {/* ── §03 campaigns in detail: the creative and its experiments ── */}
+                <Section n={3} title="Campaigns" right={
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Campaign name"
+                      className="h-8 w-[150px] px-2.5 text-[12.5px]" style={{ fontFamily: SANS, border: `1px solid ${HAIRB}`, backgroundColor: "transparent", color: INKB, outline: "none" }} />
+                    <input value={cObjective} onChange={(e) => setCObjective(e.target.value)} placeholder="Objective — sell 40 sets before December"
+                      className="h-8 w-[240px] px-2.5 text-[12.5px]" style={{ fontFamily: SANS, border: `1px solid ${HAIRB}`, backgroundColor: "transparent", color: INKB, outline: "none" }} />
                     <input value={cBudget} onChange={(e) => setCBudget(e.target.value)} placeholder="cap €/mo"
-                      className="h-9 w-[92px] px-2 text-[13px] tabular-nums" style={{ fontFamily: MONO, border: `1px solid ${HAIRB}`, backgroundColor: "transparent", color: INKB, outline: "none" }} />
+                      className="h-8 w-[84px] px-2 text-[12.5px] tabular-nums" style={{ fontFamily: MONO, border: `1px solid ${HAIRB}`, backgroundColor: "transparent", color: INKB, outline: "none" }} />
                     <Action onClick={createCampaign} disabled={!!busy || !cName.trim() || !cObjective.trim() || cChannels.length === 0}>
-                      {busy === "campaign" ? "DRAFTING…" : "DRAFT CAMPAIGN"}
+                      {busy === "campaign" ? "DRAFTING…" : "DRAFT"}
                     </Action>
+                  </div>
+                }>
+                  <div className="flex flex-wrap items-center gap-1.5 pb-3">
+                    <span style={MICRO}>CHANNELS</span>
+                    {["INSTAGRAM", "LINKEDIN", "TIKTOK", "X", "META", "EMAIL"].map((ch) => (
+                      <Pick key={ch} onClick={() => setCChannels((s) => s.includes(ch) ? s.filter((x) => x !== ch) : [...s, ch])} active={cChannels.includes(ch)}>
+                        {ch.charAt(0) + ch.slice(1).toLowerCase()}
+                      </Pick>
+                    ))}
                   </div>
 
                   {campaigns?.length === 0 && <Nothing
@@ -885,6 +1039,7 @@ export default function CommerceLedger() {
                   {(campaigns ?? []).map((c) => {
                     const open = openCampaign === c.id;
                     const winner = c.variants.find((v) => v.winner);
+                    const earned = biz.orders.bySource[`c:${c.id}`];
                     return (
                       <div key={c.id} style={{ borderBottom: `1px solid ${HAIRB}` }}>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1 py-3">
@@ -896,6 +1051,7 @@ export default function CommerceLedger() {
                           <span style={MICRO}>{c.channels.join(" · ")}{c.budgetCap ? ` · CAP €${c.budgetCap}/MO` : ""}</span>
                           <Stamp text={`${c.variants.length} variant${c.variants.length === 1 ? "" : "s"}`} color={c.variants.length ? LIVE : FAINTB} />
                           {winner && <Stamp text="winner picked" color={OKB} />}
+                          {earned && <Stamp text={`€${earned.revenue} earned`} color={OKB} filled />}
                           {(c.fatigued?.length ?? 0) > 0 && <Stamp text={`${c.fatigued!.length} tired`} color={WARNB} />}
                           <span className="ml-auto flex flex-wrap gap-1.5">
                             {(CAMPAIGN_NEXT[c.status] ?? []).map((nx) => (
@@ -920,7 +1076,12 @@ export default function CommerceLedger() {
                                 {busy === "landing" ? "…" : "+ Landing page"}
                               </Pick>
                             </div>
-                            {c.variants.length === 0 && <Thin>No creative yet — each variant is written through the brain and told to differ from its siblings.</Thin>}
+                            {c.variants.length === 0 && (
+                              <Nothing
+                                title="No creative in this campaign."
+                                why="Each variant is written through every brain rule — the core craft rules, this company's own guidelines, anything you taught it, and anything it learned from measured outcomes — then told explicitly to differ from its siblings so the test is a real test."
+                              />
+                            )}
                             {c.variants.map((v) => (
                               <div key={v.id} className="py-3" style={{ borderTop: `1px solid ${HAIRB}` }}>
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -953,54 +1114,95 @@ export default function CommerceLedger() {
                   })}
                 </Section>
 
-                {/* landing pages */}
-                <Section n={3} title="Landing pages" right={
+                {/* ── §04 landing pages, each with what it actually earned ── */}
+                <Section n={4} title="Pages" right={
                   <span className="flex items-center gap-2">
-                    <span style={MICRO}>{landings ? `${landings.length} PUBLISHED` : "LOADING…"}</span>
+                    <span style={MICRO}>{landings ? `${landings.length} PUBLISHED · ${mk.pageViews} VIEW${mk.pageViews === 1 ? "" : "S"} MEASURED` : "LOADING…"}</span>
                     <Action onClick={() => writeLanding(null, null)} disabled={!!busy}>{busy === "landing" ? "WRITING…" : "WRITE A PAGE"}</Action>
                   </span>
                 }>
                   {landings?.length === 0 && <Nothing
                       title="No landing pages yet."
-                      why="Each one is written for a single real product and served by the store as complete HTML with Product and Offer data embedded — so an agent following an ad link reads exactly what a person does. Views are counted from real renders."
+                      why="A landing page argues for one product to one audience — a catalogue asks people to browse, a page asks them to buy. It is served by the store as complete HTML with Product and Offer data embedded, so an agent following an ad link reads exactly what a person does. Every CTA carries a ref, which is how the row above learns what the page earned."
                     />}
-                  {(landings ?? []).map((l) => (
-                    <div key={l.id} className="py-3" style={{ borderBottom: `1px solid ${HAIRB}` }}>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                        <Stamp text={l.id} color={LIVE} />
-                        <a href={`/store/${biz.business.slug}/l/${l.id}`} target="_blank" rel="noreferrer" className="min-w-0 text-[13.5px] font-semibold no-underline" style={{ color: INKB }}>
-                          {l.headline} <span style={{ color: LIVE }}>↗</span>
-                        </a>
-                        {l.campaignId && <Stamp text={l.campaignId} color={DIMB} />}
-                        {l.sku && <span style={MICRO}>{l.sku}</span>}
-                        <span className="ml-auto flex items-center gap-3">
-                          <span style={MICRO}>{l.views} VIEW{l.views === 1 ? "" : "S"} · MEASURED</span>
-                          <Pick onClick={() => removeLanding(l.id)} disabled={!!busy} danger>Remove</Pick>
-                        </span>
+                  {(landings ?? []).map((l) => {
+                    const earned = biz.orders.bySource[`l:${l.id}`];
+                    return (
+                      <div key={l.id} className="py-3" style={{ borderBottom: `1px solid ${HAIRB}` }}>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                          <Stamp text={l.id} color={LIVE} />
+                          <a href={`/store/${biz.business.slug}/l/${l.id}`} target="_blank" rel="noreferrer" className="min-w-0 text-[13.5px] font-semibold no-underline" style={{ color: INKB }}>
+                            {l.headline} <span style={{ color: LIVE }}>↗</span>
+                          </a>
+                          {l.campaignId && <Stamp text={l.campaignId} color={DIMB} />}
+                          {l.sku && <span style={MICRO}>{l.sku}</span>}
+                          <span className="ml-auto flex items-center gap-3">
+                            <span style={MICRO}>{l.views} VIEW{l.views === 1 ? "" : "S"}</span>
+                            {earned
+                              ? <Stamp text={`${earned.orders} order${earned.orders === 1 ? "" : "s"} · €${earned.revenue}`} color={OKB} filled />
+                              : <Stamp text={l.views ? "no sale yet" : "unseen"} color={l.views ? WARNB : FAINTB} />}
+                            <Pick onClick={() => removeLanding(l.id)} disabled={!!busy} danger>Remove</Pick>
+                          </span>
+                        </div>
+                        <div className="mt-1.5 text-pretty text-[12.5px]" style={{ color: DIMB }}>{l.subhead}</div>
+                        {l.bullets.length > 0 && (
+                          <ul className="mt-1.5 flex flex-col gap-0.5">
+                            {l.bullets.map((x) => <li key={x} className="text-[12px]" style={{ color: DIMB }}>— {x}</li>)}
+                          </ul>
+                        )}
+                        <div className="mt-1.5" style={MICRO}>CTA · {l.cta}{l.audience ? ` · FOR ${l.audience.toUpperCase()}` : ""}</div>
                       </div>
-                      <div className="mt-1.5 text-pretty text-[12.5px]" style={{ color: DIMB }}>{l.subhead}</div>
-                      {l.bullets.length > 0 && (
-                        <ul className="mt-1.5 flex flex-col gap-0.5">
-                          {l.bullets.map((x) => <li key={x} className="text-[12px]" style={{ color: DIMB }}>— {x}</li>)}
-                        </ul>
-                      )}
-                      <div className="mt-1.5" style={MICRO}>CTA · {l.cta}{l.audience ? ` · FOR ${l.audience.toUpperCase()}` : ""}</div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </Section>
 
-                <Section n={4} title="Draft desk — quick copy grounded in the catalog"
-                  right={<div className="flex flex-wrap gap-1.5">{["LINKEDIN", "X", "INSTAGRAM", "TIKTOK"].map((pf) => (
+                {/* ── §05 the workshop: where creative gets made ── */}
+                <Section n={5} title="The workshop" right={
+                  <div className="flex flex-wrap gap-1.5">{["LINKEDIN", "X", "INSTAGRAM", "TIKTOK"].map((pf) => (
                     <Pick key={pf} onClick={() => generateDraft(pf)} active={draftPf === pf} disabled={!!busy}>
                       {busy === `draft-${pf}` ? "…" : pf.charAt(0) + pf.slice(1).toLowerCase()}
                     </Pick>
                   ))}</div>}>
                   {draft ? (
                     <div className="whitespace-pre-wrap p-4 text-[13.5px] leading-relaxed" style={{ backgroundColor: INSETB, color: INKB }}>{draft}</div>
-                  ) : <Thin>Pick a channel — the worker writes through every brain rule, selling a real product at its exact price.</Thin>}
+                  ) : (
+                    <Nothing
+                      title="Nothing on the bench."
+                      why="Pick a channel and the worker writes one piece through every brain rule, selling a real product at its exact price. This is the scratchpad — copy that should live somewhere permanent belongs in a campaign or a page."
+                    />
+                  )}
+                  <div className="mt-3 grid gap-x-8 gap-y-3 md:grid-cols-2" style={{ borderTop: `1px solid ${HAIRB}`, paddingTop: 12 }}>
+                    <div>
+                      <div style={MICRO}>WHAT IT WRITES THROUGH</div>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <Stamp text={`${biz.brain?.counts.core ?? 0} craft`} color={DIMB} />
+                        <Stamp text={`${biz.brain?.counts.company ?? 0} this company`} color={(biz.brain?.counts.company ?? 0) ? OKB : FAULTB} filled={(biz.brain?.counts.company ?? 0) === 0} />
+                        <Stamp text={`${biz.brain?.counts.taught ?? 0} taught`} color={DIMB} />
+                        <Stamp text={`${biz.brain?.counts.learned ?? 0} learned`} color={(biz.brain?.counts.learned ?? 0) ? LIVE : FAINTB} />
+                      </div>
+                      <div className="mt-2 text-pretty text-[12.5px] leading-snug" style={{ color: DIMB }}>
+                        {(biz.brain?.counts.company ?? 0) === 0
+                          ? "This business has only the generic craft rules. Nothing it writes will sound like it and no video will look like it until its own guidelines are seeded — the queue at the top offers that."
+                          : "Every draft, variant and page is written through all four layers."}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={MICRO}>VIDEO</div>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <Stamp text={biz.brain?.visual ? "visual world set" : "no visual world"} color={biz.brain?.visual ? OKB : FAULTB} filled={!biz.brain?.visual} />
+                        <Stamp text="renderer awaiting key" color={WARNB} />
+                      </div>
+                      <div className="mt-2 text-pretty text-[12.5px] leading-snug" style={{ color: DIMB }}>
+                        {biz.brain?.visual
+                          ? `Shot in: ${biz.brain.visual.setting}. Every cut inherits that world, so two ads a month apart still look like the same company.`
+                          : "A visual world is the one look every video for this business is shot in — setting, light, materials, camera language, and what must never appear. Without it, rendered footage would be handsome and anonymous."}
+                      </div>
+                    </div>
+                  </div>
                 </Section>
 
-                <Section n={3} title="Audience learning" right={<span style={MICRO}>DISTILLED FROM MEASURED OUTCOMES</span>}>
+                {/* ── §06 what it learned, and what it cannot yet know ── */}
+                <Section n={6} title="What it learned" right={<span style={MICRO}>DISTILLED FROM MEASURED OUTCOMES ONLY</span>}>
                   {!biz.brain || biz.brain.learned.length === 0 ? <Nothing
                       title="Nothing learned yet."
                       why="The brain only draws conclusions from measured outcomes — real agent reads and real orders. With too little signal it refuses to conclude rather than inventing a pattern, which is why this is empty on a young business."
@@ -1011,15 +1213,19 @@ export default function CommerceLedger() {
                         <span className="min-w-0 flex-1 text-pretty text-[13px]" style={{ color: DIMB }}>{r.txt}</span>
                       </Row>
                     ))}
+                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2" style={{ borderTop: `1px solid ${HAIRB}`, paddingTop: 12 }}>
+                    <Stamp text="not measurable here" color={WARNB} filled />
+                    <span className="min-w-0 flex-1 text-pretty text-[12.5px] leading-snug" style={{ color: DIMB }}>
+                      ROAS, CAC, CTR and spend need an ad account (Meta · Google · TikTok). They stay absent rather than estimated —
+                      the platforms that do estimate them are the reason nobody can tell which of their creatives worked.
+                    </span>
+                  </div>
                 </Section>
 
-                <Section n={4} title="Channel performance" right={<Stamp text="awaiting connection" color={WARNB} />}>
-                  <Thin>
-                    ROAS · CAC · CTR · conversion · spend go live the moment an ad account is connected (Meta · Google · TikTok).
-                    Commerce will not render a simulated campaign number.
-                  </Thin>
-                </Section>
-                <AuditLine measured="drafts · brain rules applied · learned rules" awaiting="ad accounts · rendered creatives (Higgsfield key)" />
+                <AuditLine
+                  measured="every marketing decision and who made it · page views from real renders · orders and revenue credited only where the buyer carried a ref"
+                  awaiting="ad accounts for spend and reach · a Higgsfield key for rendered video"
+                />
               </>
             )}
 
@@ -1089,13 +1295,13 @@ export default function CommerceLedger() {
                 <Section n={3} title="Warehouse" right={<span style={MICRO}>ORDERS DECREMENT STOCK · 0 FLIPS AVAILABILITY</span>}>
                   <Heads cols="minmax(0,1fr) 84px 140px 72px auto" labels={["PRODUCT", "PRICE", "LEVEL", "ON HAND", "REPLENISH"]} />
                   {biz.business.catalog.map((p) => {
-                    const lvl = p.stock === 0 ? FAULTB : p.stock <= 3 ? WARNB : OKB;
+                    const lvl = p.stock === 0 ? FAULTB : (p.stock ?? 99) <= 3 ? WARNB : OKB;
                     return (
                       <Row key={p.sku} cols="minmax(0,1fr) 84px 140px 72px auto">
                         <a href={`/store/${biz.business.slug}/p/${p.sku}`} target="_blank" rel="noreferrer" className="truncate text-[13.5px] font-semibold no-underline" style={{ color: INKB }}>{p.name}</a>
                         <Num color={DIMB}>{p.price}</Num>
                         <Bar pct={Math.min(100, ((p.stock ?? 0) / 24) * 100)} color={lvl} />
-                        <Num color={p.stock === 0 ? FAULTB : DIMB} bold>{p.availability === "PreOrder" ? "PRE" : p.stock === 0 ? "OUT" : `${p.stock}u`}</Num>
+                        <Num color={p.stock === 0 ? FAULTB : DIMB} bold>{p.stock == null ? "—" : p.availability === "PreOrder" ? "PRE" : p.stock === 0 ? "OUT" : `${p.stock}u`}</Num>
                         <span className="flex justify-end"><Pick onClick={() => restock(p.sku)} disabled={!!busy} active>{busy === `r-${p.sku}` ? "…" : "Restock +12"}</Pick></span>
                       </Row>
                     );
@@ -1381,7 +1587,7 @@ export default function CommerceLedger() {
                           <a href={`/store/${biz.business.slug}/p/${p.sku}`} target="_blank" rel="noreferrer" className="truncate text-[13.5px] font-semibold no-underline" style={{ color: INKB }}>{p.name}</a>
                           <Num color={DIMB}>{p.price}{p.unit && p.unit !== "item" ? `/${p.unit}` : ""}</Num>
                           <Num color={p.kind && p.kind !== "good" ? FAINTB : p.stock === 0 ? FAULTB : DIMB}>
-                            {p.kind && p.kind !== "good" ? "—" : `${p.stock}u`}
+                            {p.stock == null ? "—" : `${p.stock}u`}
                           </Num>
                           <Num color={DIMB}>{sold}</Num>
                           <Num color={rev ? OKB : FAINTB} bold>€{rev}</Num>
@@ -1394,9 +1600,9 @@ export default function CommerceLedger() {
                             {!retired && share >= 50 && <Stamp text={`${share}% of revenue`} color={OKB} />}
                             {!retired && fin?.marginPct != null && fin.marginPct < 20 && <Stamp text={`thin margin ${fin.marginPct}%`} color={WARNB} />}
                             {!retired && reads === 0 && <Stamp text="invisible to AI" color={WARNB} />}
-                            {!retired && p.stock <= 3 && p.availability !== "PreOrder" && <Stamp text={p.stock === 0 ? "out of stock" : "low stock"} color={p.stock === 0 ? FAULTB : WARNB} />}
+                            {!retired && p.stock != null && p.stock <= 3 && p.availability !== "PreOrder" && <Stamp text={p.stock === 0 ? "out of stock" : "low stock"} color={p.stock === 0 ? FAULTB : WARNB} />}
                             {!retired && sold === 0 && reads > 0 && <Stamp text="read, never bought" color={LIVE} />}
-                            <Pick onClick={() => { setOpenSku(open ? null : p.sku); setEPrice(p.price.replace(/^€/, "").replace(/\/(mo|yr)$/, "")); setEStock(String(p.stock)); setEKind(p.kind ?? "good"); setEUnit(p.unit ?? "item"); setProv({ ...(p.provenance ?? {}) } as Record<string, string>); }} active={open}>
+                            <Pick onClick={() => { setOpenSku(open ? null : p.sku); setEPrice(p.price.replace(/^€/, "").replace(/\/(mo|yr)$/, "")); setEStock(p.stock == null ? "" : String(p.stock)); setEKind(p.kind ?? "good"); setEUnit(p.unit ?? "item"); setProv({ ...(p.provenance ?? {}) } as Record<string, string>); }} active={open}>
                               {open ? "Close" : "Manage"}
                             </Pick>
                           </span>

@@ -77,7 +77,9 @@ export default async function LandingPage({ params }: Params) {
 
           {product && (
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 20, marginTop: 34 }}>
-              <Link href={`/store/${slug}/checkout?sku=${product.sku}`}
+              {/* ?ref= is what lets Marketing say this page earned money rather
+                  than merely being looked at. It rides through to the order. */}
+              <Link href={`/store/${slug}/checkout?sku=${product.sku}&ref=l:${l.id}`}
                 style={{ fontFamily: MONO, backgroundColor: b.accent, color: b.onAccent, fontWeight: 800, fontSize: 14, textTransform: "uppercase", letterSpacing: "0.12em", padding: "16px 30px", textDecoration: "none" }}>
                 {l.cta}
               </Link>
@@ -98,7 +100,7 @@ export default async function LandingPage({ params }: Params) {
                 <div style={{ fontSize: 18, fontWeight: 800 }}>{product.name}</div>
                 <p style={{ marginTop: 8, fontSize: 14, lineHeight: 1.6, color: sub }}>{product.description}</p>
                 <div style={{ ...label, letterSpacing: "0.12em", marginTop: 12 }}>
-                  RETURNS · {s.manifest.returns ?? "30 days, unopened"} · <Link href={`/store/${slug}/p/${product.sku}`} style={{ color: b.accent }}>FULL SPEC →</Link>
+                  RETURNS · {s.manifest.returns ?? "30 days, unopened"} · <Link href={`/store/${slug}/p/${product.sku}?ref=l:${l.id}`} style={{ color: b.accent }}>FULL SPEC →</Link>
                 </div>
               </div>
             </div>

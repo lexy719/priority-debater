@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { priceWithUnit, shipsPhysically } from "@/lib/studio/aiStorefront";
+import { normaliseSource } from "@/lib/studio/orderRepo";
 import { loadStore } from "@/lib/studio/storeRepo";
 import { MONO, StoreFooter, StoreHeader, mkTheme } from "../store-ui";
 
@@ -14,7 +15,7 @@ import { MONO, StoreFooter, StoreHeader, mkTheme } from "../store-ui";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ sku?: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ sku?: string; ref?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CheckoutPage({ params, searchParams }: Props) {
   const { slug } = await params;
-  const { sku } = await searchParams;
+  const { sku, ref } = await searchParams;
   const s = await loadStore(slug);
   if (!s) notFound();
   const { b, hair, sub, label } = mkTheme(s);
@@ -34,6 +35,9 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
   const p = (asked && asked.availability !== "Discontinued" ? asked : live[0]) ?? s.store.products[0];
   const redirected = asked != null && asked !== p;
   const ships = shipsPhysically(p.kind);
+  // Whichever marketing surface sent them rides along as a hidden field, so it
+  // survives a JavaScript-off form post exactly as it survives an agent's JSON.
+  const source = normaliseSource(ref);
 
   const field: React.CSSProperties = { display: "block", width: "100%", border: `1px solid ${hair}`, background: b.bg, color: b.ink, fontFamily: MONO, fontSize: 13, padding: "10px 12px", marginTop: 6 };
 
@@ -58,6 +62,7 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
             </p>
             <form method="POST" action={`/api/store/${s.slug}/order`} style={{ marginTop: 18 }}>
               <input type="hidden" name="sku" value={p.sku} />
+              {source && <input type="hidden" name="ref" value={source} />}
               <label style={{ ...label, letterSpacing: "0.14em" }}>FULL NAME
                 <input name="name" required autoComplete="name" placeholder="Ada Lovelace" style={field} />
               </label>

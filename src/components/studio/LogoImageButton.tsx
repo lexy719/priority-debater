@@ -92,7 +92,7 @@ export function LogoImageButton({ prompt }: { prompt: string }) {
   if (status === "unconfigured") {
     return (
       <span className="font-mono text-[9px] uppercase tracking-[0.12em] opacity-60">
-        Add HIGGSFIELD_API_KEY for logos
+        Add the Higgsfield key pair for logos
       </span>
     );
   }

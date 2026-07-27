@@ -25,12 +25,32 @@ export type StoreOrder = {
   channel: "web-form" | "agent-json";
   agent: string; // classified UA of whoever placed it
   status: OrderStatus;
+  /** Which marketing surface sent this buyer: "l:<landingId>", "c:<campaignId>",
+      or a free token. Absent means the order arrived with no ref — direct, or
+      through a surface that predates attribution. Never inferred. */
+  source?: string;
   /** Timestamped lifecycle trail — the evidence behind the seller record's
       fulfilment speed. Orders placed before this existed simply have none. */
   history?: { status: OrderStatus; ts: string }[];
 };
 
 export type OrderStatus = "received" | "confirmed" | "shipped" | "delivered" | "cancelled";
+
+/**
+ * Normalise an inbound ref before it is written to an order. A source is a
+ * short opaque token, never free text: it is displayed in the operator's
+ * ledger, so an unbounded string from a query parameter has no business there.
+ * Anything that does not fit the shape is dropped rather than truncated —
+ * a mangled source would attribute revenue to a surface that never existed.
+ */
+export function normaliseSource(raw: unknown): string | undefined {
+  // Case is PRESERVED. Surface ids are minted uppercase ("L-01", "C-02") and
+  // the operator's view looks them up by that exact key — lowercasing here
+  // would store a ref that never matches the page that earned it, and the
+  // revenue would quietly fall into "unattributed" forever.
+  const s = String(raw ?? "").trim();
+  return /^[A-Za-z0-9][A-Za-z0-9:_-]{0,47}$/.test(s) ? s : undefined;
+}
 /** Legal lifecycle moves — the Ops Agent's order-flow state machine. */
 export const ORDER_FLOW: Record<OrderStatus, OrderStatus[]> = {
   received: ["confirmed", "cancelled"],
@@ -196,17 +216,24 @@ export type OrdersSummary = {
   bySku: Record<string, { qty: number; revenue: number }>;
   /** Real per-day series (ISO date keyed) — the only chart data Commerce draws. */
   daily: { d: string; revenue: number; orders: number }[];
-  recent: { id: string; ts: string; productName: string; qty: number; price: string; channel: StoreOrder["channel"]; agent: string; status: OrderStatus }[];
+  /** Orders + revenue credited to each marketing surface, keyed by the ref the
+      buyer arrived with. Orders with no ref are counted in `unattributed` and
+      are never spread across surfaces — a guess here is a lie about revenue. */
+  bySource: Record<string, { orders: number; revenue: number }>;
+  unattributed: { orders: number; revenue: number };
+  recent: { id: string; ts: string; productName: string; qty: number; price: string; channel: StoreOrder["channel"]; agent: string; status: OrderStatus; source?: string }[];
 };
 
 export async function loadOrdersSummary(slug: string): Promise<OrdersSummary> {
-  const empty: OrdersSummary = { count: 0, revenue: 0, byChannel: {}, byAgent: {}, bySku: {}, daily: [], recent: [] };
+  const empty: OrdersSummary = { count: 0, revenue: 0, byChannel: {}, byAgent: {}, bySku: {}, daily: [], bySource: {}, unattributed: { orders: 0, revenue: 0 }, recent: [] };
   if (!SLUG_RE.test(slug)) return empty;
   try {
     const orders = await readAll(slug);
     const byChannel: Record<string, number> = {};
     const byAgent: Record<string, number> = {};
     const bySku: Record<string, { qty: number; revenue: number }> = {};
+    const bySource: Record<string, { orders: number; revenue: number }> = {};
+    const unattributed = { orders: 0, revenue: 0 };
     const byDay = new Map<string, { revenue: number; orders: number }>();
     let revenue = 0;
     for (const o of orders) {
@@ -216,6 +243,13 @@ export async function loadOrdersSummary(slug: string): Promise<OrdersSummary> {
       const sku = bySku[o.productName] ?? { qty: 0, revenue: 0 };
       sku.qty += o.qty; sku.revenue += val;
       bySku[o.productName] = sku;
+      if (o.source) {
+        const src = bySource[o.source] ?? { orders: 0, revenue: 0 };
+        src.orders += 1; src.revenue += val;
+        bySource[o.source] = src;
+      } else {
+        unattributed.orders += 1; unattributed.revenue += val;
+      }
       const d = o.ts.slice(0, 10);
       const day = byDay.get(d) ?? { revenue: 0, orders: 0 };
       day.revenue += val; day.orders += 1;
@@ -223,9 +257,10 @@ export async function loadOrdersSummary(slug: string): Promise<OrdersSummary> {
       revenue += val;
     }
     return {
-      count: orders.length, revenue, byChannel, byAgent, bySku,
+      count: orders.length, revenue, byChannel, byAgent, bySku, bySource,
+      unattributed: { orders: unattributed.orders, revenue: Math.round(unattributed.revenue) },
       daily: [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(-14).map(([d, v]) => ({ d, revenue: Math.round(v.revenue), orders: v.orders })),
-      recent: orders.slice(-10).reverse().map((o) => ({ id: o.id, ts: o.ts, productName: o.productName, qty: o.qty, price: o.price, channel: o.channel, agent: o.agent, status: o.status ?? "received" })),
+      recent: orders.slice(-10).reverse().map((o) => ({ id: o.id, ts: o.ts, productName: o.productName, qty: o.qty, price: o.price, channel: o.channel, agent: o.agent, status: o.status ?? "received", ...(o.source ? { source: o.source } : {}) })),
     };
   } catch {
     return empty;

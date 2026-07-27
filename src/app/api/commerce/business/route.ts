@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { listActivity } from "@/lib/studio/activityRepo";
 import { loadAftercare } from "@/lib/studio/aftercareRepo";
+import { isStocked } from "@/lib/studio/aiStorefront";
 import { listDeliveries } from "@/lib/studio/deliveryRepo";
 import { evaluateAutomations, listAutomations } from "@/lib/studio/automationRepo";
 import { measureMetrics } from "@/lib/studio/autoMetrics";
@@ -261,7 +262,7 @@ export async function GET(req: Request) {
       spec: store.spec,
       source: store.source,
       createdAt: store.createdAt,
-      catalog: allProducts.map((p) => ({ sku: p.sku, name: p.name, price: p.price, priceValue: p.priceValue, availability: p.availability ?? "InStock", category: p.category, stock: p.stock ?? 24, provenance: p.provenance, kind: p.kind, unit: p.unit })),
+      catalog: allProducts.map((p) => ({ sku: p.sku, name: p.name, price: p.price, priceValue: p.priceValue, availability: p.availability ?? "InStock", category: p.category, stock: isStocked(p.kind) ? (p.stock ?? 24) : null, provenance: p.provenance, kind: p.kind, unit: p.unit })),
       retiredCount,
       manifest: store.manifest,
     },

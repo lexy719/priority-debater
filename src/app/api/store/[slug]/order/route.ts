@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { recordActivity } from "@/lib/studio/activityRepo";
 import { classifyAgent } from "@/lib/studio/hitRepo";
-import { orderId, saveOrder, type StoreOrder } from "@/lib/studio/orderRepo";
+import { normaliseSource, orderId, saveOrder, type StoreOrder } from "@/lib/studio/orderRepo";
 import { shipsPhysically } from "@/lib/studio/aiStorefront";
 import { generateArtefact, loadArtefact } from "@/lib/studio/artefactRepo";
 import { issueDelivery } from "@/lib/studio/deliveryRepo";
@@ -28,16 +28,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   if (!s) return NextResponse.json({ ok: false, error: "store not found" }, { status: 404 });
 
   const isJson = (req.headers.get("content-type") ?? "").includes("application/json");
-  let sku = "", qty = 1, name = "", email = "", address = "";
+  let sku = "", qty = 1, name = "", email = "", address = "", ref: unknown = null;
   try {
     if (isJson) {
       const b = await req.json();
       sku = String(b.sku ?? ""); qty = Math.max(1, Math.min(99, Number(b.qty) || 1));
       name = String(b.name ?? ""); email = String(b.email ?? ""); address = String(b.address ?? "");
+      ref = b.ref;
     } else {
       const f = await req.formData();
       sku = String(f.get("sku") ?? ""); qty = Math.max(1, Math.min(99, Number(f.get("qty")) || 1));
       name = String(f.get("name") ?? ""); email = String(f.get("email") ?? ""); address = String(f.get("address") ?? "");
+      ref = f.get("ref");
     }
   } catch {
     return NextResponse.json({ ok: false, error: "invalid body" }, { status: 400 });
@@ -73,6 +75,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     channel: isJson ? "agent-json" : "web-form",
     agent: classifyAgent(req.headers.get("user-agent")),
     status: "received",
+    ...(normaliseSource(ref) ? { source: normaliseSource(ref) } : {}),
   };
   try {
     await saveOrder(order);
@@ -82,6 +85,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   // Ops Agent: inventory moves with the order; the log shows who sold what.
   const left = await adjustStock(slug, sku, qty);
   await recordActivity(slug, "OPERATIONS", `Order ${order.id} received — ${p.name} ×${qty} via ${order.channel === "agent-json" ? order.agent : "web"}${left != null ? ` · stock ${left}` : ""}${left === 0 ? " · SKU NOW OUT OF STOCK" : ""}`, "auto");
+  // Credit the surface that sent them. Without this line Marketing can only
+  // ever report what it published, never what any of it was worth.
+  if (order.source) {
+    await recordActivity(slug, "MARKETING",
+      `${order.source.startsWith("l:") ? "Landing page" : "Campaign"} ${order.source.slice(2) || order.source} produced order ${order.id}${order.total != null ? ` · €${order.total.toFixed(2)}` : ""}`,
+      "auto");
+  }
 
   // If the seller attached nothing, PDR makes the thing it sold. A digital
   // business it runs end to end cannot hand over a link to a file nobody wrote.

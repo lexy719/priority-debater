@@ -1,31 +1,76 @@
 import "server-only";
 
 /**
- * Higgsfield client — AI image + video generation for the studio.
+ * Higgsfield client — image + video generation for the studio and the Commerce
+ * marketing worker.
  *
- * Used for the Campaign stage (image-to-video / text-to-video ad cuts) and logo
- * images in the Brand Kit. Generation is asynchronous: submit returns a job id,
- * then poll `getGeneration(id)` until it completes and exposes an output URL.
+ * The wire contract, taken from the official SDKs (higgsfield-js /
+ * higgsfield-client) rather than from third-party blog posts:
  *
- * Endpoint/auth follow the documented Higgsfield API
- * (POST https://api.higgsfield.ai/v1/generations, Bearer auth). Base URL and
- * model names are env-overridable so they can be tuned to your account without a
- * code change. Every caller checks `higgsfieldConfigured()` first and degrades
- * to the storyboard/monogram fallback when no key is set.
+ *   base    https://platform.higgsfield.ai
+ *   auth    Authorization: Key <KEY_ID>:<KEY_SECRET>      ← a PAIR, not a Bearer
+ *   image   POST /v1/text2image/soul
+ *   video   POST /v1/image2video/dop
+ *   poll    GET  /requests/{id}/status
+ *   states  queued | in_progress | nsfw | failed | completed
+ *   output  { images: [{ url }] } or { video: { url } }
+ *
+ * An earlier version of this file sent `Authorization: Bearer <one key>` to
+ * `api.higgsfield.ai/v1/generations` with a model literally named
+ * "default-video-model". All five of those were wrong, and because errors were
+ * collapsed into a generic message nothing said so. Every failure path here
+ * carries the API's own words back to the caller.
  */
 
+const DEFAULT_BASE = "https://platform.higgsfield.ai";
+const DEFAULT_IMAGE_PATH = "/v1/text2image/soul";
+const DEFAULT_VIDEO_PATH = "/v1/image2video/dop";
+
+/**
+ * The credential pair. Accepts either the two halves as separate vars (what the
+ * Higgsfield dashboard hands you) or a single combined "id:secret" string,
+ * which is how both official SDKs let you pass it.
+ */
+function credentials(): { id: string; secret: string } | null {
+  const id = process.env.HIGGSFIELD_KEY_ID?.trim();
+  const secret = process.env.HIGGSFIELD_KEY_SECRET?.trim();
+  if (id && secret) return { id, secret };
+
+  const combined = (process.env.HF_CREDENTIALS ?? process.env.HIGGSFIELD_API_KEY ?? "").trim();
+  const cut = combined.indexOf(":");
+  if (cut > 0 && cut < combined.length - 1) {
+    return { id: combined.slice(0, cut), secret: combined.slice(cut + 1) };
+  }
+  return null;
+}
+
 export function higgsfieldConfigured(): boolean {
-  return Boolean(process.env.HIGGSFIELD_API_KEY?.trim());
+  return credentials() !== null;
+}
+
+/**
+ * Why generation is unavailable, in words an operator can act on. A key that is
+ * half-filled is a different problem from no key at all, and saying so saves an
+ * hour of staring at a silent panel.
+ */
+export function higgsfieldStatusNote(): string | null {
+  if (higgsfieldConfigured()) return null;
+  const anyHalf = process.env.HIGGSFIELD_KEY_ID?.trim() || process.env.HIGGSFIELD_KEY_SECRET?.trim();
+  return anyHalf
+    ? "Half the Higgsfield credential is set. It needs both HIGGSFIELD_KEY_ID and HIGGSFIELD_KEY_SECRET."
+    : "No Higgsfield credential. Set HIGGSFIELD_KEY_ID and HIGGSFIELD_KEY_SECRET in .env.local.";
 }
 
 function baseUrl(): string {
-  return (process.env.HIGGSFIELD_BASE_URL?.trim() || "https://api.higgsfield.ai").replace(/\/$/, "");
+  return (process.env.HIGGSFIELD_BASE_URL?.trim() || DEFAULT_BASE).replace(/\/$/, "");
 }
 
 function authHeaders(): Record<string, string> {
+  const c = credentials();
   return {
     "content-type": "application/json",
-    Authorization: `Bearer ${process.env.HIGGSFIELD_API_KEY?.trim() ?? ""}`,
+    accept: "application/json",
+    Authorization: c ? `Key ${c.id}:${c.secret}` : "",
   };
 }
 
@@ -47,14 +92,19 @@ function withTimeout(ms: number) {
 
 /** Pull the asset URL out of whatever shape the API returns. */
 function extractUrl(data: Record<string, unknown>): string | null {
-  const candidates = [
+  const first = (v: unknown): unknown =>
+    Array.isArray(v) ? (v[0] as Record<string, unknown> | undefined) : v;
+  const candidates: unknown[] = [
+    (first(data.images) as Record<string, unknown> | undefined)?.url,
+    (first(data.videos) as Record<string, unknown> | undefined)?.url,
+    (data.video as Record<string, unknown> | undefined)?.url,
+    (data.image as Record<string, unknown> | undefined)?.url,
+    (data.result as Record<string, unknown> | undefined)?.url,
+    (first(data.output) as Record<string, unknown> | undefined)?.url,
     data.output_url,
     data.video_url,
     data.image_url,
     data.url,
-    (data.output as Record<string, unknown> | undefined)?.url,
-    (data.result as Record<string, unknown> | undefined)?.url,
-    Array.isArray(data.output) ? (data.output[0] as Record<string, unknown>)?.url : undefined,
   ];
   for (const c of candidates) if (typeof c === "string" && c.startsWith("http")) return c;
   return null;
@@ -63,88 +113,156 @@ function extractUrl(data: Record<string, unknown>): string | null {
 function normStatus(raw: unknown): GenerationStatus {
   const s = String(raw ?? "").toLowerCase();
   if (["completed", "succeeded", "success", "done"].includes(s)) return "completed";
-  if (["failed", "error", "canceled", "cancelled"].includes(s)) return "failed";
-  if (["processing", "running", "in_progress"].includes(s)) return "processing";
+  // `nsfw` means the safety filter rejected it. That is a terminal refusal, not
+  // a transient error — reporting it as "queued" would poll forever.
+  if (["failed", "error", "canceled", "cancelled", "nsfw"].includes(s)) return "failed";
+  if (["processing", "running", "in_progress", "in-progress"].includes(s)) return "processing";
   return "queued";
 }
 
-/** Submit a generation job. Returns the job id (poll getGeneration for the result). */
-export async function submitGeneration(body: Record<string, unknown>): Promise<GenerationResult> {
-  const t = withTimeout(20_000);
+/** The API's own explanation, not ours. Truncated so it can go in a UI panel. */
+function apiMessage(status: number, data: Record<string, unknown>, raw: string): string {
+  const detail = data.detail ?? data.error ?? data.message;
+  if (typeof detail === "string" && detail.trim()) return `${status}: ${detail.trim().slice(0, 300)}`;
+  if (Array.isArray(detail) && detail.length) {
+    // FastAPI-style validation errors: [{loc, msg, type}]
+    const parts = detail
+      .map((d) => {
+        const o = d as Record<string, unknown>;
+        const loc = Array.isArray(o.loc) ? o.loc.join(".") : "";
+        return [loc, o.msg].filter(Boolean).join(" ");
+      })
+      .filter(Boolean);
+    if (parts.length) return `${status}: ${parts.join("; ").slice(0, 300)}`;
+  }
+  const body = raw.trim().slice(0, 200);
+  if (status === 401 || status === 403) {
+    return `${status}: Higgsfield rejected the credential. Check the ID and secret are the matching pair and neither has been rotated.${body ? ` — ${body}` : ""}`;
+  }
+  return body ? `${status}: ${body}` : `Higgsfield error ${status}`;
+}
+
+async function post(path: string, body: Record<string, unknown>) {
+  const t = withTimeout(30_000);
   try {
-    const res = await fetch(`${baseUrl()}/v1/generations`, {
+    const res = await fetch(`${baseUrl()}${path}`, {
       method: "POST",
       headers: authHeaders(),
       body: JSON.stringify(body),
       signal: t.signal,
       cache: "no-store",
     });
-    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!res.ok) {
-      const message = (data.error as string) || (data.message as string) || `Higgsfield error ${res.status}`;
-      throw new Error(message);
-    }
-    const id = String(data.id ?? data.generation_id ?? "");
-    if (!id) throw new Error("Higgsfield did not return a job id.");
-    return { id, status: normStatus(data.status ?? "queued"), url: extractUrl(data) };
+    const raw = await res.text();
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(raw) as Record<string, unknown>; } catch { /* keep raw */ }
+    return { res, data, raw };
   } finally {
     t.done();
   }
 }
 
+/**
+ * Submit a generation job against a model path. Returns the job id — poll
+ * `getGeneration` for the result.
+ *
+ * The parameter envelope differs by SDK generation (`params` in the REST
+ * examples, `input` in the v2 JS client). Rather than guess and leave the
+ * operator with an opaque 422, we send `params` and retry once with `input` if
+ * the API complains about the shape.
+ */
+export async function submitGeneration(path: string, params: Record<string, unknown>): Promise<GenerationResult> {
+  if (!higgsfieldConfigured()) throw new Error(higgsfieldStatusNote() ?? "Higgsfield is not configured.");
+
+  let { res, data, raw } = await post(path, { params });
+  if (!res.ok && (res.status === 400 || res.status === 422)) {
+    ({ res, data, raw } = await post(path, { input: params }));
+  }
+  if (!res.ok) throw new Error(apiMessage(res.status, data, raw));
+
+  const id = String(data.id ?? data.request_id ?? data.generation_id ?? "");
+  if (!id) throw new Error(`Higgsfield accepted the job but returned no id. Body: ${raw.slice(0, 200)}`);
+  return { id, status: normStatus(data.status ?? "queued"), url: extractUrl(data) };
+}
+
 /** Poll a generation's status + output URL. */
 export async function getGeneration(id: string): Promise<GenerationResult> {
+  if (!higgsfieldConfigured()) return { id, status: "failed", url: null, error: higgsfieldStatusNote() ?? "" };
   const t = withTimeout(15_000);
   try {
-    const res = await fetch(`${baseUrl()}/v1/generations/${encodeURIComponent(id)}`, {
+    const res = await fetch(`${baseUrl()}/requests/${encodeURIComponent(id)}/status`, {
       headers: authHeaders(),
       signal: t.signal,
       cache: "no-store",
     });
-    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!res.ok) {
-      return { id, status: "failed", url: null, error: `Higgsfield error ${res.status}` };
-    }
+    const raw = await res.text();
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(raw) as Record<string, unknown>; } catch { /* keep raw */ }
+    if (!res.ok) return { id, status: "failed", url: null, error: apiMessage(res.status, data, raw) };
+
+    const status = normStatus(data.status);
+    const nsfw = String(data.status ?? "").toLowerCase() === "nsfw";
     return {
       id,
-      status: normStatus(data.status),
+      status,
       url: extractUrl(data),
-      error: typeof data.error === "string" ? data.error : undefined,
+      error: nsfw
+        ? "Higgsfield's safety filter rejected this prompt. Rewrite the shot description and resubmit."
+        : typeof data.error === "string" ? data.error
+        : typeof data.detail === "string" ? data.detail
+        : undefined,
     };
   } finally {
     t.done();
   }
 }
 
-/* ---------------- prompt builders ---------------- */
+/* ---------------- model paths + prompt builders ---------------- */
 
-/** Build a video-generation body from a campaign ad cut. */
-export function videoBody(opts: {
+export function imagePath(): string {
+  return process.env.HIGGSFIELD_IMAGE_PATH?.trim() || DEFAULT_IMAGE_PATH;
+}
+
+export function videoPath(): string {
+  return process.env.HIGGSFIELD_VIDEO_PATH?.trim() || DEFAULT_VIDEO_PATH;
+}
+
+/** Soul text-to-image params. Sizes are the enum Soul accepts, not free pixels. */
+export function imageParams(opts: {
   prompt: string;
-  aspect?: string;
-  durationSec?: number;
-  inputImage?: string;
+  size?: "1536x1536" | "2048x1152" | "1152x2048";
+  quality?: "720p" | "1080p";
+  batch?: number;
+  seed?: number;
 }): Record<string, unknown> {
   return {
-    task: opts.inputImage ? "image-to-video" : "text-to-video",
-    model: process.env.HIGGSFIELD_VIDEO_MODEL?.trim() || "default-video-model",
     prompt: opts.prompt.slice(0, 2000),
-    ...(opts.inputImage ? { input_image: opts.inputImage } : {}),
-    aspect_ratio: opts.aspect || "9:16",
-    duration: opts.durationSec ?? 5,
-    fps: 24,
-    motion_intensity: "medium",
+    width_and_height: opts.size ?? "1536x1536",
+    quality: opts.quality ?? "1080p",
+    batch_size: opts.batch ?? 1,
+    ...(opts.seed != null ? { seed: opts.seed } : {}),
+    enhance_prompt: false,
   };
 }
 
-/** Build a text-to-image body for a logo. */
-export function imageBody(opts: { prompt: string; width?: number; height?: number }): Record<string, unknown> {
+/**
+ * DoP image-to-video params. `motions` is Higgsfield's camera-move vocabulary —
+ * it is the reason to use them over a generic video model, and it maps directly
+ * onto the `camera` field of a brand's visual world.
+ */
+export function videoParams(opts: {
+  prompt: string;
+  inputImage?: string;
+  motionId?: string;
+  durationSec?: 3 | 5;
+  seed?: number;
+}): Record<string, unknown> {
   return {
-    task: "text-to-image",
-    model: process.env.HIGGSFIELD_IMAGE_MODEL?.trim() || "flux",
+    model: process.env.HIGGSFIELD_VIDEO_MODEL?.trim() || "dop-turbo",
     prompt: opts.prompt.slice(0, 2000),
-    width: opts.width ?? 1024,
-    height: opts.height ?? 1024,
-    steps: 40,
+    ...(opts.inputImage ? { input_images: [{ type: "image_url", image_url: opts.inputImage }] } : {}),
+    ...(opts.motionId ? { motions: [{ id: opts.motionId }] } : {}),
+    duration: opts.durationSec ?? 5,
+    ...(opts.seed != null ? { seed: opts.seed } : {}),
+    enhance_prompt: true,
   };
 }

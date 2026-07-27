@@ -1,5 +1,5 @@
 import { requireAuth } from "@/lib/credits/server";
-import { getGeneration, higgsfieldConfigured } from "@/lib/studio/higgsfield";
+import { getGeneration, higgsfieldConfigured, higgsfieldStatusNote } from "@/lib/studio/higgsfield";
 
 export const runtime = "nodejs";
 
@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   if (!auth.ok) return Response.json({ error: "not_authenticated" }, { status: 401 });
 
   if (!higgsfieldConfigured()) {
-    return Response.json({ error: "not_configured" }, { status: 503 });
+    return Response.json({ error: "not_configured", message: higgsfieldStatusNote() }, { status: 503 });
   }
 
   const id = new URL(request.url).searchParams.get("id")?.trim();
