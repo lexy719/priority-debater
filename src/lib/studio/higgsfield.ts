@@ -165,17 +165,22 @@ async function post(path: string, body: Record<string, unknown>) {
  * Submit a generation job against a model path. Returns the job id — poll
  * `getGeneration` for the result.
  *
- * The parameter envelope differs by SDK generation (`params` in the REST
- * examples, `input` in the v2 JS client). Rather than guess and leave the
- * operator with an opaque 422, we send `params` and retry once with `input` if
- * the API complains about the shape.
+ * The envelope is `{ params: … }`, verified against the live API: sending
+ * `{ input: … }` returns 422 `body.params Field required`. A tolerant retry is
+ * kept in case an account is routed to an `input`-shaped model, but the FIRST
+ * error is the one reported — a retry that fails differently would otherwise
+ * bury the real validation message under "params Field required".
  */
 export async function submitGeneration(path: string, params: Record<string, unknown>): Promise<GenerationResult> {
   if (!higgsfieldConfigured()) throw new Error(higgsfieldStatusNote() ?? "Higgsfield is not configured.");
 
-  let { res, data, raw } = await post(path, { params });
+  const first = await post(path, { params });
+  let { res, data, raw } = first;
   if (!res.ok && (res.status === 400 || res.status === 422)) {
-    ({ res, data, raw } = await post(path, { input: params }));
+    const second = await post(path, { input: params });
+    // Only adopt the retry if it actually worked. Otherwise keep the original
+    // complaint, which is the one describing the caller's real mistake.
+    if (second.res.ok) ({ res, data, raw } = second);
   }
   if (!res.ok) throw new Error(apiMessage(res.status, data, raw));
 
