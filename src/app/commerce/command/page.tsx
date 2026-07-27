@@ -86,7 +86,6 @@ type Campaign = { id: string; name: string; objective: string; channels: string[
 type Landing = { id: string; headline: string; subhead: string; bullets: string[]; cta: string; sku: string | null; audience: string | null; campaignId: string | null; createdAt: string; views: number };
 type Report = { score: number; checks: { k: string; label: string; status: "PASS" | "WARN" | "FAIL"; note: string }[] };
 
-const POSTURE_C: Record<Analysis["posture"], string> = { GROW: OKB, HOLD: LIVE, FIX: WARNB };
 /** Campaign lifecycle, mirrored client-side for the action buttons. */
 const CAMPAIGN_NEXT: Record<string, string[]> = { draft: ["live", "ended"], live: ["paused", "ended"], paused: ["live", "ended"], ended: [] };
 const CAMPAIGN_C: Record<string, string> = { draft: DIMB, live: OKB, paused: WARNB, ended: FAINTB };
@@ -96,16 +95,17 @@ const WORKER_C: Record<string, string> = { MARKETING: LIVE, OPERATIONS: OKB, FIN
 
 const VIEWS = [
   "DASHBOARD", "MARKETING", "SOCIAL", "OPERATIONS", "FINANCE", "AI COMMERCE",
-  "PRODUCTS", "CUSTOMERS", "BRAIN", "AUTOMATION", "EVENTS", "SETTINGS",
+  "PRODUCTS", "CUSTOMERS", "AFTERCARE", "BRAIN", "AUTOMATION", "EVENTS", "SETTINGS",
 ] as const;
 type View = (typeof VIEWS)[number];
 /** Sidebar labels — sentence case, with acronyms preserved. */
 const NAV_LABEL: Record<View, string> = {
   DASHBOARD: "Dashboard", MARKETING: "Marketing", SOCIAL: "Social", OPERATIONS: "Operations",
   FINANCE: "Finance", "AI COMMERCE": "AI commerce", PRODUCTS: "Products", CUSTOMERS: "Customers",
-  BRAIN: "Business brain", AUTOMATION: "Automation", EVENTS: "Events", SETTINGS: "Settings",
+  AFTERCARE: "Aftercare", BRAIN: "Business brain", AUTOMATION: "Automation", EVENTS: "Events", SETTINGS: "Settings",
 };
 const TITLES: Record<View, string> = {
+  AFTERCARE: "After the sale",
   DASHBOARD: "The business at a glance",
   MARKETING: "Autonomous marketing",
   SOCIAL: "Social presence",
@@ -168,6 +168,8 @@ export default function CommerceLedger() {
   const [pUnit, setPUnit] = useState("item");
   const [openSku, setOpenSku] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
+  const [care, setCare] = useState<{ returns: Biz["aftercare"]["returns"]; questions: Biz["aftercare"]["questions"] } | null>(null);
+  const [answerDraft, setAnswerDraft] = useState<Record<string, string>>({});
   const [ePrice, setEPrice] = useState("");
   const [eStock, setEStock] = useState("");
   const [eKind, setEKind] = useState("good");
@@ -195,7 +197,7 @@ export default function CommerceLedger() {
     let alive = true;
     setAnalysis(null); setDraft(null); setBrainFull(null); setAutos(null); setReport(null); setOrderFilter("all");
     setCampaigns(null); setLandings(null); setOpenCampaign(null); setExpenses(null);
-    setPreview(null); setMetricNow(null); setOpenRule(null); setOpenSku(null);
+    setPreview(null); setMetricNow(null); setOpenRule(null); setOpenSku(null); setCare(null); setAnswerDraft({});
     setShips(biz.business.manifest.ships ?? ""); setReturns(biz.business.manifest.returns ?? "");
     setCostDraft(Object.fromEntries(biz.business.catalog.map((p) => [p.sku, biz.finance.costs[p.sku] != null ? String(biz.finance.costs[p.sku]) : ""])));
     fetch(`/api/commerce/analyse?slug=${bslug}`).then((r) => r.json()).then((d) => { if (alive && d?.ok) setAnalysis(d.analysis); }).catch(() => {});
@@ -216,6 +218,15 @@ export default function CommerceLedger() {
       .then((d) => { if (alive && d?.ok) setAutos(d.rules); }).catch(() => {});
     return () => { alive = false; };
   }, [view, bslug, autos]);
+  // The aftercare desk pulls its own detail — the dashboard only carries counts.
+  useEffect(() => {
+    if (view !== "AFTERCARE" || !bslug || care) return;
+    let alive = true;
+    fetch(`/api/commerce/aftercare?slug=${bslug}`).then((r) => r.json())
+      .then((d) => { if (alive && d?.ok) setCare({ returns: d.returns.slice().reverse(), questions: d.questions.slice().reverse() }); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [view, bslug, care]);
   // Finance view owns the expense ledger.
   useEffect(() => {
     if (view !== "FINANCE" || !bslug || expenses) return;
@@ -457,6 +468,30 @@ export default function CommerceLedger() {
     return d.detail;
   });
 
+  const decideReturn = (returnId: string, status: string) => act(`ret-${returnId}`, async () => {
+    const r = await fetch("/api/commerce/aftercare", {
+      method: "PUT", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ slug: bslug, returnId, status }),
+    });
+    const d = await r.json();
+    if (!d?.ok) return String(d?.error ?? "failed");
+    setCare({ returns: d.returns.slice().reverse(), questions: d.questions.slice().reverse() });
+    pull(slugRef.current);
+    return `${returnId} ${status}`;
+  });
+  const answerAsk = (questionId: string) => act(`ask-${questionId}`, async () => {
+    const r = await fetch("/api/commerce/aftercare", {
+      method: "PUT", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ slug: bslug, questionId, answer: answerDraft[questionId] ?? "" }),
+    });
+    const d = await r.json();
+    if (!d?.ok) return String(d?.error ?? "failed");
+    setCare({ returns: d.returns.slice().reverse(), questions: d.questions.slice().reverse() });
+    setAnswerDraft((x) => ({ ...x, [questionId]: "" }));
+    pull(slugRef.current);
+    return `${questionId} answered`;
+  });
+
   const saveCosts = () => act("costs", async () => {
     const costs: Record<string, number> = {};
     for (const [sku, v] of Object.entries(costDraft)) { const n = Number(v); if (v !== "" && Number.isFinite(n) && n >= 0) costs[sku] = n; }
@@ -476,6 +511,7 @@ export default function CommerceLedger() {
     OPERATIONS: pending + lowStock,
     FINANCE: biz.proposals.filter((p) => p.worker === "FINANCE" && p.severity !== "ok").length,
     AUTOMATION: biz.automations.fired.length + biz.automations.held.length,
+    AFTERCARE: biz.aftercare.openReturns + biz.aftercare.escalated + biz.deliveries.pending,
   } : {};
   const filteredOrders = biz ? biz.orders.recent.filter((o) => orderFilter === "all" || o.status === orderFilter) : [];
   const maxDay = biz ? Math.max(...biz.orders.daily.map((d) => d.revenue), 1) : 1;
@@ -842,7 +878,10 @@ export default function CommerceLedger() {
                     </Action>
                   </div>
 
-                  {campaigns?.length === 0 && <Thin>No campaigns yet. A campaign is a durable objective that owns its creative variants — draft one and the worker writes the creative through the brain.</Thin>}
+                  {campaigns?.length === 0 && <Nothing
+                      title="No campaigns yet."
+                      why="A campaign is a durable objective that owns its creative. Name one above and the Marketing worker writes variants through the brain, each grounded in a real product at its real price and told to differ from its siblings. Performance stays empty until a channel is connected — Commerce will not invent a click."
+                    />}
                   {(campaigns ?? []).map((c) => {
                     const open = openCampaign === c.id;
                     const winner = c.variants.find((v) => v.winner);
@@ -921,7 +960,10 @@ export default function CommerceLedger() {
                     <Action onClick={() => writeLanding(null, null)} disabled={!!busy}>{busy === "landing" ? "WRITING…" : "WRITE A PAGE"}</Action>
                   </span>
                 }>
-                  {landings?.length === 0 && <Thin>No landing pages yet. Each is written through the brain for one real product and served server-rendered by the store, so an agent following an ad link reads the same truth a human does.</Thin>}
+                  {landings?.length === 0 && <Nothing
+                      title="No landing pages yet."
+                      why="Each one is written for a single real product and served by the store as complete HTML with Product and Offer data embedded — so an agent following an ad link reads exactly what a person does. Views are counted from real renders."
+                    />}
                   {(landings ?? []).map((l) => (
                     <div key={l.id} className="py-3" style={{ borderBottom: `1px solid ${HAIRB}` }}>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -959,7 +1001,10 @@ export default function CommerceLedger() {
                 </Section>
 
                 <Section n={3} title="Audience learning" right={<span style={MICRO}>DISTILLED FROM MEASURED OUTCOMES</span>}>
-                  {!biz.brain || biz.brain.learned.length === 0 ? <Thin>Nothing learned yet — needs measured signal before it will conclude anything.</Thin>
+                  {!biz.brain || biz.brain.learned.length === 0 ? <Nothing
+                      title="Nothing learned yet."
+                      why="The brain only draws conclusions from measured outcomes — real agent reads and real orders. With too little signal it refuses to conclude rather than inventing a pattern, which is why this is empty on a young business."
+                    />
                     : biz.brain.learned.map((r) => (
                       <Row key={r.k}>
                         <Stamp text={`${r.k} ${r.kind === "do" ? "do" : "don't"}`} color={LIVE} />
@@ -1003,6 +1048,16 @@ export default function CommerceLedger() {
             {/* ══════════ 04 OPERATIONS ══════════ */}
             {view === "OPERATIONS" && (
               <>
+                <div className="mt-5 flex flex-wrap items-end gap-x-12 gap-y-6" style={{ borderTop: `2px solid ${INKB}`, paddingTop: 18 }}>
+                  <Headline value={pending} label={pending ? "ORDERS AWAITING YOUR CONFIRMATION" : "NOTHING WAITING ON YOU"} tone={pending ? WARNB : OKB} />
+                  <div className="flex flex-col gap-2 text-[13px]" style={{ color: DIMB }}>
+                    <span>{biz.orders.count} order{biz.orders.count === 1 ? "" : "s"} taken · {biz.customers.length} customer{biz.customers.length === 1 ? "" : "s"}</span>
+                    <span className="flex flex-wrap gap-1.5">
+                      {lowStock > 0 && <Stamp text={`${lowStock} SKU low or out`} color={WARNB} filled />}
+                      {agentOrders > 0 && <Stamp text={`${agentOrders} bought by agents`} color={LIVE} />}
+                    </span>
+                  </div>
+                </div>
                 <Section n={1} title="Operations worker" right={<Stamp text="operations" color={OKB} />}>
                   <Queue worker="OPERATIONS" />
                 </Section>
@@ -1053,6 +1108,18 @@ export default function CommerceLedger() {
             {/* ══════════ 05 FINANCE ══════════ */}
             {view === "FINANCE" && (
               <>
+                <div className="mt-5 flex flex-wrap items-end gap-x-12 gap-y-6" style={{ borderTop: `2px solid ${INKB}`, paddingTop: 18 }}>
+                  <Headline
+                    value={biz.finance.netProfit != null ? `€${biz.finance.netProfit.toLocaleString("en-US")}` : "—"}
+                    label={biz.finance.netProfit != null ? "NET PROFIT · REVENUE LESS COGS AND EXPENSES" : "NET PROFIT — NOT KNOWABLE YET"}
+                    tone={biz.finance.netProfit == null ? FAINTB : biz.finance.netProfit >= 0 ? OKB : FAULTB}
+                  />
+                  <div className="max-w-[46ch] text-[13px] leading-relaxed" style={{ color: DIMB }}>
+                    {biz.finance.netProfit == null
+                      ? `Revenue is measured (€${biz.finance.revenue}). Net profit needs a unit cost on every sellable — ${biz.finance.costsOnFile}/${biz.finance.skuCount} are on file — and your operating expenses. Commerce will not estimate either.`
+                      : `€${biz.finance.revenue} revenue less €${biz.finance.cogs} COGS and €${biz.finance.expenses} expenses. Every figure traces to an order id or an entry you made.`}
+                  </div>
+                </div>
                 <Section n={1} title="Finance worker" right={<Stamp text="finance" color={INKB} />}>
                   <Queue worker="FINANCE" />
                 </Section>
@@ -1116,7 +1183,10 @@ export default function CommerceLedger() {
                       {busy === "expense" ? "RECORDING…" : "RECORD"}
                     </Action>
                   </div>
-                  {expenses?.length === 0 && <Thin>No expenses recorded. Revenue and COGS are measured for you; operating costs are knowledge only you have — record them and net profit and cash flow become real.</Thin>}
+                  {expenses?.length === 0 && <Nothing
+                      title="No expenses recorded."
+                      why="Revenue and COGS are measured for you. Operating costs are the one thing only you know — rent, ads, software, your own time. Record them above and net profit and the cash-flow series become real instead of withheld."
+                    />}
                   {(expenses ?? []).map((e) => (
                     <Row key={e.id} cols="96px minmax(0,1fr) 110px 96px 80px auto">
                       <Num color={FAINTB}>{e.date}</Num>
@@ -1172,7 +1242,12 @@ export default function CommerceLedger() {
                   </FigureRow>
                 </Section>
                 <Section n={2} title="Who reads the store">
-                  {Object.keys(biz.traffic.byAgent).length === 0 ? <Thin>No AI agents have read the store yet — public hosting and feed submission is the unlock.</Thin> : (
+                  {Object.keys(biz.traffic.byAgent).length === 0 ? (
+                    <Nothing
+                      title="No AI agent has read this store yet."
+                      why="Agents arrive through discovery surfaces: a submitted product feed, a crawled sitemap, or a link somewhere they already look. Until one does, this funnel cannot start — and it is the number worth moving before any other."
+                    />
+                  ) : (
                     <>
                       {Object.entries(biz.traffic.byAgent).sort((a, b) => b[1] - a[1]).map(([a, n]) => (
                         <Row key={a} cols="150px minmax(0,1fr) 48px 110px">
@@ -1227,6 +1302,18 @@ export default function CommerceLedger() {
             {/* ══════════ 07 PRODUCTS ══════════ */}
             {view === "PRODUCTS" && (
               <>
+                <div className="mt-5 flex flex-wrap items-end gap-x-12 gap-y-6" style={{ borderTop: `2px solid ${INKB}`, paddingTop: 18 }}>
+                  <Headline value={biz.business.catalog.filter((p) => p.availability !== "Discontinued").length} label="SELLABLES ON THE SHELF" tone={INKB} />
+                  <div className="flex flex-col gap-2 text-[13px]" style={{ color: DIMB }}>
+                    <span>€{biz.finance.inventoryAtPrice.toLocaleString("en-US")} at price · {biz.finance.costsOnFile}/{biz.finance.skuCount} costed</span>
+                    <span className="flex flex-wrap gap-1.5">
+                      {biz.business.catalog.filter((p) => !p.provenance?.material && !p.provenance?.origin && p.availability !== "Discontinued").length > 0 &&
+                        <Stamp text={`${biz.business.catalog.filter((p) => !p.provenance?.material && !p.provenance?.origin && p.availability !== "Discontinued").length} without provenance`} color={WARNB} />}
+                      {biz.business.catalog.filter((p) => (biz.traffic.byProduct[p.sku] ?? 0) === 0).length > 0 &&
+                        <Stamp text={`${biz.business.catalog.filter((p) => (biz.traffic.byProduct[p.sku] ?? 0) === 0).length} never read by an agent`} color={FAINTB} />}
+                    </span>
+                  </div>
+                </div>
                 <Section n={1} title="Add to the catalog" right={<span style={MICRO}>WRITES STRAIGHT TO THE LIVE STORE</span>}>
                   <div className="flex flex-wrap items-center gap-2 py-3">
                     <input value={pName} onChange={(e) => setPName(e.target.value)} placeholder="Product name"
@@ -1391,6 +1478,14 @@ export default function CommerceLedger() {
             {/* ══════════ 08 CUSTOMERS ══════════ */}
             {view === "CUSTOMERS" && (
               <>
+                <div className="mt-5 flex flex-wrap items-end gap-x-12 gap-y-6" style={{ borderTop: `2px solid ${INKB}`, paddingTop: 18 }}>
+                  <Headline value={biz.customers.length} label={biz.customers.length === 1 ? "CUSTOMER ON THE BOOK" : "CUSTOMERS ON THE BOOK"} tone={biz.customers.length ? INKB : FAINTB} />
+                  <div className="text-[13px]" style={{ color: DIMB }}>
+                    {biz.customers.length === 0
+                      ? "One row appears per buyer, from real orders."
+                      : `${biz.customers.filter((c) => c.orders > 1).length} have bought more than once · €${Math.round(biz.customers.reduce((a, c) => a + c.revenue, 0) / biz.customers.length)} average lifetime value`}
+                  </div>
+                </div>
                 <Section n={1} title="The book" right={
                   <span style={MICRO}>
                     AVG LTV €{biz.customers.length ? Math.round(biz.customers.reduce((a, c) => a + c.revenue, 0) / biz.customers.length) : 0} ·
@@ -1398,7 +1493,10 @@ export default function CommerceLedger() {
                   </span>
                 }>
                   <Heads cols="160px minmax(0,1fr) 90px 76px 90px" labels={["CUSTOMER", "EMAIL", "ORDERS", "SEGMENT", "LTV"]} />
-                  {biz.customers.length === 0 && <Thin>No customers yet.</Thin>}
+                  {biz.customers.length === 0 && <Nothing
+                      title="No customers yet."
+                      why="This book fills from real orders — one row per buyer, with lifetime value and repeat rate counted, never estimated. Agent purchases appear here alongside human ones."
+                    />}
                   {biz.customers.map((c) => (
                     <Row key={c.email} cols="160px minmax(0,1fr) 90px 76px 90px">
                       <span className="truncate text-[13.5px] font-semibold">{c.name}</span>
@@ -1545,7 +1643,10 @@ export default function CommerceLedger() {
                     {autos?.length ?? "…"} TOTAL{(autos ?? []).some((r) => r.pending) ? ` · ${(autos ?? []).filter((r) => r.pending).length} AWAITING APPROVAL` : ""}
                   </span>
                 }>
-                  {autos?.length === 0 && <Thin>No automations armed — the OS only acts alone within limits you define.</Thin>}
+                  {autos?.length === 0 && <Nothing
+                      title="Nothing armed — the OS will not act on its own until you say so."
+                      why="A rule is a measured condition and an ordered plan. Arm one above, then press DRY RUN: it tells you exactly what would fire and why, without touching anything. Set a rule to hold for approval and it will state its plan and wait for you rather than act."
+                    />}
                   {(autos ?? []).map((r) => {
                     const open = openRule === r.id;
                     const runs = [...(r.runs ?? [])].reverse();
@@ -1621,7 +1722,10 @@ export default function CommerceLedger() {
             {view === "EVENTS" && (
               <>
                 <Section n={1} title="Everything the OS did, everything the store took" right={<span style={MICRO}>{ledger.length} ENTRIES · NEWEST FIRST</span>}>
-                  {ledger.length === 0 && <Thin>Quiet book — share the store, let agents read it.</Thin>}
+                  {ledger.length === 0 && <Nothing
+                      title="The book is empty."
+                      why="Every agent read, order, worker action and delivery lands here in order, newest first. It fills the moment anything happens — and if a line is not here, it did not happen."
+                    />}
                   {ledger.map((l, i) => (
                     <Row key={i} cols="146px 108px 92px minmax(0,1fr)">
                       <Num color={FAINTB}>{l.ts.slice(5, 10)} {l.ts.slice(11, 19)}</Num>
@@ -1640,7 +1744,129 @@ export default function CommerceLedger() {
               </>
             )}
 
-            {/* ══════════ 12 SETTINGS ══════════ */}
+            {/* ══════════ 12 AFTERCARE ══════════ */}
+            {view === "AFTERCARE" && (
+              <>
+                <div className="mt-5 flex flex-wrap items-end gap-x-12 gap-y-6" style={{ borderTop: `2px solid ${INKB}`, paddingTop: 18 }}>
+                  <Headline
+                    value={biz.deliveries.claimed}
+                    unit={`/ ${biz.deliveries.total}`}
+                    label="DELIVERIES COLLECTED"
+                    tone={biz.deliveries.total === 0 ? FAINTB : biz.deliveries.claimed === biz.deliveries.total ? OKB : WARNB}
+                  />
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[13px]" style={{ color: DIMB }}>
+                      {biz.deliveries.total === 0
+                        ? "Nothing has been delivered yet."
+                        : biz.deliveries.unclaimed > 0
+                          ? `${biz.deliveries.unclaimed} buyer(s) paid and never opened what they bought — the link may not have reached them.`
+                          : "Every buyer opened what they bought."}
+                    </span>
+                    <span className="flex flex-wrap gap-1.5">
+                      {biz.deliveries.pending > 0 && <Stamp text={`${biz.deliveries.pending} delivered empty`} color={FAULTB} filled />}
+                      {biz.aftercare.openReturns > 0 && <Stamp text={`${biz.aftercare.openReturns} return${biz.aftercare.openReturns === 1 ? "" : "s"} waiting`} color={WARNB} filled />}
+                      {biz.aftercare.escalated > 0 && <Stamp text={`${biz.aftercare.escalated} unanswered`} color={FAULTB} filled />}
+                    </span>
+                  </div>
+                </div>
+
+                <Section n={1} title="Questions" right={<span style={MICRO}>ANSWERED FROM THE RECORD, OR PASSED TO YOU</span>}>
+                  {(care?.questions ?? biz.aftercare.questions).length === 0 ? (
+                    <Nothing
+                      title="Nobody has asked anything."
+                      why="Buyers and their agents can call ask_support on this store's MCP endpoint. PDR answers from the order record and your published policy — where is it, can I cancel, what is the return window. Anything it cannot answer from real data lands here for you instead of being guessed at."
+                    />
+                  ) : (care?.questions ?? biz.aftercare.questions).map((q) => (
+                    <div key={q.id} className="py-3" style={{ borderBottom: `1px solid ${HAIRB}`, borderLeft: q.escalated ? `2px solid ${FAULTB}` : "2px solid transparent", paddingLeft: 10 }}>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                        <Stamp text={q.id} color={q.escalated ? FAULTB : DIMB} filled={q.escalated} />
+                        {q.orderId && <Num color={FAINTB}>{q.orderId}</Num>}
+                        <Num color={FAINTB}>{q.ts.slice(5, 16).replace("T", " ")}</Num>
+                        {q.escalated && <Stamp text="nobody answered this" color={FAULTB} />}
+                      </div>
+                      <div className="mt-1.5 text-pretty text-[13.5px] font-semibold">“{q.question}”</div>
+                      {q.answer && <div className="mt-1.5 text-pretty text-[13px]" style={{ color: DIMB }}>→ {q.answer}</div>}
+                      {q.escalated && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <input value={answerDraft[q.id] ?? ""} onChange={(e) => setAnswerDraft((d) => ({ ...d, [q.id]: e.target.value }))}
+                            placeholder="Answer it — this goes on the record against the order"
+                            className="h-8 min-w-[280px] flex-1 px-2.5 text-[12.5px]"
+                            style={{ fontFamily: SANS, border: `1px solid ${HAIRB}`, backgroundColor: "transparent", color: INKB, outline: "none" }} />
+                          <Action onClick={() => answerAsk(q.id)} disabled={!!busy || !(answerDraft[q.id] ?? "").trim()}>
+                            {busy === `ask-${q.id}` ? "…" : "ANSWER"}
+                          </Action>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </Section>
+
+                <Section n={2} title="Returns" right={<span style={MICRO}>JUDGED AGAINST YOUR PUBLISHED POLICY</span>}>
+                  {(care?.returns ?? biz.aftercare.returns).length === 0 ? (
+                    <Nothing
+                      title="No returns requested."
+                      why={`A buyer's agent can call request_return and PDR judges it against what you actually published — "${biz.business.manifest.returns ?? "30 days, unopened"}". Inside the window it lands here for you to approve and refund; outside it, or on a digital item your policy does not cover, it is declined with the reason.`}
+                    />
+                  ) : (care?.returns ?? biz.aftercare.returns).map((r) => (
+                    <div key={r.id} className="py-3" style={{ borderBottom: `1px solid ${HAIRB}`, borderLeft: r.status === "requested" ? `2px solid ${WARNB}` : "2px solid transparent", paddingLeft: 10 }}>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                        <Stamp text={r.id} color={DIMB} />
+                        <Num color={FAINTB}>{r.orderId}</Num>
+                        <Stamp
+                          text={r.status}
+                          color={r.status === "refunded" ? OKB : r.status === "approved" ? LIVE : r.status === "declined" ? FAINTB : WARNB}
+                          filled={r.status === "requested"}
+                        />
+                        <Num color={FAINTB}>{r.ts.slice(5, 16).replace("T", " ")}</Num>
+                        {r.status === "requested" && (
+                          <span className="ml-auto flex flex-wrap gap-1.5">
+                            <Pick onClick={() => decideReturn(r.id, "approved")} disabled={!!busy} active>Approve</Pick>
+                            <Pick onClick={() => decideReturn(r.id, "refunded")} disabled={!!busy}>Refunded</Pick>
+                            <Pick onClick={() => decideReturn(r.id, "declined")} disabled={!!busy} danger>Decline</Pick>
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1.5 text-pretty text-[13px]">“{r.reason}”</div>
+                      <div className="mt-1 text-pretty text-[12.5px]" style={{ color: DIMB }}>{r.verdict}</div>
+                    </div>
+                  ))}
+                </Section>
+
+                <Section n={3} title="Deliveries" right={<span style={MICRO}>ISSUED · COLLECTED · WHAT WAS IN IT</span>}>
+                  {biz.deliveries.recent.length === 0 ? (
+                    <Nothing
+                      title="Nothing delivered yet."
+                      why="Anything that does not need packing — a file, a licence, a booking, or a document PDR writes itself — is issued the moment the order lands, on a private link. This list shows what went out and whether the buyer actually opened it."
+                    />
+                  ) : (
+                    <>
+                      <Heads cols="minmax(0,1fr) 104px 96px 116px 92px" labels={["WHAT WENT OUT", "ORDER", "KIND", "ISSUED", "COLLECTED"]} />
+                      {biz.deliveries.recent.map((d) => (
+                        <Row key={d.token} cols="minmax(0,1fr) 104px 96px 116px 92px" warn={d.kind === "pending"}>
+                          <a href={`/store/${biz.business.slug}/d/${d.token}`} target="_blank" rel="noreferrer"
+                            className="truncate text-[13.5px] font-semibold no-underline" style={{ color: INKB }}>
+                            {d.productName} <span style={{ color: LIVE }}>↗</span>
+                          </a>
+                          <Num color={FAINTB}>{d.orderId}</Num>
+                          <Stamp text={d.kind} color={d.kind === "pending" ? FAULTB : d.kind === "document" ? LIVE : DIMB} filled={d.kind === "pending"} />
+                          <Num color={FAINTB}>{d.issuedAt.slice(5, 16).replace("T", " ")}</Num>
+                          {d.claimedAt
+                            ? <Stamp text={d.claims > 1 ? `${d.claims} opens` : "opened"} color={OKB} />
+                            : <Stamp text="not opened" color={WARNB} />}
+                        </Row>
+                      ))}
+                    </>
+                  )}
+                </Section>
+
+                <AuditLine
+                  measured="deliveries issued and opened · returns judged against the published policy · every question and whether it could be answered"
+                  awaiting="refunds executed through a payment rail"
+                />
+              </>
+            )}
+
+            {/* ══════════ 13 SETTINGS ══════════ */}
             {view === "SETTINGS" && (
               <>
                 <Section n={1} title="Policies" right={<Action onClick={saveSettings} disabled={!!busy}>{busy === "settings" ? "SAVING…" : "SAVE"}</Action>}>

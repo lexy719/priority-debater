@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isStocked } from "@/lib/studio/aiStorefront";
 import { currentOwnerId } from "@/lib/commerce/owner";
 import { saveCosts } from "@/lib/studio/costRepo";
 import { recordOwnership, saveStore, slugify, type PublishedStore } from "@/lib/studio/storeRepo";
@@ -30,8 +31,11 @@ export async function POST(req: Request) {
   if (!store?.brand?.name || !store?.brand?.domain || !Array.isArray(store.products) || store.products.length === 0) {
     return NextResponse.json({ ok: false, error: "invalid store" }, { status: 400 });
   }
-  // Inventory: every SKU launches with stock on hand (Ops Agent manages it).
-  store.products = store.products.map((p) => ({ ...p, stock: p.stock ?? 24 }));
+  // Inventory: only a physical good has a shelf. A file, a service or a pass
+  // launches with no stock at all — giving them one made a downloads business
+  // report thousands of euros of inventory it does not have.
+  store.products = store.products.map((p) =>
+    isStocked(p.kind) ? { ...p, stock: p.stock ?? 24 } : { ...p, stock: undefined });
   const slug = slugify(store.brand.name, hash6(store.brand.domain + store.products.length));
   // Whoever fabricated it owns it. No session (or auth unreachable) means the
   // business joins the demo estate rather than becoming nobody's.

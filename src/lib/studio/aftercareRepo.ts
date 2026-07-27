@@ -177,3 +177,14 @@ export async function recordQuestion(slug: string, input: { orderId: string | nu
   await writeAll(slug, a);
   return q;
 }
+
+/** The owner answers what the machine could not. */
+export async function answerQuestion(slug: string, id: string, answer: string): Promise<SupportQuestion | null> {
+  const a = await readAll(slug);
+  const q = a.questions.find((x) => x.id === id);
+  if (!q) return null;
+  q.answer = answer.slice(0, 1200);
+  q.escalated = false;
+  await writeAll(slug, a);
+  return q;
+}
