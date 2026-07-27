@@ -3,6 +3,7 @@ import { recordActivity } from "@/lib/studio/activityRepo";
 import { classifyAgent } from "@/lib/studio/hitRepo";
 import { orderId, saveOrder, type StoreOrder } from "@/lib/studio/orderRepo";
 import { shipsPhysically } from "@/lib/studio/aiStorefront";
+import { generateArtefact, loadArtefact } from "@/lib/studio/artefactRepo";
 import { issueDelivery } from "@/lib/studio/deliveryRepo";
 import { orderConfirmation, send } from "@/lib/studio/mailer";
 import { adjustStock, loadStore } from "@/lib/studio/storeRepo";
@@ -82,12 +83,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   const left = await adjustStock(slug, sku, qty);
   await recordActivity(slug, "OPERATIONS", `Order ${order.id} received — ${p.name} ×${qty} via ${order.channel === "agent-json" ? order.agent : "web"}${left != null ? ` · stock ${left}` : ""}${left === 0 ? " · SKU NOW OUT OF STOCK" : ""}`, "auto");
 
+  // If the seller attached nothing, PDR makes the thing it sold. A digital
+  // business it runs end to end cannot hand over a link to a file nobody wrote.
+  let produced = false;
+  if (!needsAddress && !(p.delivery ?? "").trim() && (p.kind ?? "digital") !== "service") {
+    const have = await loadArtefact(slug, sku);
+    const made = have ?? await generateArtefact(slug, {
+      sku, name: p.name, description: p.description, price: p.price,
+      brand: s.store.brand.fullName, audience: s.store.brand.audience, positioning: s.store.brand.positioning,
+    });
+    produced = !("error" in (made as object));
+  }
   // Nothing to pack: a file, a licence or a booking is issued in the same
   // breath as the order, which is what lets this lane close without a human.
   const delivery = !needsAddress
     ? await issueDelivery(slug, {
         orderId: order.id, sku, productName: p.name, buyerEmail: order.buyer.email,
-        kind: (p.kind ?? "digital") as "digital" | "service" | "access", attached: p.delivery ?? null, qty,
+        kind: (p.kind ?? "digital") as "digital" | "service" | "access", attached: p.delivery ?? null, qty, produced,
       })
     : null;
   if (delivery) {

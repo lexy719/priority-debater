@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { loadArtefact } from "@/lib/studio/artefactRepo";
 import { claimDelivery, loadDelivery } from "@/lib/studio/deliveryRepo";
 import { loadBusinessStore } from "@/lib/studio/businessSource";
 import { MONO, StoreFooter, StoreHeader, mkTheme } from "../../store-ui";
@@ -26,6 +27,8 @@ export default async function DeliveryPage({ params }: Params) {
   const [s, d0] = await Promise.all([loadBusinessStore(slug), loadDelivery(slug, token)]);
   if (!s || !d0) notFound();
   const d = (await claimDelivery(slug, token)) ?? d0;
+  // When PDR produced the thing itself, the delivery IS the document.
+  const doc = d.kind === "document" ? await loadArtefact(slug, d.sku) : null;
   const { b, hair, sub, label } = mkTheme(s);
   const isUrl = d.payload != null && /^https?:\/\//i.test(d.payload);
 
@@ -47,6 +50,21 @@ export default async function DeliveryPage({ params }: Params) {
             <div style={{ marginTop: 22, border: `1px solid ${hair}`, padding: "16px 18px" }}>
               <div style={{ ...label, letterSpacing: "0.12em" }}>NOTHING ATTACHED YET</div>
               <p style={{ margin: "8px 0 0", fontSize: 14, lineHeight: 1.6, color: sub }}>{d.note}</p>
+            </div>
+          )}
+
+          {doc && (
+            <div style={{ marginTop: 22 }}>
+              <a href={`/store/${slug}/d/${token}/file`}
+                style={{ fontFamily: MONO, backgroundColor: b.accent, color: b.onAccent, fontWeight: 800, fontSize: 14, textTransform: "uppercase", letterSpacing: "0.12em", padding: "16px 30px", textDecoration: "none", display: "inline-block" }}>
+                DOWNLOAD · {doc.words} WORDS
+              </a>
+              <div style={{ ...label, letterSpacing: "0.12em", marginTop: 10 }}>
+                PRODUCED {doc.generatedAt.slice(0, 16).replace("T", " ")} UTC · READ IT BELOW OR KEEP THE FILE
+              </div>
+              <article style={{ marginTop: 24, borderTop: `1px solid ${hair}`, paddingTop: 20, fontSize: 15, lineHeight: 1.7, whiteSpace: "pre-wrap", maxWidth: "70ch" }}>
+                {doc.body}
+              </article>
             </div>
           )}
 

@@ -16,7 +16,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { blobConfigured, getJson, putJson } from "./blobStore";
 
-export type DeliveryKind = "file" | "licence" | "booking" | "pending";
+export type DeliveryKind = "document" | "file" | "licence" | "booking" | "pending";
 
 export type Delivery = {
   /** Unguessable token — the delivery URL is the credential. */
@@ -71,6 +71,8 @@ function token(seed: string): string {
 export async function issueDelivery(slug: string, input: {
   orderId: string; sku: string; productName: string; buyerEmail: string;
   kind: "digital" | "service" | "access"; attached?: string | null; qty?: number;
+  /** True when PDR produced the deliverable itself and it is served from here. */
+  produced?: boolean;
 }): Promise<Delivery> {
   const attached = (input.attached ?? "").trim();
   const isUrl = /^https?:\/\//i.test(attached);
@@ -80,11 +82,14 @@ export async function issueDelivery(slug: string, input: {
     sku: input.sku,
     productName: input.productName,
     buyerEmail: input.buyerEmail,
-    kind: attached ? (isUrl ? "file" : input.kind === "service" ? "booking" : "licence") : "pending",
-    payload: attached
-      ? (isUrl || input.kind === "service" ? attached : `${attached}-${token(input.orderId).slice(0, 8).toUpperCase()}`)
-      : null,
-    note: attached ? null
+    kind: input.produced ? "document"
+      : attached ? (isUrl ? "file" : input.kind === "service" ? "booking" : "licence")
+      : "pending",
+    payload: input.produced ? null
+      : attached
+        ? (isUrl || input.kind === "service" ? attached : `${attached}-${token(input.orderId).slice(0, 8).toUpperCase()}`)
+        : null,
+    note: input.produced ? null : attached ? null
       : input.kind === "service"
         ? "The seller has not published scheduling instructions for this service yet — they have been notified and will confirm by email."
         : "The seller has not attached a file or licence to this product yet — they have been notified. This page becomes the delivery the moment they do.",

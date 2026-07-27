@@ -5,6 +5,7 @@ import { orderConfirmation, send as sendMail } from "@/lib/studio/mailer";
 import { classifyAgent, recordHit } from "@/lib/studio/hitRepo";
 import { loadFulfilmentRecord, loadOrder, orderId, saveOrder, updateOrderStatus, type StoreOrder } from "@/lib/studio/orderRepo";
 import { deliveryForOrder, issueDelivery } from "@/lib/studio/deliveryRepo";
+import { generateArtefact, loadArtefact } from "@/lib/studio/artefactRepo";
 import { answerFromRecord, recordQuestion, requestReturn } from "@/lib/studio/aftercareRepo";
 import { adjustStock,  } from "@/lib/studio/storeRepo";
 import { loadBusiness, loadBusinessStore } from "@/lib/studio/businessSource";
@@ -350,10 +351,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
         return ok(id, textResult({ ok: false, error: (e as Error).message }));
       }
       const left = await adjustStock(slug, sku, qty);
+      // If the seller attached nothing, PDR makes the thing it sold. A digital
+          // business it runs end to end cannot hand over a link to a file nobody wrote.
+      let produced = false;
+      if (!needsAddress && !(p.delivery ?? "").trim() && (p.kind ?? "digital") !== "service") {
+        const have = await loadArtefact(slug, sku);
+        const made = have ?? await generateArtefact(slug, {
+          sku, name: p.name, description: p.description, price: p.price,
+          brand: s.store.brand.fullName, audience: s.store.brand.audience, positioning: s.store.brand.positioning,
+        });
+        produced = !("error" in (made as object));
+      }
       const delivery = !needsAddress
         ? await issueDelivery(slug, {
             orderId: order.id, sku, productName: p.name, buyerEmail: order.buyer.email,
-            kind: (p.kind ?? "digital") as "digital" | "service" | "access", attached: p.delivery ?? null, qty,
+            kind: (p.kind ?? "digital") as "digital" | "service" | "access", attached: p.delivery ?? null, qty, produced,
           })
         : null;
       const mail = await sendMail({
