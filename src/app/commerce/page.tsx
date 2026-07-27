@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ScanHero from "./scan-hero";
 
 /**
  * PDR Commerce — landing (`/commerce`).
@@ -60,11 +61,13 @@ export default function CommerceLanding() {
             explains what is happening, recommends improvements, executes approved work through specialised AI
             workers, and gets smarter from every outcome.
           </p>
-          <div className="mt-9 flex flex-wrap items-center gap-4">
-            <Link href="/commerce/visibility" className="px-6 py-3.5 text-[12.5px] font-semibold no-underline" style={{ backgroundColor: INKB, color: PAPER }}>CHECK IF AI CAN BUY FROM YOU — FREE →</Link>
-            <Link href="/commerce/command" className="px-6 py-3.5 text-[12.5px] font-semibold no-underline" style={{ border: `1px solid ${HAIRB}`, color: DIMB }}>Open the operating system ↗</Link>
+          {/* The audit is the only thing here that works on someone who has
+              never heard of PDR, so it gets the input rather than a button
+              promising an input on the next page. */}
+          <ScanHero />
+          <div className="mt-5">
+            <Link href="/commerce/command" className="inline-block px-6 py-3.5 text-[12.5px] font-semibold no-underline" style={{ border: `1px solid ${HAIRB}`, color: DIMB }}>Open the operating system ↗</Link>
           </div>
-          <div className="mt-3" style={MICRO}>NO ACCOUNT · ANY STORE URL · EVERY FINDING A REAL HTTP RESPONSE</div>
           <div className="mt-12 grid gap-y-6" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", borderTop: `1px solid ${HAIRB}`, borderBottom: `1px solid ${HAIRB}`, paddingTop: 18, paddingBottom: 18 }}>
             {[["VALIDATION", "CONFIDENCE", DIMB], ["STUDIO", "ASSETS", DIMB], ["COMMERCE", "RESULTS", LIVE]].map(([a, b, c]) => (
               <div key={a}>

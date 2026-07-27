@@ -61,6 +61,40 @@ function buildPrompt(kit: SeedKit): string {
   ].join("\n");
 }
 
+type SeedJson = {
+  rules?: { kind: "do" | "dont"; txt: string; domain?: "copy" | "video" }[];
+  visual?: { setting: string; lighting: string; materials: string; camera: string; avoid: string };
+};
+
+/**
+ * One call to Claude. Returns the parsed object, or null if the model produced
+ * something that is not JSON — which it occasionally does, usually an unescaped
+ * quote inside a rule. The caller retries rather than losing the seed.
+ */
+async function attempt(kit: SeedKit, key: string, strict: boolean, signal: AbortSignal): Promise<SeedJson | null> {
+  const prompt = strict
+    ? buildPrompt(kit)
+      + "\n\nYOUR LAST ATTEMPT WAS NOT VALID JSON. Emit ONE object and nothing else."
+      + " Escape every quote inside a string. Use no apostrophes, no newlines inside strings,"
+      + " no trailing commas, and no text before or after the object."
+    : buildPrompt(kit);
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: MODEL, max_tokens: 1400, messages: [{ role: "user", content: prompt }] }),
+    signal,
+  });
+  if (!r.ok) throw new Error(`anthropic ${r.status}`);
+  const data = (await r.json()) as { content?: { type: string; text?: string }[] };
+  const text = (data.content ?? []).map((b) => (b.type === "text" ? b.text ?? "" : "")).join("");
+  const match = text.match(/\{[\s\S]*\}/);
+  try {
+    return JSON.parse(match ? match[0] : text) as SeedJson;
+  } catch {
+    return null;
+  }
+}
+
 export async function seedBrain(kit: SeedKit, slug?: string, timeoutMs = 45_000): Promise<SeedOutcome> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return { ok: false, error: "ANTHROPIC_API_KEY missing" };
@@ -69,20 +103,12 @@ export async function seedBrain(kit: SeedKit, slug?: string, timeoutMs = 45_000)
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: MODEL, max_tokens: 1400, messages: [{ role: "user", content: buildPrompt(kit) }] }),
-      signal: ctrl.signal,
-    });
-    if (!r.ok) return { ok: false, error: `anthropic ${r.status}` };
-    const data = (await r.json()) as { content?: { type: string; text?: string }[] };
-    const text = (data.content ?? []).map((b) => (b.type === "text" ? b.text ?? "" : "")).join("");
-    const match = text.match(/\{[\s\S]*\}/);
-    const parsed = JSON.parse(match ? match[0] : text) as {
-      rules?: { kind: "do" | "dont"; txt: string; domain?: "copy" | "video" }[];
-      visual?: { setting: string; lighting: string; materials: string; camera: string; avoid: string };
-    };
+    // Malformed JSON is not rare enough to ignore: one business in five came
+    // back unparseable on the first pass, and a silent failure here leaves a
+    // company permanently voiceless. Ask again, saying what went wrong.
+    const parsed = (await attempt(kit, key, false, ctrl.signal))
+      ?? (await attempt(kit, key, true, ctrl.signal));
+    if (!parsed) return { ok: false, error: "the model did not return valid JSON twice running" };
     let brain = await seedCompanyRules(kit.projectCode, parsed.rules ?? []);
     if (parsed.visual) brain = (await setVisualWorld(kit.projectCode, parsed.visual)) ?? brain;
     if (!brain) return { ok: false, error: "bad code" };
