@@ -3,6 +3,7 @@ import { recordActivity } from "@/lib/studio/activityRepo";
 import { classifyAgent } from "@/lib/studio/hitRepo";
 import { orderId, saveOrder, type StoreOrder } from "@/lib/studio/orderRepo";
 import { shipsPhysically } from "@/lib/studio/aiStorefront";
+import { issueDelivery } from "@/lib/studio/deliveryRepo";
 import { orderConfirmation, send } from "@/lib/studio/mailer";
 import { adjustStock, loadStore } from "@/lib/studio/storeRepo";
 
@@ -81,6 +82,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   const left = await adjustStock(slug, sku, qty);
   await recordActivity(slug, "OPERATIONS", `Order ${order.id} received — ${p.name} ×${qty} via ${order.channel === "agent-json" ? order.agent : "web"}${left != null ? ` · stock ${left}` : ""}${left === 0 ? " · SKU NOW OUT OF STOCK" : ""}`, "auto");
 
+  // Nothing to pack: a file, a licence or a booking is issued in the same
+  // breath as the order, which is what lets this lane close without a human.
+  const delivery = !needsAddress
+    ? await issueDelivery(slug, {
+        orderId: order.id, sku, productName: p.name, buyerEmail: order.buyer.email,
+        kind: (p.kind ?? "digital") as "digital" | "service" | "access", attached: p.delivery ?? null, qty,
+      })
+    : null;
+  if (delivery) {
+    await recordActivity(slug, "OPERATIONS",
+      delivery.kind === "pending"
+        ? `Delivery issued for ${order.id} but nothing is attached to ${sku} — the buyer has a record, not a file`
+        : `Delivered ${sku} for ${order.id} instantly (${delivery.kind})`, "auto");
+  }
   const confirmation = `/store/${slug}/order/${order.id}`;
   // Tell the buyer, for real. If no provider is configured nothing is sent and
   // the ledger says so — the store never claims a message it did not send.
@@ -102,7 +117,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
 
   if (isJson) {
     const total = p.priceValue != null ? `${(p.priceValue * qty).toFixed(2)} ${p.currency ?? "EUR"}` : p.price;
-    return NextResponse.json({ ok: true, orderId: order.id, status: "received", sku, qty, total, confirmation, emailed: mail.sent, emailNote: mail.reason });
+    return NextResponse.json({ ok: true, orderId: order.id, status: "received", sku, qty, total, confirmation, emailed: mail.sent, emailNote: mail.reason, ...(delivery ? { deliveryUrl: `/store/${slug}/d/${delivery.token}`, deliveryKind: delivery.kind, deliveryNote: delivery.note } : {}) });
   }
   return NextResponse.redirect(new URL(confirmation, req.url), 303);
 }

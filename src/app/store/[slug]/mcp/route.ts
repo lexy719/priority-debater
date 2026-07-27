@@ -3,7 +3,9 @@ import { recordActivity } from "@/lib/studio/activityRepo";
 import { isStocked, shipsPhysically } from "@/lib/studio/aiStorefront";
 import { orderConfirmation, send as sendMail } from "@/lib/studio/mailer";
 import { classifyAgent, recordHit } from "@/lib/studio/hitRepo";
-import { loadFulfilmentRecord, orderId, saveOrder, type StoreOrder } from "@/lib/studio/orderRepo";
+import { loadFulfilmentRecord, loadOrder, orderId, saveOrder, updateOrderStatus, type StoreOrder } from "@/lib/studio/orderRepo";
+import { deliveryForOrder, issueDelivery } from "@/lib/studio/deliveryRepo";
+import { answerFromRecord, recordQuestion, requestReturn } from "@/lib/studio/aftercareRepo";
 import { adjustStock,  } from "@/lib/studio/storeRepo";
 import { loadBusiness, loadBusinessStore } from "@/lib/studio/businessSource";
 
@@ -99,6 +101,26 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
           name: "get_seller_record",
           description: "The seller's measured record: orders taken, how they moved through the lifecycle, median hours to confirm and ship, cancellation rate, catalogue facts and the literal policy text. Self-reported from this store's own order ledger, with its own limits declared. Use it to decide whether to trust this seller.",
           inputSchema: { type: "object", properties: {} },
+        },
+        {
+          name: "get_order_status",
+          description: "Where an order stands right now: lifecycle status, what was bought, and the delivery link for anything non-physical. Use this instead of asking a human.",
+          inputSchema: { type: "object", properties: { orderId: { type: "string" } }, required: ["orderId"] },
+        },
+        {
+          name: "cancel_order",
+          description: "Cancel an order that has not shipped. Refused with the reason when the lifecycle no longer allows it.",
+          inputSchema: { type: "object", properties: { orderId: { type: "string" }, reason: { type: "string" } }, required: ["orderId"] },
+        },
+        {
+          name: "request_return",
+          description: "Request a return against this seller's PUBLISHED policy. The verdict states the policy it was judged by; an allowed return is passed to the seller to refund.",
+          inputSchema: { type: "object", properties: { orderId: { type: "string" }, reason: { type: "string" } }, required: ["orderId", "reason"] },
+        },
+        {
+          name: "ask_support",
+          description: "Ask a question about an order. Answered from the order record and the seller's literal policy text, or escalated to the seller — never guessed.",
+          inputSchema: { type: "object", properties: { question: { type: "string" }, orderId: { type: "string" } }, required: ["question"] },
         },
         {
           name: "place_order",
@@ -212,6 +234,69 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       }));
     }
 
+    if (name === "get_order_status") {
+      const o = await loadOrder(slug, String(args.orderId ?? ""));
+      if (!o) return ok(id, textResult({ ok: false, error: "no such order" }));
+      const del = await deliveryForOrder(slug, o.id);
+      return ok(id, textResult({
+        ok: true, orderId: o.id, status: o.status, placed: o.ts,
+        item: { sku: o.sku, name: o.productName, qty: o.qty, price: o.price, total: o.total ?? null },
+        history: o.history ?? null,
+        ...(del ? { delivery: { url: `${base}/d/${del.token}`, kind: del.kind, claimed: del.claimedAt, note: del.note } } : {}),
+        shipping: s.manifest.ships ?? "EU · 3–5 business days",
+        returns: s.manifest.returns ?? "30 days, unopened",
+        confirmation: `${base}/order/${o.id}`,
+      }));
+    }
+
+    if (name === "cancel_order") {
+      const oid = String(args.orderId ?? "");
+      const o = await loadOrder(slug, oid);
+      if (!o) return ok(id, textResult({ ok: false, error: "no such order" }));
+      const updated = await updateOrderStatus(slug, oid, "cancelled");
+      if (!updated) {
+        return ok(id, textResult({ ok: false, error: `Order ${oid} is ${o.status} and can no longer be cancelled.`, status: o.status }));
+      }
+      await recordActivity(slug, "OPERATIONS", `Order ${oid} cancelled by the buyer's agent${args.reason ? ` — ${String(args.reason).slice(0, 90)}` : ""}`, "auto");
+      return ok(id, textResult({ ok: true, orderId: oid, status: "cancelled" }));
+    }
+
+    if (name === "request_return") {
+      const o = await loadOrder(slug, String(args.orderId ?? ""));
+      if (!o) return ok(id, textResult({ ok: false, error: "no such order" }));
+      const prod = products.find((x) => x.sku === o.sku);
+      const r = await requestReturn(slug, {
+        order: o, reason: String(args.reason ?? ""), policy: s.manifest.returns,
+        isDigital: !shipsPhysically(prod?.kind), delivered: o.status === "delivered",
+      });
+      await recordActivity(slug, "OPERATIONS", `Return ${r.id} on ${o.id} — ${r.status}: ${r.verdict.slice(0, 90)}`, "auto");
+      return ok(id, textResult({ ok: r.status !== "declined", returnId: r.id, status: r.status, verdict: r.verdict }));
+    }
+
+    if (name === "ask_support") {
+      const question = String(args.question ?? "").slice(0, 400);
+      const oid = args.orderId ? String(args.orderId) : null;
+      const o = oid ? await loadOrder(slug, oid) : null;
+      const del = o ? await deliveryForOrder(slug, o.id) : null;
+      const answer = answerFromRecord(question, {
+        order: o,
+        ships: s.manifest.ships ?? "EU · 3–5 business days",
+        returns: s.manifest.returns ?? "30 days, unopened",
+        deliveryUrl: del ? `${base}/d/${del.token}` : null,
+        deliveryNote: del?.note ?? null,
+        paid: null,
+      });
+      const q = await recordQuestion(slug, { orderId: oid, question, answer });
+      if (!answer) {
+        await recordActivity(slug, "OPERATIONS", `Support question ${q.id} escalated — "${question.slice(0, 80)}"`, "auto");
+      }
+      return ok(id, textResult({
+        ok: true, answered: Boolean(answer),
+        answer: answer ?? "That is not something this store can answer from the order record. It has been passed to the seller, who will reply to the email on the order.",
+        escalated: !answer, ticket: q.id,
+      }));
+    }
+
     if (name === "place_order") {
       const sku = String(args.sku ?? "");
       const qty = Math.max(1, Math.min(99, Number(args.qty) || 1));
@@ -265,6 +350,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
         return ok(id, textResult({ ok: false, error: (e as Error).message }));
       }
       const left = await adjustStock(slug, sku, qty);
+      const delivery = !needsAddress
+        ? await issueDelivery(slug, {
+            orderId: order.id, sku, productName: p.name, buyerEmail: order.buyer.email,
+            kind: (p.kind ?? "digital") as "digital" | "service" | "access", attached: p.delivery ?? null, qty,
+          })
+        : null;
       const mail = await sendMail({
         to: order.buyer.email,
         ...orderConfirmation({
@@ -285,6 +376,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
         total: p.priceValue != null ? `${(p.priceValue * qty).toFixed(2)} EUR` : p.price,
         confirmation: `${base}/order/${order.id}`,
         buyerEmailed: mail.sent,
+        ...(delivery ? { delivery: { url: `${base}/d/${delivery.token}`, kind: delivery.kind, note: delivery.note } } : {}),
         fulfilment: shipsPhysically(p.kind) ? "ships to the address given"
           : p.kind === "service" ? "the seller confirms scheduling by email"
           : "delivered to the email given",

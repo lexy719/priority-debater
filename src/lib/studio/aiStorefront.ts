@@ -105,6 +105,10 @@ export type StoreProduct = {
   kind?: SellableKind;
   /** What one unit of the price buys. Absent = one item. */
   unit?: PricingUnit;
+  /** What the buyer receives the moment a digital item, service or pass is
+      ordered: a URL to a file, a licence template, or scheduling instructions.
+      Absent = the delivery page says plainly that nothing is attached yet. */
+  delivery?: string;
   /** Canonical product URL on the merchant's OWN domain, for a business PDR
       operates but does not host. Absent = PDR hosts the page. Feeds, JSON-LD
       and the MCP tools must send agents here, never to a copy of somebody
