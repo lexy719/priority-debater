@@ -86,6 +86,17 @@ type Variant = { id: string; platform: string; angle: string; body: string; crea
 type Campaign = { id: string; name: string; objective: string; channels: string[]; budgetCap: number | null; status: string; createdAt: string; variants: Variant[]; fatigued?: string[] };
 type Landing = { id: string; headline: string; subhead: string; bullets: string[]; cta: string; sku: string | null; audience: string | null; campaignId: string | null; createdAt: string; views: number };
 type Report = { score: number; checks: { k: string; label: string; status: "PASS" | "WARN" | "FAIL"; note: string }[] };
+type Requirement = { key: string; label: string; status: "met" | "partial" | "unmet"; failing: string[]; fix: string };
+type Channel = {
+  id: string; name: string; why: string; status: "ready" | "blocked" | "not_applicable";
+  artefact: { label: string; path: string } | null; submit: string; requirements: Requirement[];
+  snippet?: { label: string; language: string; body: string };
+};
+type Distribution = {
+  robots: { allowed: string[]; blocked: string[] } | null; robotsNote: string | null;
+  channels: Channel[]; ready: number;
+  blockers: { channel: string; label: string; fix: string; failing: string[] }[];
+};
 
 /** Campaign lifecycle, mirrored client-side for the action buttons. */
 const CAMPAIGN_NEXT: Record<string, string[]> = { draft: ["live", "ended"], live: ["paused", "ended"], paused: ["live", "ended"], ended: [] };
@@ -102,17 +113,26 @@ type View = (typeof VIEWS)[number];
 /** Sidebar labels — sentence case, with acronyms preserved. */
 const NAV_LABEL: Record<View, string> = {
   DASHBOARD: "Dashboard", MARKETING: "Marketing", SOCIAL: "Social", OPERATIONS: "Operations",
-  FINANCE: "Finance", "AI COMMERCE": "AI commerce", PRODUCTS: "Products", CUSTOMERS: "Customers",
+  FINANCE: "Finance", "AI COMMERCE": "Acquisition", PRODUCTS: "Products", CUSTOMERS: "Customers",
   AFTERCARE: "Aftercare", BRAIN: "Business brain", AUTOMATION: "Automation", EVENTS: "Events", SETTINGS: "Settings",
 };
+
+/**
+ * Thirteen views, each one section deep, read as thirteen shallow things. These
+ * five are the business; the rest are the detail behind them. Nothing is
+ * removed — every view is still one click away — but the eye is told what
+ * actually matters, which is the difference between a product and a menu.
+ */
+const PRIMARY: readonly View[] = ["DASHBOARD", "AI COMMERCE", "MARKETING", "OPERATIONS", "AFTERCARE"];
+const SECONDARY: readonly View[] = VIEWS.filter((v) => !PRIMARY.includes(v));
 const TITLES: Record<View, string> = {
   AFTERCARE: "After the sale",
+  "AI COMMERCE": "Getting found by agents",
   DASHBOARD: "The business at a glance",
   MARKETING: "Autonomous marketing",
   SOCIAL: "Social presence",
   OPERATIONS: "Operations & fulfilment",
   FINANCE: "Financial intelligence",
-  "AI COMMERCE": "AI commerce",
   PRODUCTS: "Product intelligence",
   CUSTOMERS: "Customers",
   BRAIN: "Business brain",
@@ -150,6 +170,8 @@ export default function CommerceLedger() {
   const [costDraft, setCostDraft] = useState<Record<string, string>>({});
   const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
   const [landings, setLandings] = useState<Landing[] | null>(null);
+  const [dist, setDist] = useState<Distribution | null>(null);
+  const [openChannel, setOpenChannel] = useState<string | null>(null);
   const [cName, setCName] = useState("");
   const [cObjective, setCObjective] = useState("");
   const [cChannels, setCChannels] = useState<string[]>(["INSTAGRAM"]);
@@ -244,6 +266,16 @@ export default function CommerceLedger() {
     if (!landings) fetch(`/api/commerce/landing?slug=${bslug}`).then((r) => r.json()).then((d) => { if (alive && d?.ok) setLandings(d.landings); }).catch(() => {});
     return () => { alive = false; };
   }, [view, bslug, campaigns, landings]);
+  // Acquisition owns distribution. It reads the live robots.txt, so it is
+  // fetched only when the view opens rather than bundled into the business read
+  // that every dashboard load already pays for.
+  useEffect(() => {
+    if (view !== "AI COMMERCE" || !bslug || dist) return;
+    let alive = true;
+    fetch(`/api/commerce/distribution?slug=${bslug}`).then((r) => r.json())
+      .then((d) => { if (alive && d?.ok) setDist(d); }).catch(() => {});
+    return () => { alive = false; };
+  }, [view, bslug, dist]);
 
   const act = async (key: string, fn: () => Promise<string | null>) => {
     if (busy) return;
@@ -692,14 +724,23 @@ export default function CommerceLedger() {
         </div>
         <nav className="px-5">
           <div style={{ height: 2, backgroundColor: INKB }} />
-          {VIEWS.map((v, i) => (
-            <button key={v} onClick={() => setView(v)} className="flex w-full items-baseline gap-2.5 py-[7px] text-left"
+          {PRIMARY.map((v, i) => (
+            <button key={v} onClick={() => setView(v)} className="flex w-full items-baseline gap-2.5 py-[9px] text-left"
               style={{ borderBottom: `1px solid ${HAIRB}` }}>
               <span className="tabular-nums" style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.1em", color: view === v ? LIVE : FAINTB }}>{pad2(i + 1)}</span>
-              <span className="text-[12.5px]" style={{ color: view === v ? INKB : DIMB, fontWeight: view === v ? 700 : 400 }}>
+              <span className="text-[13.5px]" style={{ color: view === v ? INKB : DIMB, fontWeight: view === v ? 700 : 500 }}>
                 {NAV_LABEL[v]}
               </span>
               {(badge[v] ?? 0) > 0 && <span className="ml-auto"><Stamp text={String(badge[v])} color={WARNB} filled /></span>}
+            </button>
+          ))}
+          <div className="pt-4" style={MICRO}>THE DETAIL BEHIND IT</div>
+          {SECONDARY.map((v) => (
+            <button key={v} onClick={() => setView(v)} className="flex w-full items-baseline gap-2.5 py-[5px] text-left">
+              <span className="text-[12px]" style={{ color: view === v ? INKB : FAINTB, fontWeight: view === v ? 700 : 400 }}>
+                {NAV_LABEL[v]}
+              </span>
+              {(badge[v] ?? 0) > 0 && <span className="ml-auto"><Stamp text={String(badge[v])} color={WARNB} /></span>}
             </button>
           ))}
         </nav>
@@ -736,12 +777,20 @@ export default function CommerceLedger() {
                 ))}
               </div>
               <div style={{ height: 2, backgroundColor: INKB }} />
-              {VIEWS.map((v, i) => (
+              {PRIMARY.map((v, i) => (
                 <button key={v} onClick={() => { setView(v); setNavOpen(false); }}
                   className="flex w-full items-baseline gap-2.5 py-2.5 text-left" style={{ borderBottom: `1px solid ${HAIRB}` }}>
                   <span className="tabular-nums" style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.1em", color: view === v ? LIVE : FAINTB }}>{pad2(i + 1)}</span>
-                  <span className="text-[13.5px]" style={{ color: view === v ? INKB : DIMB, fontWeight: view === v ? 700 : 400 }}>{NAV_LABEL[v]}</span>
+                  <span className="text-[14.5px]" style={{ color: view === v ? INKB : DIMB, fontWeight: view === v ? 700 : 500 }}>{NAV_LABEL[v]}</span>
                   {(badge[v] ?? 0) > 0 && <span className="ml-auto"><Stamp text={String(badge[v])} color={WARNB} filled /></span>}
+                </button>
+              ))}
+              <div className="pt-4" style={MICRO}>THE DETAIL BEHIND IT</div>
+              {SECONDARY.map((v) => (
+                <button key={v} onClick={() => { setView(v); setNavOpen(false); }}
+                  className="flex w-full items-baseline gap-2.5 py-1.5 text-left">
+                  <span className="text-[13px]" style={{ color: view === v ? INKB : FAINTB, fontWeight: view === v ? 700 : 400 }}>{NAV_LABEL[v]}</span>
+                  {(badge[v] ?? 0) > 0 && <span className="ml-auto"><Stamp text={String(badge[v])} color={WARNB} /></span>}
                 </button>
               ))}
               <div className="flex flex-wrap gap-x-4 gap-y-1 pt-3">
@@ -1458,7 +1507,102 @@ export default function CommerceLedger() {
             {/* ══════════ 06 AI COMMERCE ══════════ */}
             {view === "AI COMMERCE" && (
               <>
-                <Section n={1} title="The agent funnel" right={<span style={MICRO}>DISCOVERY → RETRIEVAL → PURCHASE</span>}>
+                {/* Being legible is not the same as being listed. The audit
+                    answers "can an agent read you"; this answers "are you in
+                    the catalogues agents are sent to", which is what decides
+                    whether anybody arrives at all. */}
+                <div className="mt-5 flex flex-wrap items-end gap-x-12 gap-y-6" style={{ borderTop: `2px solid ${INKB}`, paddingTop: 18 }}>
+                  <Headline
+                    value={dist ? dist.ready : "—"}
+                    unit={dist ? `/ ${dist.channels.length}` : undefined}
+                    label="AGENT CHANNELS READY TO SUBMIT"
+                    tone={!dist ? FAINTB : dist.ready === dist.channels.length ? OKB : dist.ready ? WARNB : FAULTB}
+                  />
+                  <div className="flex max-w-[52ch] flex-col gap-2">
+                    <span className="text-[13px]" style={{ color: DIMB }}>
+                      {!dist
+                        ? "Checking every channel against its own published requirements."
+                        : dist.blockers.length === 0
+                          ? "Nothing in the catalogue is blocking a submission. What is left is the step only you can take: every one of these needs an account in your name."
+                          : `${dist.blockers.length} requirement${dist.blockers.length === 1 ? "" : "s"} must be fixed before this store can be submitted everywhere.`}
+                    </span>
+                    {dist?.robotsNote && <Stamp text={dist.robotsNote} color={WARNB} filled />}
+                    {dist?.robots && (
+                      <span className="flex flex-wrap gap-1.5">
+                        <Stamp text={`${dist.robots.allowed.length} agents allowed`} color={OKB} />
+                        {dist.robots.blocked.length > 0 && <Stamp text={`${dist.robots.blocked.length} blocked`} color={FAULTB} filled />}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <Section n={1} title="Where agents shop" right={<span style={MICRO}>EACH CHANNEL AGAINST ITS OWN SPEC</span>}>
+                  {!dist ? <Thin>Reading robots.txt and validating the catalogue against every requirement each channel publishes.</Thin>
+                    : dist.channels.map((c) => {
+                      const open = openChannel === c.id;
+                      const unmet = c.requirements.filter((r) => r.status !== "met");
+                      return (
+                        <div key={c.id} style={{ borderBottom: `1px solid ${HAIRB}` }}>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1 py-3">
+                            <Stamp
+                              text={c.status === "not_applicable" ? "n/a" : c.status}
+                              color={c.status === "ready" ? OKB : c.status === "blocked" ? FAULTB : FAINTB}
+                              filled={c.status === "blocked"}
+                            />
+                            <button onClick={() => setOpenChannel(open ? null : c.id)} className="min-w-0 text-left">
+                              <span className="text-[13.5px] font-semibold">{c.name}</span>
+                            </button>
+                            {unmet.length > 0 && <Stamp text={`${unmet.length} to fix`} color={WARNB} />}
+                            <span className="ml-auto flex flex-wrap items-center gap-2">
+                              {c.artefact && (
+                                <a href={c.artefact.path} target="_blank" rel="noreferrer" className="text-[12px] font-semibold no-underline" style={{ color: LIVE }}>
+                                  {c.artefact.label} ↗
+                                </a>
+                              )}
+                              <Pick onClick={() => setOpenChannel(open ? null : c.id)} active={open}>{open ? "Hide" : "How to submit"}</Pick>
+                            </span>
+                          </div>
+                          <div className="px-1 pb-3 text-pretty text-[12.5px] leading-snug" style={{ color: DIMB }}>{c.why}</div>
+                          {open && (
+                            <div className="px-1 pb-4">
+                              <div className="p-3 text-[12.5px] leading-relaxed" style={{ backgroundColor: INSETB }}>
+                                <span style={MICRO}>THE LAST STEP IS YOURS</span>
+                                <div className="mt-1.5">{c.submit}</div>
+                              </div>
+                              {c.snippet && (
+                                <>
+                                  <div className="mt-3" style={MICRO}>{c.snippet.label}</div>
+                                  <pre className="mt-1.5 overflow-x-auto p-3 text-[11.5px] leading-[1.6]"
+                                    style={{ backgroundColor: INSETB, fontFamily: MONO, color: INKB }}>{c.snippet.body}</pre>
+                                </>
+                              )}
+                              <div className="mt-3">
+                                <Heads cols="minmax(0,1fr) 78px" labels={["REQUIREMENT", "STATUS"]} />
+                                {c.requirements.map((r) => (
+                                  <div key={r.key} className="py-2" style={{ borderBottom: `1px solid ${HAIRB}` }}>
+                                    <div className="grid gap-x-3" style={{ gridTemplateColumns: "minmax(0,1fr) 78px" }}>
+                                      <span className="text-[13px] font-semibold">{r.label}</span>
+                                      <Stamp text={r.status} color={r.status === "met" ? OKB : r.status === "partial" ? WARNB : FAULTB} filled={r.status === "unmet"} />
+                                    </div>
+                                    {r.status !== "met" && (
+                                      <div className="mt-1 text-pretty text-[12.5px] leading-snug" style={{ color: DIMB }}>
+                                        {r.fix}
+                                        {r.failing.length > 0 && r.failing.length <= 8 && (
+                                          <span style={{ color: FAULTB }}> — {r.failing.join(", ")}</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </Section>
+
+                <Section n={2} title="The agent funnel" right={<span style={MICRO}>DISCOVERY → RETRIEVAL → PURCHASE</span>}>
                   <FigureRow cols={5}>
                     <Figure label="AGENT CRAWLS" value={biz.traffic.agents} color={LIVE} />
                     <Figure label="PRODUCT RETRIEVALS" value={biz.traffic.byKind["product"] ?? 0} color={LIVE} />
@@ -1467,7 +1611,7 @@ export default function CommerceLedger() {
                     <Figure label="READ → ORDER" value={biz.traffic.agents ? `${Math.round((agentOrders / biz.traffic.agents) * 100)}%` : "—"} />
                   </FigureRow>
                 </Section>
-                <Section n={2} title="Who reads the store">
+                <Section n={3} title="Who reads the store">
                   {Object.keys(biz.traffic.byAgent).length === 0 ? (
                     <Nothing
                       title="No AI agent has read this store yet."
@@ -1487,7 +1631,7 @@ export default function CommerceLedger() {
                     </>
                   )}
                 </Section>
-                <Section n={3} title="Readiness" right={<Action onClick={runReadiness} disabled={!!busy}>{busy === "report" ? "CRAWLING…" : "RUN CHECK"}</Action>}>
+                <Section n={4} title="Readiness" right={<Action onClick={runReadiness} disabled={!!busy}>{busy === "report" ? "CRAWLING…" : "RUN CHECK"}</Action>}>
                   {!report ? <Thin>Crawls your own storefront with JavaScript off — the way GPTBot sees it — and scores structured data, feeds, robots, checkout and the order API.</Thin> : (
                     <>
                       <div className="flex items-baseline gap-4 pb-2">
@@ -1504,7 +1648,7 @@ export default function CommerceLedger() {
                     </>
                   )}
                 </Section>
-                <Section n={4} title="Visibility — what agents actually retrieve">
+                <Section n={5} title="Visibility — what agents actually retrieve">
                   <Heads cols="minmax(0,1fr) 110px auto" labels={["PRODUCT", "RETRIEVALS", "SIGNAL"]} />
                   {biz.business.catalog.map((p) => {
                     const reads = biz.traffic.byProduct[p.sku] ?? 0;
