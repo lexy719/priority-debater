@@ -15,6 +15,7 @@ import {
   Heads, INKB, INSETB, LIVE, MICRO, MONO, Nothing, Num, OKB, PAPER, Pick, Pulse, Row, SANS,
   Section, Stamp, Thin, WARNB, pad2,
 } from "./ledger-ui";
+import { MissionControl, WorkerConsole, type Capability, type DeptCard, type Mission } from "./mission";
 
 /* ── shapes ────────────────────────────────────────────────────────────── */
 type Biz = {
@@ -106,13 +107,13 @@ const STATUS_C: Record<string, string> = { received: WARNB, confirmed: LIVE, shi
 const WORKER_C: Record<string, string> = { MARKETING: LIVE, OPERATIONS: OKB, FINANCE: INKB, SYSTEM: DIMB, ORDER: OKB, AGENT: LIVE, VISITOR: FAINTB };
 
 const VIEWS = [
-  "DASHBOARD", "MARKETING", "SOCIAL", "OPERATIONS", "FINANCE", "AI COMMERCE",
+  "MISSION", "DASHBOARD", "MARKETING", "SOCIAL", "OPERATIONS", "FINANCE", "AI COMMERCE",
   "PRODUCTS", "CUSTOMERS", "AFTERCARE", "BRAIN", "AUTOMATION", "EVENTS", "SETTINGS",
 ] as const;
 type View = (typeof VIEWS)[number];
 /** Sidebar labels — sentence case, with acronyms preserved. */
 const NAV_LABEL: Record<View, string> = {
-  DASHBOARD: "Dashboard", MARKETING: "Marketing", SOCIAL: "Social", OPERATIONS: "Operations",
+  MISSION: "Mission Control", DASHBOARD: "The detail", MARKETING: "Marketing", SOCIAL: "Social", OPERATIONS: "Operations",
   FINANCE: "Finance", "AI COMMERCE": "Acquisition", PRODUCTS: "Products", CUSTOMERS: "Customers",
   AFTERCARE: "Aftercare", BRAIN: "Business brain", AUTOMATION: "Automation", EVENTS: "Events", SETTINGS: "Settings",
 };
@@ -123,9 +124,10 @@ const NAV_LABEL: Record<View, string> = {
  * removed — every view is still one click away — but the eye is told what
  * actually matters, which is the difference between a product and a menu.
  */
-const PRIMARY: readonly View[] = ["DASHBOARD", "AI COMMERCE", "MARKETING", "OPERATIONS", "AFTERCARE"];
+const PRIMARY: readonly View[] = ["MISSION", "AI COMMERCE", "MARKETING", "OPERATIONS", "AFTERCARE"];
 const SECONDARY: readonly View[] = VIEWS.filter((v) => !PRIMARY.includes(v));
 const TITLES: Record<View, string> = {
+  MISSION: "Mission Control",
   AFTERCARE: "After the sale",
   "AI COMMERCE": "Getting found by agents",
   DASHBOARD: "The business at a glance",
@@ -144,7 +146,9 @@ const TITLES: Record<View, string> = {
 export default function CommerceLedger() {
   const [biz, setBiz] = useState<Biz | null>(null);
   const [empty, setEmpty] = useState(false);
-  const [view, setView] = useState<View>("DASHBOARD");
+  // Mission Control is home. An owner opening Commerce should land on "is my
+  // business alright and does anything need me", not on a datasheet.
+  const [view, setView] = useState<View>("MISSION");
   const [slug, setSlug] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -171,6 +175,10 @@ export default function CommerceLedger() {
   const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
   const [landings, setLandings] = useState<Landing[] | null>(null);
   const [dist, setDist] = useState<Distribution | null>(null);
+  const [mission, setMission] = useState<Mission | null>(null);
+  /** Which department's console is open. null = the org chart. */
+  const [console_, setConsole] = useState<string | null>(null);
+  const [caps, setCaps] = useState<Record<string, { capabilities: Capability[]; dailySpendCap: number; currency: string }> | null>(null);
   const [openChannel, setOpenChannel] = useState<string | null>(null);
   const [cName, setCName] = useState("");
   const [cObjective, setCObjective] = useState("");
@@ -266,6 +274,31 @@ export default function CommerceLedger() {
     if (!landings) fetch(`/api/commerce/landing?slug=${bslug}`).then((r) => r.json()).then((d) => { if (alive && d?.ok) setLandings(d.landings); }).catch(() => {});
     return () => { alive = false; };
   }, [view, bslug, campaigns, landings]);
+  // Mission Control is the home view and the one an owner opens all day, so it
+  // is a small dedicated read rather than the deep intelligence assembly.
+  const loadMission = useCallback(async () => {
+    if (!bslug) return;
+    const [m, d] = await Promise.all([
+      fetch(`/api/commerce/mission?slug=${bslug}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/commerce/departments?slug=${bslug}`).then((r) => r.json()).catch(() => null),
+    ]);
+    if (m?.ok) setMission(m);
+    if (d?.ok) {
+      setCaps(Object.fromEntries(d.departments.map((x: { id: string; capabilities: Capability[]; dailySpendCap: number; currency: string }) =>
+        [x.id, { capabilities: x.capabilities, dailySpendCap: x.dailySpendCap, currency: x.currency }])));
+    }
+  }, [bslug]);
+
+  useEffect(() => {
+    if (view !== "MISSION" || !bslug) return;
+    // Keyed to the business it belongs to, not merely "is it loaded". `bslug`
+    // is derived from the business that has FINISHED loading, so it lags a
+    // click by one fetch; guarding on `mission` alone let the board keep one
+    // company's numbers under another company's name, permanently.
+    if (mission?.business.slug === bslug) return;
+    void loadMission();
+  }, [view, bslug, mission, loadMission]);
+
   // Acquisition owns distribution. It reads the live robots.txt, so it is
   // fetched only when the view opens rather than bundled into the business read
   // that every dashboard load already pays for.
@@ -276,6 +309,23 @@ export default function CommerceLedger() {
       .then((d) => { if (alive && d?.ok) setDist(d); }).catch(() => {});
     return () => { alive = false; };
   }, [view, bslug, dist]);
+
+  /** Every grant change re-reads Mission Control, because a department's state
+      depends on its authority — arming Marketing changes what its card says. */
+  const permission = async (key: string, body: Record<string, unknown>) => {
+    if (busy) return;
+    setBusy(key); setNotice(null);
+    try {
+      const r = await fetch("/api/commerce/departments", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ slug: bslug, ...body }),
+      });
+      const d = await r.json();
+      if (!d?.ok) setNotice(String(d?.error ?? "That change was refused."));
+      else { setMission(null); await loadMission(); }
+    } catch (e) { setNotice((e as Error).message); }
+    setBusy(null);
+  };
 
   const act = async (key: string, fn: () => Promise<string | null>) => {
     if (busy) return;
@@ -714,7 +764,7 @@ export default function CommerceLedger() {
           )}
           <div className="mt-1.5 flex max-h-[128px] flex-col overflow-auto">
             {biz?.roster.map((r) => (
-              <button key={r.slug} onClick={() => { setSlug(r.slug); pull(r.slug); setView("DASHBOARD"); }}
+              <button key={r.slug} onClick={() => { setSlug(r.slug); pull(r.slug); setMission(null); setCaps(null); setConsole(null); setDist(null); setView("MISSION"); }}
                 className="py-1 text-left text-[12.5px] font-medium"
                 style={{ color: r.slug === bslug ? LIVE : DIMB, borderBottom: `1px solid ${HAIRB}` }}>
                 {r.name}
@@ -725,7 +775,7 @@ export default function CommerceLedger() {
         <nav className="px-5">
           <div style={{ height: 2, backgroundColor: INKB }} />
           {PRIMARY.map((v, i) => (
-            <button key={v} onClick={() => setView(v)} className="flex w-full items-baseline gap-2.5 py-[9px] text-left"
+            <button key={v} onClick={() => { setView(v); setConsole(null); }} className="flex w-full items-baseline gap-2.5 py-[9px] text-left"
               style={{ borderBottom: `1px solid ${HAIRB}` }}>
               <span className="tabular-nums" style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.1em", color: view === v ? LIVE : FAINTB }}>{pad2(i + 1)}</span>
               <span className="text-[13.5px]" style={{ color: view === v ? INKB : DIMB, fontWeight: view === v ? 700 : 500 }}>
@@ -771,7 +821,7 @@ export default function CommerceLedger() {
               <div className="mb-3 mt-1 flex flex-wrap gap-1.5">
                 {biz?.roster.map((r) => (
                   <Pick key={r.slug} active={r.slug === bslug}
-                    onClick={() => { setSlug(r.slug); pull(r.slug); setView("DASHBOARD"); setNavOpen(false); }}>
+                    onClick={() => { setSlug(r.slug); pull(r.slug); setMission(null); setCaps(null); setConsole(null); setDist(null); setView("MISSION"); setNavOpen(false); }}>
                     {r.name}
                   </Pick>
                 ))}
@@ -819,6 +869,35 @@ export default function CommerceLedger() {
             </header>
 
             {/* ══════════ 01 DASHBOARD ══════════ */}
+            {/* ══════════ MISSION CONTROL ══════════ */}
+            {view === "MISSION" && (
+              !mission ? (
+                <Thin>Reading the business and every department\u2019s standing authority\u2026</Thin>
+              ) : console_ ? (
+                (() => {
+                  const d = mission.departments.find((x) => x.id === console_);
+                  if (!d) return <Thin>That department is not on this business.</Thin>;
+                  const c = caps?.[d.id];
+                  return (
+                    <WorkerConsole
+                      d={d as DeptCard}
+                      capabilities={c?.capabilities ?? []}
+                      spendCap={c?.dailySpendCap ?? 0}
+                      currency={c?.currency ?? "EUR"}
+                      busy={busy}
+                      onBack={() => setConsole(null)}
+                      onArm={(armed) => permission("arm", { action: armed ? "arm" : "stand_down", department: d.id })}
+                      onGrant={(capability, granted) => permission(capability, { action: granted ? "grant" : "revoke", department: d.id, capability })}
+                      onSpendCap={(cap) => permission("cap", { action: "spend_cap", department: d.id, cap })}
+                      onAct={(action) => { if (action === "brainseed" || action === "brainlearn") void execute(action); }}
+                    />
+                  );
+                })()
+              ) : (
+                <MissionControl m={mission} onOpen={(id) => setConsole(id)} />
+              )
+            )}
+
             {view === "DASHBOARD" && (
               <>
                 {/* ── the answer to "is my business alive, and what happened?" ── */}
